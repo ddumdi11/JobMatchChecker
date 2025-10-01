@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run migrate:latest:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run build:main:*)",
+      "Bash(npm run build:renderer:*)",
+      "Bash(npm run dev:main:*)",
+      "Bash(electron:*)",
+      "Bash(npx electron:*)",
+      "Bash(node:*)",
+      "Bash(npm run dev:*)",
+      "Bash(./node_modules/.bin/electron:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm install:*)",
+      "Bash(npm rebuild:*)",
+      "Bash(cat:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
