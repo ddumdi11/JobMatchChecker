@@ -66,7 +66,10 @@ export const IPC_CHANNELS = {
   // Database
   DB_BACKUP: 'db:backup',
   DB_RESTORE: 'db:restore',
-  DB_MIGRATE: 'db:migrate'
+  DB_MIGRATE: 'db:migrate',
+
+  // Testing
+  TEST_MIGRATION: 'test-migration'
 } as const;
 
 export const DEFAULT_MATCHING_PROMPT = `You are an expert career advisor and job matching assistant.

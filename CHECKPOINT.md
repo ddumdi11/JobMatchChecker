@@ -1,358 +1,251 @@
 # Job Match Checker - Entwicklungs-Checkpoint
-**Stand:** 30. September 2025, 22:50 Uhr
-**Session:** Initiales Projekt-Setup
+
+**Stand:** 1. Oktober 2025, 22:30 Uhr
+**Session:** Profile Management UI - Analyse & Problemidentifikation
 
 ---
 
-## ✅ Was wurde erfolgreich erstellt
+## ✅ Was heute erfolgreich erreicht wurde
 
-### 1. Projektstruktur (100% fertig)
-```
-JobMatchChecker/
-├── src/
-│   ├── main/              ✅ Electron Main Process
-│   │   ├── main.ts       ✅ Entry Point mit DB-Init & IPC
-│   │   ├── preload.ts    ✅ Sichere IPC-Bridge
-│   │   ├── database/
-│   │   │   ├── db.ts     ✅ SQLite-Verbindung & Backup
-│   │   │   └── migrations/
-│   │   │       ├── 20250930000001_initial_schema.js  ✅
-│   │   │       └── 20250930000002_seed_initial_data.js ✅
-│   │   └── ipc/
-│   │       └── handlers.ts  ✅ Alle IPC-Handler (Jobs, Profile, Matching)
-│   ├── renderer/          ✅ React Frontend
-│   │   ├── App.tsx       ✅ Router + Material-UI Theme
-│   │   ├── index.tsx     ✅
-│   │   ├── index.html    ✅
-│   │   └── pages/
-│   │       ├── Dashboard.tsx   ✅
-│   │       ├── JobDetail.tsx   ✅
-│   │       ├── Profile.tsx     ✅
-│   │       └── Settings.tsx    ✅
-│   └── shared/
-│       ├── types.ts      ✅ Alle TypeScript Interfaces
-│       └── constants.ts  ✅ IPC-Channels, Konstanten
-├── data/
-│   └── jobmatcher.db     ✅ SQLite-Datenbank (11 Tabellen)
-├── backups/              ✅ Backup-Verzeichnis
-├── resources/            ✅ Assets-Verzeichnis
-└── dist/                 ✅ Build-Output
-    ├── main/             ✅ Kompilierter Main Process
-    └── renderer/         ✅ Gebundelte React-App
-```
+### 1. better-sqlite3 ABI-Problem gelöst (T001)
+**Problem:** better-sqlite3 wurde für falsche Node.js-Version kompiliert
+**Lösung:** `npx electron-rebuild`
+- Tool erkennt automatisch Electron-Version und baut native Module korrekt neu
+- **Dokumentiert in:** [README.md](README.md#L48), [SOLUTION_ELECTRON.md](SOLUTION_ELECTRON.md)
+- **Hinweis:** Dies ist NICHT das später entdeckte Electron-Startup-Problem (require("electron") returns undefined), welches separat dokumentiert ist (siehe Zeilen 36-71)
 
-### 2. Datenbank-Schema (100% fertig)
-✅ **11 Tabellen erstellt:**
-- `user_profile` - Nutzerprofil (Single-User)
-- `skill_categories` - Hierarchische Skill-Kategorien
-- `skills` - Nutzer-Skills mit Levels (0-10)
-- `user_preferences` - Jobsuche-Präferenzen
-- `job_sources` - Jobbörsen (7 vordefinierte)
-- `job_offers` - Stellenangebote
-- `matching_prompts` - Versionierte AI-Prompts
-- `matching_results` - AI-Matching-Ergebnisse
-- `reports` - Generierte Reports
-- `app_settings` - Key-Value Store
-- `migration_history` - DB-Versionen
+### 2. Feature-Spezifikation vervollständigt
+**Branch:** `001-profile-management-ui`
 
-✅ **Seed-Daten:**
-- 7 Skill-Kategorien
-- 7 Job-Sources (LinkedIn, XING, Stepstone, etc.)
-- 1 Default Matching Prompt (v1.0.0)
+**Abgeschlossen:**
+- ✅ `/specify` - Feature-Spec erstellt
+- ✅ `/clarify` - 6 Clarifications beantwortet
+- ✅ `/plan` - PLAN_SUMMARY.md erstellt
+- ✅ `/tasks` - tasks.md mit 16 Tasks (T001-T016) generiert
+- ✅ `/analyze` - Top 3 Issues behoben:
+  - U1: Konkrete Acceptance Scenarios eingefügt
+  - C1: Historical Matching als out-of-scope dokumentiert
+  - A1: Alle Checklists abgehakt
 
-### 3. TypeScript-Konfiguration (100% fertig)
-✅ `tsconfig.json` - Root-Konfiguration
-✅ `tsconfig.main.json` - Main Process (CommonJS)
-✅ `tsconfig.renderer.json` - Renderer (ESNext)
-
-### 4. Build-System (95% fertig)
-✅ Vite für Renderer (React)
-✅ TypeScript Compiler für Main Process
-✅ Build-Scripts in package.json
-⚠️ **Electron-Start hat ein technisches Problem** (siehe unten)
-
-### 5. IPC-Kommunikation (100% fertig)
-✅ **Implementierte Handler:**
-- Job-Operationen: Create, Update, Delete, GetAll, GetById
-- Profile-Operationen: Create, Update, Get
-- Matching-Operationen: RunMatch, GetResults (Placeholder)
-- Settings: Get, Update
-- Database: Backup, Restore, Migrate
-
-### 6. Dependencies (100% installiert)
-✅ Alle Packages installiert (siehe package.json)
-✅ `better-sqlite3` für Electron neu kompiliert
+**Dateien:**
+- [specs/001-profile-management-ui/spec.md](specs/001-profile-management-ui/spec.md) ✅ COMPLETE
+- [specs/001-profile-management-ui/PLAN_SUMMARY.md](specs/001-profile-management-ui/PLAN_SUMMARY.md) ✅ COMPLETE
+- [specs/001-profile-management-ui/tasks.md](specs/001-profile-management-ui/tasks.md) ✅ COMPLETE
 
 ---
 
-## ⚠️ Aktuelles Problem
+## ⚠️ KRITISCHES PROBLEM - Electron startet nicht
 
-### Electron startet nicht korrekt
-**Symptom:** `require('electron')` gibt `undefined` zurück in `dist/main/main/main.js`
-
-**Fehler:**
+### Symptom
 ```
 TypeError: Cannot read properties of undefined (reading 'whenReady')
 at Object.<anonymous> (dist/main/main/main.js:81:16)
 ```
 
-**Ursache (vermutet):**
-- TypeScript-Kompilierung oder Module-Loading-Problem
-- `test-electron.js` funktioniert → Electron selbst ist OK
-- Problem liegt in der Art wie das kompilierte main.js geladen wird
+### Betroffene Build-Systeme
+**BEIDE Build-Konfigurationen sind betroffen:**
 
-**Mögliche Lösungen für nächste Session:**
-1. Electron-Vite verwenden (modernes Setup)
-2. ES Modules statt CommonJS verwenden
-3. Alternative Build-Konfiguration
-4. electron-forge verwenden
+1. **electron-vite** (`npm run dev` → verwendet electron-vite.config.ts)
+   - Kompiliert nach: `dist/main/index.js`
+   - Fehler bei Zeile 446-447
+
+2. **Legacy Build** (`dev:old` → TypeScript + concurrently)
+   - Kompiliert nach: `dist/main/main/main.js`
+   - Fehler bei Zeile 81
+
+### Ursache (vermutet)
+`require("electron")` gibt in beiden Fällen `undefined` zurück beim Modul-Import, obwohl:
+- Der Code korrekt ist: `const electron = require("electron");`
+- Electron installiert ist
+- `npx electron-rebuild` ausgeführt wurde
+- Der Code **innerhalb von Electron** läuft (nicht in Node.js)
+
+### Was NICHT das Problem ist
+- ❌ better-sqlite3 ABI-Version (das ist gelöst)
+- ❌ Fehlende Dependencies
+- ❌ `app.getAppPath()` Aufruf (wurde zurückgesetzt)
+
+### Was noch NICHT getestet wurde
+- Ob das Problem schon gestern existierte (unklar ob App jemals erfolgreich startete)
+- Alternative Build-Konfigurationen
+- Ob Electron-Version (32.0.0 vs 28.0.0) das Problem verursacht
 
 ---
 
-## 📝 Nächste Schritte (Prioritäten)
+## 📂 Projekt-Status
 
-### Kritisch (Session 2)
-1. ⚠️ **Electron-Start-Problem lösen**
-   - Option A: electron-vite installieren und konfigurieren
-   - Option B: Auf ES Modules umstellen
-   - Option C: electron-forge verwenden
+### Fertiggestellt
+- [x] Constitution & Specs
+- [x] Initiales Datenbank-Schema (2 Migrationen)
+- [x] IPC-Handler (Platzhalter)
+- [x] React-Grundgerüst (4 Pages)
+- [x] TypeScript-Konfiguration
+- [x] Feature 001 Spezifikation & Tasks
+- [x] electron-rebuild Lösung dokumentiert
 
-### Danach: MVP-Features implementieren
+### Blockiert (wegen Electron-Problem)
+- [ ] T002: Database Migration (erstellt, aber nicht getestet)
+- [ ] T003-T016: Alle weiteren Tasks
 
-#### Phase A: Profil-Management (ca. 2-3h)
+### Dateien mit ungespeicherten Änderungen
 ```
-□ UI: Profil-Erstellungs-Formular
-  - Vorname, Nachname, Email, Standort
-  - Skills hinzufügen mit Kategorie & Level
-  - Präferenzen (Gehalt, Remote, Standorte)
+Modified:
+  .claude/settings.local.json
+  CHECKPOINT.md (diese Datei)
+  README.md (electron-rebuild Doku)
+  src/main/database/db.ts (zurückgesetzt)
 
-□ Zustand Store für Profil (Zustand)
-□ IPC-Integration testen
-```
-
-#### Phase B: Job-Erfassung (ca. 2-3h)
-```
-□ UI: Job-Erfassungs-Dialog
-  - Copy-Paste Textfeld
-  - Manuelle Felder: Titel, Firma, URL, Datum
-  - Source-Auswahl (Dropdown)
-
-□ Job-Liste-Komponente
-  - Tabelle mit Material-UI DataGrid
-  - Filter (Source, Datum, Status)
-  - Sort-Funktionen
-
-□ Job-Detail-Ansicht
-  - Volltext-Anzeige
-  - Metadaten
-  - Status-Änderung
-```
-
-#### Phase C: AI-Matching Service (ca. 3-4h)
-```
-□ Claude API Service erstellen
-  - src/main/services/ai-matcher.ts
-  - Prompt-Builder (User Profile + Job)
-  - Response-Parser (JSON → MatchingResult)
-  - Error-Handling & Rate-Limiting
-
-□ Token-Tracking implementieren
-  - api_usage_log Tabelle (falls noch nicht existiert)
-  - Cost-Calculation
-  - Daily Budget Check
-
-□ UI: Matching-Anzeige
-  - Score-Visualisierung (0-100)
-  - Gap-Analyse-Liste
-  - Recommendations
-```
-
-#### Phase D: Parser-Services (ca. 2-3h)
-```
-□ LaTeX-CV-Parser
-  - unified-latex verwenden
-  - Extrahieren: Name, Skills, Experience
-
-□ PDF-Text-Parser
-  - pdf-parse verwenden
-  - Job-Text extrahieren
-
-□ Job-Text-Parser (AI-basiert)
-  - Claude API verwenden
-  - Strukturierte Daten extrahieren
-```
-
-#### Phase E: Reports & Polish (ca. 2h)
-```
-□ Report-Generator
-  - PDF-Export (puppeteer)
-  - CSV-Export (papaparse)
-  - Wochenübersicht, Monatsübersicht
-
-□ UI-Polish
-  - Lade-Zustände
-  - Error-Boundaries
-  - Notifications (Snackbars)
+Untracked:
+  SOLUTION_ELECTRON.md (✅ BEHALTEN)
+  specs/001-profile-management-ui/ (✅ BEHALTEN)
+  specs/002-profile-management-ui/ (❌ LÖSCHEN - versehentlich erstellt)
+  electron.vite.config.ts (diverse .backup/.broken Versionen)
+  bash.exe.stackdump, nul (Cleanup nötig)
 ```
 
 ---
 
-## 🔧 Technische Notizen
+## 🔍 Nächste Schritte für morgen
 
-### Build-Commands
+### Priorität 1: Electron-Start-Problem lösen
+
+**Ansatz:** Methodisch, Schritt für Schritt, ohne Spekulationen
+
+1. **Problem verstehen**
+   - Exakte Fehleranalyse: Was ist `electron` zum Zeitpunkt des Fehlers?
+   - Kompilierten Code inspizieren: Wie wird `require("electron")` behandelt?
+   - Andere Projekte als Referenz: Funktionierendes electron-vite Setup finden
+
+2. **Hypothesen testen** (einzeln, nicht parallel!)
+   - Hypothese A: Bundling-Problem (Vite/Rollup behandelt `electron` falsch)
+   - Hypothese B: Electron-Version-Inkompatibilität (32.0.0 vs 28.0.0)
+   - Hypothese C: Package.json `main` Entry Point falsch konfiguriert
+
+3. **Falls nötig: Vereinfachen**
+   - Auf einfacheres Build-Setup zurückgehen (nur TypeScript, kein Vite)
+   - Minimal-Projekt als Proof-of-Concept erstellen
+   - **Option:** Architektur vereinfachen falls zu komplex
+
+4. **Externe Hilfe**
+   - Andere AI-Modelle konsultieren (Gemini hat gestern geholfen)
+   - Electron-Community / GitHub Issues durchsuchen
+   - electron-vite Dokumentation / Issues prüfen
+
+### Priorität 2: Nach Lösung - Implementation fortsetzen
+
+Erst wenn Electron stabil läuft:
+- T002: Database Migration (Code-Dateien gelöscht, muss neu implementiert werden)
+- T003-T016: Schritt für Schritt, mit Tests nach jedem Task
+
+---
+
+## 🛠️ Technische Notizen
+
+### Funktionierende Commands
 ```bash
-# Development (wenn Electron-Problem gelöst)
-npm run dev              # Startet Vite + Electron
-
-# Separat starten (funktioniert)
-npm run dev:renderer     # Nur Vite (http://localhost:5173)
-npm run build:main       # TypeScript kompilieren
-
-# Production Build
-npm run build            # Renderer + Main
-npm run package          # Electron-Builder
+npx electron-rebuild          # Native Module neu bauen
+npm run build:main            # TypeScript kompilieren (ohne Start)
+npm run dev:renderer          # Nur Vite (Frontend)
 ```
 
-### Datenbank-Commands
+### Nicht funktionierende Commands
 ```bash
-npm run migrate:latest   # Migrationen ausführen
-npm run migrate:rollback # Letzte Migration zurückrollen
-npm run migrate:make <name> # Neue Migration erstellen
+npm run dev                   # Crasht mit electron undefined
+npm run dev:old               # Crasht mit electron undefined
+electron .                    # Crasht (kompilierter Code fehlerhaft)
 ```
 
-### Wichtige Dateien
-- **`.env`** - API-Keys (nicht committed)
-- **`knexfile.js`** - Datenbank-Konfiguration
-- **`vite.config.ts`** - Vite-Konfiguration
-- **`electron-start.js`** - Electron-Wrapper-Script
+### Build-Artefakte
+```
+dist/
+├── main/
+│   ├── index.js              # Von electron-vite (Zeile 446 crasht)
+│   └── main/
+│       └── main.js           # Von TypeScript (Zeile 81 crasht)
+├── preload/
+│   └── index.js              # OK
+└── renderer/                 # OK (Vite Dev Server läuft)
+```
 
 ---
 
-## 📊 Fortschritt-Übersicht
+## 📊 Tasks-Übersicht (Feature 001)
 
-**Gesamt-Projekt:** ~30% fertig
+**Status:** 1/16 completed, 15 blocked
 
-| Komponente | Status | Fortschritt |
-|------------|--------|-------------|
-| Projektstruktur | ✅ Fertig | 100% |
-| Datenbank | ✅ Fertig | 100% |
-| TypeScript-Setup | ✅ Fertig | 100% |
-| Build-System | ⚠️ Fast fertig | 95% |
-| IPC-Handler | ✅ Fertig | 100% |
-| React-Grundgerüst | ✅ Fertig | 100% |
-| UI-Komponenten | 🔲 Nicht gestartet | 0% |
-| AI-Service | 🔲 Nicht gestartet | 0% |
-| Parser-Services | 🔲 Nicht gestartet | 0% |
-| Reports | 🔲 Nicht gestartet | 0% |
+| Phase | Tasks | Status |
+|-------|-------|--------|
+| Setup | T001 | ✅ DONE (electron-rebuild) |
+| Database & Types | T002-T003 | ⏸️ BLOCKED |
+| Components | T004-T006 | ⏸️ BLOCKED |
+| Integration | T007 | ⏸️ BLOCKED |
+| IPC Layer | T008-T010 | ⏸️ BLOCKED |
+| State | T011 | ⏸️ BLOCKED |
+| Polish | T012-T016 | ⏸️ BLOCKED |
 
 ---
 
-## 🎯 Für nächste Session vorbereiten
+## 🚨 Lessons Learned
 
-1. **Electron-Problem recherchieren:**
-   - electron-vite Dokumentation lesen
-   - Oder: electron-forge Beispiele ansehen
+### Was gut lief
+- ✅ Systematischer Workflow (`/specify` → `/clarify` → `/plan` → `/tasks` → `/analyze`)
+- ✅ electron-rebuild als Lösung gefunden & dokumentiert
+- ✅ Saubere Spezifikation mit konkreten Acceptance Scenarios
 
-2. **API-Key bereithalten:**
-   - Claude API Key in `.env` eintragen
+### Was schief lief
+- ❌ Zu viele parallele Änderungen ohne Tests
+- ❌ Spekulationen statt systematisches Debugging
+- ❌ Unklarer Status: Lief die App jemals erfolgreich?
 
-3. **Optional: Design-Entscheidungen:**
-   - UI-Framework: Material-UI beibehalten? (empfohlen: ja)
-   - State-Management: Zustand OK? (empfohlen: ja)
+### Für morgen
+- ✅ **Kleine Schritte:** Nur eine Änderung auf einmal
+- ✅ **Testen:** Nach jeder Änderung prüfen ob es läuft
+- ✅ **Fokus:** Erst Electron-Problem lösen, dann weiter
+- ✅ **Hilfe holen:** Andere Modelle / Community bei Blockern
+- ✅ **Simplify:** Architektur vereinfachen falls nötig
 
 ---
 
-## 🚀 Empfehlung für Session 2 Start
+## 🔧 Cleanup für morgen
 
-### Workflow-Commands nutzen?
-
-**Frage:** Sollen wir `/specify`, `/plan`, `/analyze`, `/tasks` verwenden?
-
-**Antwort:** **Ja, sehr empfohlen!** Aber nicht zwingend nötig.
-
-#### Warum wir sie heute nicht verwendet haben:
-- Direkt mit Implementierung begonnen basierend auf bestehenden Specs
-- "Hands-on" Ansatz statt vorherige Planung
-- Constitution & Specs waren bereits vorhanden
-
-#### Was diese Commands bringen:
-
-**`/specify`** - Feature-Spezifikation erstellen/aktualisieren
-- Nutzen für: "Profile Management UI", "AI Matching Service"
-- Erstellt strukturierte spec.md mit Requirements
-- **Empfehlung:** Für jedes neue Feature verwenden!
-
-**`/plan`** - Implementierungsplan generieren
-- Erstellt plan.md mit Architektur-Entscheidungen
-- Design-Patterns, File-Struktur, Dependencies
-- **Empfehlung:** Vor größeren Features (AI-Service, Parser)!
-
-**`/tasks`** - Ausführbare Task-Liste generieren
-- Generiert tasks.md mit nummerierten Tasks (T001, T002...)
-- Dependency-Ordering automatisch
-- Parallel-Execution-Hinweise [P]
-- **Empfehlung:** Für strukturiertes Abarbeiten!
-
-**`/analyze`** - Konsistenz-Check
-- Prüft spec.md ↔ plan.md ↔ tasks.md
-- Findet Widersprüche & fehlende Requirements
-- **Empfehlung:** Nach jedem Milestone!
-
-#### Empfohlener Start für Session 2:
-
+**Aufräumen:**
 ```bash
-# 1. Electron-Problem lösen (30 min)
-npm run dev  # Sollte dann funktionieren
+# Löschen
+rm -rf specs/002-profile-management-ui/
+rm bash.exe.stackdump nul
+rm electron.vite.config.ts.backup electron.vite.config.ts.broken
 
-# 2. Strukturierte Feature-Entwicklung
-/specify "Profile Management UI mit Skills und Präferenzen"
-/plan
-/tasks
-# → Tasks nacheinander abarbeiten
-
-# 3. Nach Fertigstellung
-/analyze
+# Optional: Alle Background-Prozesse killen
+taskkill //F //IM electron.exe
+taskkill //F //IM node.exe  # Vorsicht: killt ALLE Node-Prozesse!
 ```
 
-**Vorteile:**
-- ✅ Strukturierter Workflow statt "herumprobieren"
-- ✅ Klare Checkliste mit Abhängigkeiten
-- ✅ Bessere Nachvollziehbarkeit
-- ✅ Automatische Konsistenz-Prüfung
+**Git-Status sauber machen:**
+```bash
+# Sinnvolle Änderungen committen
+git add README.md CHECKPOINT.md SOLUTION_ELECTRON.md
+git add specs/001-profile-management-ui/
+git commit -m "Add Profile Management UI spec and electron-rebuild solution"
 
-**Nachteile:**
-- ⏱️ Etwas mehr Vorlaufzeit (15-20 min)
-- 📝 Mehr Dokumentation
-
-**Fazit:** Für ein Projekt dieser Größe lohnt es sich definitiv!
-
----
-
-## 📚 Verwendete Technologien
-
-### Frontend
-- React 18.3.1
-- Material-UI 5.18.0
-- React Router 6.30.1
-- Zustand 4.5.7 (State Management)
-
-### Backend/Main
-- Electron 28.3.3
-- better-sqlite3 9.6.0
-- Knex 3.1.0 (Migrations)
-- @anthropic-ai/sdk 0.30.1
-
-### Build-Tools
-- Vite 5.4.20
-- TypeScript 5.9.2
-- ESLint + Prettier
-
-### Utilities
-- date-fns 3.6.0
-- zod 3.25.76 (Validation)
-- electron-log 5.4.3
+# Rest verwerfen oder stashen
+git checkout -- .
+```
 
 ---
 
-**Letzte Aktualisierung:** 2025-09-30 22:50 Uhr
-**Nächste Session:** Electron-Start-Problem lösen + UI-Entwicklung starten
+## 📞 Support-Ressourcen
+
+Falls morgen weitere Hilfe nötig:
+- **Gemini CLI:** Hat gestern electron-rebuild Lösung gefunden
+- **electron-vite Issues:** https://github.com/alex8088/electron-vite/issues
+- **Electron Discord:** https://discord.gg/electron
+- **Stack Overflow:** Tag `electron` + `vite`
+
+---
+
+**Zusammenfassung:** Gute Planungs-Arbeit geleistet, aber kritisches Electron-Problem blockiert Implementation. Morgen: Erst Problem methodisch lösen, dann Implementation fortsetzen.
+
+---
+
+*Erstellt: 2025-10-01 22:30 Uhr*
+*Nächste Session: Electron-Debugging mit systematischem Ansatz*
