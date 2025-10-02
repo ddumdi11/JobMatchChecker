@@ -64,6 +64,13 @@ export const SkillsManager: React.FC<SkillsManagerProps> = ({ skills = [], onSav
     yearsOfExperience: undefined as number | undefined
   });
 
+  // Sync incoming skills prop to localSkills (only when no unsaved changes)
+  useEffect(() => {
+    if (!hasUnsavedChanges && !editingSkill) {
+      setLocalSkills(skills);
+    }
+  }, [skills, hasUnsavedChanges, editingSkill]);
+
   // Track unsaved changes
   useEffect(() => {
     const changed = JSON.stringify(localSkills) !== JSON.stringify(skills);

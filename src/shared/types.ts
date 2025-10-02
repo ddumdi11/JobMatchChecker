@@ -44,6 +44,13 @@ export interface UserPreferences {
   preferredRemotePercentage?: number; // 0-100
   acceptableRemoteMin?: number; // 0-100
   acceptableRemoteMax?: number; // 0-100
+
+  // Job type preferences
+  jobTypes?: {
+    fullTime: boolean;
+    partTime: boolean;
+    contract: boolean;
+  };
 }
 
 // Validation helper type for remote work range

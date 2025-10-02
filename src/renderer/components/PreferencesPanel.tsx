@@ -58,10 +58,39 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [isInitialMount, setIsInitialMount] = useState(true);
 
-  // Track unsaved changes
+  // Sync incoming preferences to formData
   useEffect(() => {
-    setHasUnsavedChanges(true);
+    if (preferences) {
+      setFormData({
+        minSalary: preferences.minSalary,
+        maxSalary: preferences.maxSalary,
+        preferredLocations: preferences.preferredLocations || [],
+        locationInput: '',
+        remoteWorkPreference: preferences.remoteWorkPreference || 'flexible',
+        preferredRemotePercentage: preferences.preferredRemotePercentage ?? 50,
+        acceptableRemoteMin: preferences.acceptableRemoteMin ?? 0,
+        acceptableRemoteMax: preferences.acceptableRemoteMax ?? 100,
+        willingToRelocate: preferences.willingToRelocate || false,
+        jobTypes: {
+          fullTime: true,
+          partTime: false,
+          contract: false
+        }
+      });
+      setValidationError(null);
+      setHasUnsavedChanges(false);
+    }
+  }, [preferences]);
+
+  // Track unsaved changes (skip initial mount)
+  useEffect(() => {
+    if (isInitialMount) {
+      setIsInitialMount(false);
+    } else {
+      setHasUnsavedChanges(true);
+    }
   }, [formData]);
 
   // Validate remote work range
@@ -133,7 +162,8 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
         remoteWorkPreference: formData.remoteWorkPreference,
         preferredRemotePercentage: formData.preferredRemotePercentage,
         acceptableRemoteMin: formData.acceptableRemoteMin,
-        acceptableRemoteMax: formData.acceptableRemoteMax
+        acceptableRemoteMax: formData.acceptableRemoteMax,
+        jobTypes: formData.jobTypes
       };
 
       await onSave?.(preferencesToSave);
