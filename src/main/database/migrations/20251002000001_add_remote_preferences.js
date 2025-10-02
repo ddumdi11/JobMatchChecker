@@ -62,6 +62,10 @@ exports.up = function(knex) {
     `);
   }).then(() => {
     // Add trigger to auto-update remote_work_updated_at when remote_work_preference changes
+    // NOTE: Using AFTER UPDATE instead of BEFORE UPDATE due to SQLite limitations.
+    // SQLite does not support directly setting NEW.column values in BEFORE triggers
+    // like other databases (PostgreSQL, MySQL). The AFTER UPDATE approach with a
+    // separate UPDATE statement is the standard SQLite pattern for this use case.
     return knex.raw(`
       CREATE TRIGGER update_remote_work_timestamp_on_preference
       AFTER UPDATE OF remote_work_preference ON user_preferences
