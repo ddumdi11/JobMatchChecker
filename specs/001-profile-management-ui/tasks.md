@@ -75,39 +75,44 @@
 
 ---
 
-## Phase 3.3: React Components (All parallel - different files)
-- [ ] **T004** [P] Create ProfileForm component with auto-save
+## Phase 3.3: React Components (All parallel - different files) ✅
+- [x] **T004** [P] Create ProfileForm component with auto-save
+  - **Status**: ✅ COMPLETED (2025-10-02)
   - **File**: `src/renderer/components/ProfileForm.tsx`
   - **Features**:
     - Fields: first name, last name, email, location
     - Auto-save with 2-second debounce
-    - Email validation
-    - Loading states
-    - Success/error notifications
+    - Email validation with regex
+    - Loading states with spinner
+    - Success/error notifications (Snackbar)
   - **Dependencies**: T003 (types)
 
-- [ ] **T005** [P] Create SkillsManager component with explicit save
+- [x] **T005** [P] Create SkillsManager component with explicit save
+  - **Status**: ✅ COMPLETED (2025-10-02)
   - **File**: `src/renderer/components/SkillsManager.tsx`
   - **Features**:
-    - Add/edit/delete skills
+    - Add/edit/delete skills with dialog
     - Skill level slider (0-10)
-    - Category selection (predefined + custom)
+    - Category selection (7 predefined + custom)
     - Max 500 skills validation
     - Grouped display by category
-    - Unsaved changes warning
+    - Unsaved changes warning with beforeunload
     - Explicit save button
+    - Years of experience (optional)
   - **Dependencies**: T003 (types)
 
-- [ ] **T006** [P] Create PreferencesPanel component with remote work range
+- [x] **T006** [P] Create PreferencesPanel component with remote work range
+  - **Status**: ✅ COMPLETED (2025-10-02)
   - **File**: `src/renderer/components/PreferencesPanel.tsx`
   - **Features**:
     - Salary range inputs (min/max)
-    - Location preference (single city)
-    - Remote work preference:
-      - Preferred remote percentage slider (0-100%)
-      - Acceptable range sliders (min-max)
-      - Validation: min ≤ preferred ≤ max
+    - Location preferences with add/remove
+    - Remote work preference dropdown (4 options)
+    - Preferred remote percentage slider (0-100%)
+    - Acceptable range slider (min-max)
+    - Real-time validation: min ≤ preferred ≤ max
     - Job type checkboxes (full-time, part-time, contract)
+    - Willing to relocate checkbox
     - Explicit save button
   - **Dependencies**: T003 (types)
 
