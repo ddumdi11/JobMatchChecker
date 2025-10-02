@@ -15,9 +15,15 @@
       "Bash(npm install:*)",
       "Bash(npm rebuild:*)",
       "Bash(cat:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "SlashCommand(/clarify)",
+      "Bash(git checkout:*)",
+      "SlashCommand(/tasks)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [
+      "Bash(git push:*)"
+    ]
   }
 }

@@ -294,5 +294,73 @@ export function registerIpcHandlers() {
     }
   });
 
+  // Test migration handler
+  ipcMain.handle(IPC_CHANNELS.TEST_MIGRATION, async () => {
+    try {
+      const results: any = { tests: [] };
+
+      // Test 1: Check schema
+      const columns = db.prepare("PRAGMA table_info(user_preferences)").all();
+      const columnNames = columns.map((r: any) => r.name);
+      const expectedColumns = ['remote_work_preference', 'remote_work_updated_at'];
+      const missingColumns = expectedColumns.filter(col => !columnNames.includes(col));
+
+      results.tests.push({
+        name: 'Schema Check',
+        passed: missingColumns.length === 0,
+        details: missingColumns.length === 0
+          ? `All columns exist: ${expectedColumns.join(', ')}`
+          : `Missing columns: ${missingColumns.join(', ')}`
+      });
+
+      if (missingColumns.length > 0) {
+        return results;
+      }
+
+      // Test 2: Check current values
+      const row = db.prepare("SELECT remote_work_preference, remote_work_updated_at FROM user_preferences LIMIT 1").get() as any;
+
+      results.tests.push({
+        name: 'Current Values',
+        passed: true,
+        details: row ? `remote_work_preference: ${row.remote_work_preference}, updated_at: ${row.remote_work_updated_at}` : 'No rows yet'
+      });
+
+      if (!row) {
+        return results;
+      }
+
+      // Test 3: Test trigger
+      const beforeTimestamp = row.remote_work_updated_at;
+      const originalPreference = row.remote_work_preference;
+
+      // Wait to ensure different timestamp
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      db.prepare("UPDATE user_preferences SET remote_work_preference = ?").run('remote_only');
+
+      const afterRow = db.prepare("SELECT remote_work_preference, remote_work_updated_at FROM user_preferences LIMIT 1").get() as any;
+
+      const triggerWorked = afterRow.remote_work_updated_at !== beforeTimestamp;
+
+      // Restore original value to prevent database state mutation
+      db.prepare("UPDATE user_preferences SET remote_work_preference = ?").run(originalPreference);
+
+      results.tests.push({
+        name: 'Trigger Test',
+        passed: triggerWorked,
+        details: triggerWorked
+          ? `Timestamp updated from ${beforeTimestamp} to ${afterRow.remote_work_updated_at}`
+          : `Timestamp NOT updated (still ${afterRow.remote_work_updated_at})`
+      });
+
+      results.allPassed = results.tests.every((t: any) => t.passed);
+      return results;
+    } catch (error) {
+      log.error('Error testing migration:', error);
+      throw error;
+    }
+  });
+
   log.info('IPC handlers registered successfully');
 }
