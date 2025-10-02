@@ -162,7 +162,7 @@ exports.up = function(knex) {
 
 exports.down = function(knex) {
   // Drop triggers in reverse order
-exports.down = function(knex) {
+  return knex.raw('DROP TRIGGER IF EXISTS update_remote_work_timestamp_on_percentage')
   // Drop triggers in reverse order
   return knex.raw('DROP TRIGGER IF EXISTS update_remote_work_timestamp_on_percentage')
     .then(() => knex.raw('DROP TRIGGER IF EXISTS set_remote_work_timestamp_on_insert'))
