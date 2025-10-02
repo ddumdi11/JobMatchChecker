@@ -63,10 +63,40 @@ exports.up = function(knex) {
   }).then(() => {
     // Add trigger to auto-update remote_work_updated_at when remote_work_preference changes
     return knex.raw(`
-      CREATE TRIGGER update_remote_work_timestamp
+      CREATE TRIGGER update_remote_work_timestamp_on_preference
       AFTER UPDATE OF remote_work_preference ON user_preferences
       FOR EACH ROW
       WHEN NEW.remote_work_preference IS NOT OLD.remote_work_preference
+      BEGIN
+        UPDATE user_preferences
+        SET remote_work_updated_at = CURRENT_TIMESTAMP
+        WHERE id = NEW.id;
+      END;
+    `);
+  }).then(() => {
+    // Add trigger to set remote_work_updated_at on INSERT of percentage fields
+    return knex.raw(`
+      CREATE TRIGGER set_remote_work_timestamp_on_insert
+      AFTER INSERT ON user_preferences
+      FOR EACH ROW
+      WHEN NEW.preferred_remote_percentage IS NOT NULL
+        OR NEW.acceptable_remote_min IS NOT NULL
+        OR NEW.acceptable_remote_max IS NOT NULL
+      BEGIN
+        UPDATE user_preferences
+        SET remote_work_updated_at = CURRENT_TIMESTAMP
+        WHERE id = NEW.id;
+      END;
+    `);
+  }).then(() => {
+    // Add trigger to update remote_work_updated_at when percentage fields change
+    return knex.raw(`
+      CREATE TRIGGER update_remote_work_timestamp_on_percentage
+      AFTER UPDATE OF preferred_remote_percentage, acceptable_remote_min, acceptable_remote_max ON user_preferences
+      FOR EACH ROW
+      WHEN (NEW.preferred_remote_percentage IS NOT OLD.preferred_remote_percentage)
+        OR (NEW.acceptable_remote_min IS NOT OLD.acceptable_remote_min)
+        OR (NEW.acceptable_remote_max IS NOT OLD.acceptable_remote_max)
       BEGIN
         UPDATE user_preferences
         SET remote_work_updated_at = CURRENT_TIMESTAMP
@@ -77,10 +107,14 @@ exports.up = function(knex) {
 };
 
 exports.down = function(knex) {
-  return knex.raw('DROP TRIGGER IF EXISTS update_remote_work_timestamp')
+  // Drop triggers in reverse order
+  return knex.raw('DROP TRIGGER IF EXISTS update_remote_work_timestamp_on_percentage')
+    .then(() => knex.raw('DROP TRIGGER IF EXISTS set_remote_work_timestamp_on_insert'))
+    .then(() => knex.raw('DROP TRIGGER IF EXISTS update_remote_work_timestamp_on_preference'))
     .then(() => knex.raw('DROP TRIGGER IF EXISTS check_remote_range_update'))
     .then(() => knex.raw('DROP TRIGGER IF EXISTS check_remote_range_insert'))
     .then(() => {
+      // Drop columns in reverse order
       return knex.schema.table('user_preferences', (table) => {
         table.dropColumn('acceptable_remote_max');
         table.dropColumn('acceptable_remote_min');
