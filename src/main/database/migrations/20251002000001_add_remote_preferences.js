@@ -5,7 +5,17 @@
 
 exports.up = function(knex) {
   return knex.schema.table('user_preferences', (table) => {
-    // Add three new remote work preference fields
+    // Add remote work preference field (string-based)
+    table.string('remote_work_preference', 50)
+      .nullable()
+      .comment('Remote work preference: remote_only, hybrid, on_site, flexible');
+
+    // Add timestamp for tracking when remote_work_preference was last updated
+    table.datetime('remote_work_updated_at')
+      .nullable()
+      .comment('Timestamp when remote_work_preference was last modified');
+
+    // Add three new remote work preference fields (percentage-based)
     table.integer('preferred_remote_percentage')
       .unsigned()
       .nullable()
@@ -50,17 +60,33 @@ exports.up = function(knex) {
         SELECT RAISE(ABORT, 'Remote preference range invalid: acceptableRemoteMin <= preferredRemotePercentage <= acceptableRemoteMax required');
       END;
     `);
+  }).then(() => {
+    // Add trigger to auto-update remote_work_updated_at when remote_work_preference changes
+    return knex.raw(`
+      CREATE TRIGGER update_remote_work_timestamp
+      AFTER UPDATE OF remote_work_preference ON user_preferences
+      FOR EACH ROW
+      WHEN NEW.remote_work_preference IS NOT OLD.remote_work_preference
+      BEGIN
+        UPDATE user_preferences
+        SET remote_work_updated_at = CURRENT_TIMESTAMP
+        WHERE id = NEW.id;
+      END;
+    `);
   });
 };
 
 exports.down = function(knex) {
-  return knex.raw('DROP TRIGGER IF EXISTS check_remote_range_update')
+  return knex.raw('DROP TRIGGER IF EXISTS update_remote_work_timestamp')
+    .then(() => knex.raw('DROP TRIGGER IF EXISTS check_remote_range_update'))
     .then(() => knex.raw('DROP TRIGGER IF EXISTS check_remote_range_insert'))
     .then(() => {
       return knex.schema.table('user_preferences', (table) => {
         table.dropColumn('acceptable_remote_max');
         table.dropColumn('acceptable_remote_min');
         table.dropColumn('preferred_remote_percentage');
+        table.dropColumn('remote_work_updated_at');
+        table.dropColumn('remote_work_preference');
       });
     });
 };
