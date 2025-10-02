@@ -31,21 +31,6 @@ exports.up = function(knex) {
       .nullable()
       .comment('Maximum acceptable remote work percentage (0-100)');
   }).then(() => {
-    // Add CHECK constraint to ensure: acceptableRemoteMin <= preferredRemotePercentage <= acceptableRemoteMax
-    // SQLite syntax for adding constraint
-    return knex.raw(`
-      CREATE TRIGGER check_remote_range_insert
-      BEFORE INSERT ON user_preferences
-      FOR EACH ROW
-      WHEN NEW.acceptable_remote_min IS NOT NULL
-        AND NEW.preferred_remote_percentage IS NOT NULL
-        AND NEW.acceptable_remote_max IS NOT NULL
-        AND (NEW.acceptable_remote_min > NEW.preferred_remote_percentage
-          OR NEW.preferred_remote_percentage > NEW.acceptable_remote_max)
-      BEGIN
-        SELECT RAISE(ABORT, 'Remote preference range invalid: acceptableRemoteMin <= preferredRemotePercentage <= acceptableRemoteMax required');
-      END;
-    `);
   }).then(() => {
     return knex.raw(`
       CREATE TRIGGER check_remote_range_update
@@ -57,9 +42,61 @@ exports.up = function(knex) {
         AND (NEW.acceptable_remote_min > NEW.preferred_remote_percentage
           OR NEW.preferred_remote_percentage > NEW.acceptable_remote_max)
       BEGIN
-        SELECT RAISE(ABORT, 'Remote preference range invalid: acceptableRemoteMin <= preferredRemotePercentage <= acceptableRemoteMax required');
+        SELECT RAISE(ABORT, 'Remote preference range invalid: acceptable_remote_min <= acceptable_remote_percentage <= acceptable_remote_max required');
       END;
     `);
+  }).then(() => {
+    // Ensure acceptable_remote_min <= acceptable_remote_max when both provided
+    return knex.raw(`
+      CREATE TRIGGER check_remote_min_max_insert
+      BEFORE INSERT ON user_preferences
+      FOR EACH ROW
+      WHEN NEW.acceptable_remote_min IS NOT NULL
+        AND NEW.acceptable_remote_max IS NOT NULL
+        AND NEW.acceptable_remote_min > NEW.acceptable_remote_max
+      BEGIN
+        SELECT RAISE(ABORT, 'Remote preference range invalid: acceptable_remote_min <= acceptable_remote_max required');
+      END;
+    `);
+  }).then(() => {
+    return knex.raw(`
+      CREATE TRIGGER check_remote_min_max_update
+      BEFORE UPDATE ON user_preferences
+      FOR EACH ROW
+      WHEN NEW.acceptable_remote_min IS NOT NULL
+        AND NEW.acceptable_remote_max IS NOT NULL
+        AND NEW.acceptable_remote_min > NEW.acceptable_remote_max
+      BEGIN
+        SELECT RAISE(ABORT, 'Remote preference range invalid: acceptable_remote_min <= acceptable_remote_max required');
+      END;
+    `);
+  }).then(() => {
+    // Enforce 0..100 bounds independently for each percentage field
+    return knex.raw(`
+      CREATE TRIGGER check_remote_bounds_insert
+      BEFORE INSERT ON user_preferences
+      FOR EACH ROW
+      WHEN (NEW.preferred_remote_percentage IS NOT NULL AND (NEW.preferred_remote_percentage < 0 OR NEW.preferred_remote_percentage > 100))
+        OR (NEW.acceptable_remote_min IS NOT NULL AND (NEW.acceptable_remote_min < 0 OR NEW.acceptable_remote_min > 100))
+        OR (NEW.acceptable_remote_max IS NOT NULL AND (NEW.acceptable_remote_max < 0 OR NEW.acceptable_remote_max > 100))
+      BEGIN
+        SELECT RAISE(ABORT, 'Remote preference bounds invalid: values must be between 0 and 100');
+      END;
+    `);
+  }).then(() => {
+    return knex.raw(`
+      CREATE TRIGGER check_remote_bounds_update
+      BEFORE UPDATE ON user_preferences
+      FOR EACH ROW
+      WHEN (NEW.preferred_remote_percentage IS NOT NULL AND (NEW.preferred_remote_percentage < 0 OR NEW.preferred_remote_percentage > 100))
+        OR (NEW.acceptable_remote_min IS NOT NULL AND (NEW.acceptable_remote_min < 0 OR NEW.acceptable_remote_min > 100))
+        OR (NEW.acceptable_remote_max IS NOT NULL AND (NEW.acceptable_remote_max < 0 OR NEW.acceptable_remote_max > 100))
+      BEGIN
+        SELECT RAISE(ABORT, 'Remote preference bounds invalid: values must be between 0 and 100');
+      END;
+    `);
+  }).then(() => {
+    // …next, the existing timestamp trigger…
   }).then(() => {
     // Add trigger to auto-update remote_work_updated_at when remote_work_preference changes
     // NOTE: Using AFTER UPDATE instead of BEFORE UPDATE due to SQLite limitations.
