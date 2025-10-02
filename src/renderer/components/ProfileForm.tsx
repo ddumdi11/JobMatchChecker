@@ -43,8 +43,6 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
   };
 
   // ...rest of the component
-  };
-
   const handleSnackbarClose = () => {
     setSuccess(false);
     setError(null);
