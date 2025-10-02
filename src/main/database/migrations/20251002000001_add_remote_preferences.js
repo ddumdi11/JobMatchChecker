@@ -31,6 +31,19 @@ exports.up = function(knex) {
       .nullable()
       .comment('Maximum acceptable remote work percentage (0-100)');
   }).then(() => {
+    return knex.raw(`
+      CREATE TRIGGER check_remote_range_insert
+      BEFORE INSERT ON user_preferences
+      FOR EACH ROW
+      WHEN NEW.acceptable_remote_min IS NOT NULL
+        AND NEW.preferred_remote_percentage IS NOT NULL
+        AND NEW.acceptable_remote_max IS NOT NULL
+        AND (NEW.acceptable_remote_min > NEW.preferred_remote_percentage
+          OR NEW.preferred_remote_percentage > NEW.acceptable_remote_max)
+      BEGIN
+        SELECT RAISE(ABORT, 'Remote preference range invalid: acceptable_remote_min <= preferred_remote_percentage <= acceptable_remote_max required');
+      END;
+    `);
   }).then(() => {
     return knex.raw(`
       CREATE TRIGGER check_remote_range_update
