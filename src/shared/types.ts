@@ -60,7 +60,12 @@ export interface RemoteWorkRange {
   max: number; // 0-100
 }
 
-// Type guard for valid remote work range
+/**
+ * Validates that a remote-work percentage range is well-formed.
+ *
+ * @param range - Partial object that may contain `min`, `preferred`, and `max` percentage values
+ * @returns `true` if `min`, `preferred`, and `max` are present, each is between 0 and 100 inclusive, and `min <= preferred <= max`; `false` otherwise. When `true`, narrows `range` to `RemoteWorkRange`.
+ */
 export function isValidRemoteWorkRange(range: Partial<RemoteWorkRange>): range is RemoteWorkRange {
   if (range.min === undefined || range.preferred === undefined || range.max === undefined) {
     return false;

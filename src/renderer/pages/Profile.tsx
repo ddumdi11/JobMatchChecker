@@ -25,6 +25,17 @@ interface TabPanelProps {
   value: number;
 }
 
+/**
+ * Renders an accessible tab panel whose content is shown only when its index matches the current tab value.
+ *
+ * The container uses `role="tabpanel"` and sets `id` / `aria-labelledby` attributes for accessibility. When active,
+ * children are wrapped in a Box with top padding; when inactive the panel is hidden.
+ *
+ * @param props.children - The content to render inside the panel.
+ * @param props.value - The currently selected tab index.
+ * @param props.index - The index of this tab panel.
+ * @returns The tab panel React element.
+ */
 function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
 
@@ -41,6 +52,12 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
+/**
+ * Accessibility attributes for a tab at the given index.
+ *
+ * @param index - The tab index used to compose the `id` and `aria-controls` values
+ * @returns An object containing `id` for the tab and `aria-controls` for the corresponding tabpanel
+ */
 function a11yProps(index: number) {
   return {
     id: `profile-tab-${index}`,
@@ -80,6 +97,16 @@ class ErrorBoundary extends React.Component<
   }
 }
 
+/**
+ * Renders the user Profile page with a profile completion indicator and tabbed sections for Personal Info, Skills, and Preferences.
+ *
+ * The component loads profile-related data, displays a loading state while fetching, and provides per-section save handlers:
+ * - Personal Info (auto-save behavior)
+ * - Skills (explicit save)
+ * - Preferences (explicit save)
+ *
+ * @returns The rendered Profile page React element.
+ */
 function Profile() {
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -131,11 +158,7 @@ function Profile() {
   const handleProfileSave = async (profileData: Partial<UserProfile>) => {
     // TODO: Replace with actual IPC call in T008
     console.log('Saving profile:', profileData);
-    setProfile(prev =>
-      prev
-        ? { ...prev, ...profileData }
-        : ({ ...profileData } as UserProfile)
-    );
+    setProfile(prev => ({ ...prev, ...profileData } as UserProfile));
   };
 
   const handleSkillsSave = async (skillsData: HardSkill[]) => {
