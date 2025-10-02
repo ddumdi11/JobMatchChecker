@@ -162,9 +162,15 @@ exports.up = function(knex) {
 
 exports.down = function(knex) {
   // Drop triggers in reverse order
+exports.down = function(knex) {
+  // Drop triggers in reverse order
   return knex.raw('DROP TRIGGER IF EXISTS update_remote_work_timestamp_on_percentage')
     .then(() => knex.raw('DROP TRIGGER IF EXISTS set_remote_work_timestamp_on_insert'))
     .then(() => knex.raw('DROP TRIGGER IF EXISTS update_remote_work_timestamp_on_preference'))
+    .then(() => knex.raw('DROP TRIGGER IF EXISTS check_remote_bounds_update'))
+    .then(() => knex.raw('DROP TRIGGER IF EXISTS check_remote_bounds_insert'))
+    .then(() => knex.raw('DROP TRIGGER IF EXISTS check_remote_min_max_update'))
+    .then(() => knex.raw('DROP TRIGGER IF EXISTS check_remote_min_max_insert'))
     .then(() => knex.raw('DROP TRIGGER IF EXISTS check_remote_range_update'))
     .then(() => knex.raw('DROP TRIGGER IF EXISTS check_remote_range_insert'))
     .then(() => {
@@ -177,4 +183,5 @@ exports.down = function(knex) {
         table.dropColumn('remote_work_preference');
       });
     });
+};
 };
