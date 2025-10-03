@@ -230,7 +230,7 @@
 ---
 
 ## Dependencies Graph
-```
+```txt
 T001 (✅ COMPLETED)
   ↓
 T002, T003 [P]
