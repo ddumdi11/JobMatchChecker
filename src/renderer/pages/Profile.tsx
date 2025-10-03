@@ -123,7 +123,7 @@ function Profile() {
     if (profile?.email) completed++;
     if (skills.length > 0) completed++;
     if (preferences?.preferredRemotePercentage !== undefined) completed++;
-    if (preferences?.minSalary || preferences?.maxSalary) completed++;
+    if (preferences?.minSalary !== undefined || preferences?.maxSalary !== undefined) completed++;
 
     return Math.round((completed / total) * 100);
   };
@@ -158,9 +158,14 @@ function Profile() {
   const handleProfileSave = async (profileData: Partial<UserProfile>) => {
     // TODO: Replace with actual IPC call in T008
     console.log('Saving profile:', profileData);
-    setProfile(prev =>
-      prev ? ({ ...prev, ...profileData } as UserProfile) : ({ ...profileData } as UserProfile)
-    );
+    setProfile(prev => {
+      if (prev) {
+        return { ...prev, ...profileData };
+      }
+      // For new profiles, only update if we have the partial data
+      // Full profile creation will happen in T008 with proper defaults
+      return prev;
+    });
   };
 
   const handleSkillsSave = async (skillsData: HardSkill[]) => {

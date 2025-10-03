@@ -65,7 +65,8 @@
     - Added auto-timestamp triggers for all remote preference changes
   - **Dependencies**: None
 
-- [ ] **T003** [P] Update TypeScript interfaces for new data model
+- [x] **T003** [P] Update TypeScript interfaces for new data model
+  - **Status**: ✅ COMPLETED (2025-10-02)
   - **File**: `src/shared/types.ts`
   - **Changes**:
     - Update `UserPreferences` interface with 3 new remote fields
@@ -290,7 +291,7 @@ Task: "Add Material-UI styling and responsive layout"
 
 ## Validation Checklist
 - [x] All 3 components covered (ProfileForm, SkillsManager, PreferencesPanel)
-- [x] All IPC channels implemented (PROFILE_*, SKILLS_*, PREFERENCES_*)
+- [ ] All IPC channels implemented (PROFILE_*, SKILLS_*, PREFERENCES_*) - In Progress (T008-T010)
 - [x] All data model changes covered (3 remote fields, max 500 skills)
 - [x] Parallel tasks truly independent (different files)
 - [x] Each task specifies exact file path

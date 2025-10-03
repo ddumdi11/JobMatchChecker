@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Button,
@@ -59,20 +59,22 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
   const [success, setSuccess] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isInitialMount, setIsInitialMount] = useState(true);
+  const skipUnsavedRef = useRef(false);
 
   // Sync incoming preferences to formData
   useEffect(() => {
     if (preferences) {
+      skipUnsavedRef.current = true;
       setFormData({
-        minSalary: preferences.minSalary,
+        minSalary: preferences.minSalary ?? undefined,
         maxSalary: preferences.maxSalary,
-        preferredLocations: preferences.preferredLocations || [],
+        preferredLocations: preferences.preferredLocations ?? [],
         locationInput: '',
-        remoteWorkPreference: preferences.remoteWorkPreference || 'flexible',
+        remoteWorkPreference: preferences.remoteWorkPreference ?? 'flexible',
         preferredRemotePercentage: preferences.preferredRemotePercentage ?? 50,
         acceptableRemoteMin: preferences.acceptableRemoteMin ?? 0,
         acceptableRemoteMax: preferences.acceptableRemoteMax ?? 100,
-        willingToRelocate: preferences.willingToRelocate || false,
+        willingToRelocate: preferences.willingToRelocate ?? false,
         jobTypes: preferences.jobTypes ? {
           fullTime: preferences.jobTypes.fullTime ?? true,
           partTime: preferences.jobTypes.partTime ?? false,
@@ -85,11 +87,16 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
       });
       setValidationError(null);
       setHasUnsavedChanges(false);
+      skipUnsavedRef.current = false;
     }
   }, [preferences]);
 
-  // Track unsaved changes (skip initial mount)
+  // Track unsaved changes (skip initial mount and programmatic updates)
   useEffect(() => {
+    if (skipUnsavedRef.current) {
+      skipUnsavedRef.current = false;
+      return;
+    }
     if (isInitialMount) {
       setIsInitialMount(false);
     } else {
