@@ -294,6 +294,132 @@ export function registerIpcHandlers() {
     }
   });
 
+  // Skills operations
+  ipcMain.handle(IPC_CHANNELS.SKILLS_GET_ALL, async () => {
+    try {
+      const stmt = db.prepare(`
+        SELECT s.*, sc.name as category_name
+        FROM skills s
+        LEFT JOIN skill_categories sc ON s.category_id = sc.id
+        ORDER BY sc.sort_order, s.name
+      `);
+
+      return stmt.all();
+    } catch (error) {
+      log.error('Error getting skills:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SKILLS_UPSERT, async (_, skill) => {
+    try {
+      if (skill.id) {
+        // Update existing skill
+        const stmt = db.prepare(`
+          UPDATE skills
+          SET name = ?, level = ?, category_id = ?, years_experience = ?,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `);
+
+        stmt.run(
+          skill.name,
+          skill.level,
+          skill.categoryId || null,
+          skill.yearsExperience || null,
+          skill.id
+        );
+
+        return { id: skill.id, ...skill };
+      } else {
+        // Insert new skill
+        const stmt = db.prepare(`
+          INSERT INTO skills (name, level, category_id, years_experience)
+          VALUES (?, ?, ?, ?)
+        `);
+
+        const result = stmt.run(
+          skill.name,
+          skill.level,
+          skill.categoryId || null,
+          skill.yearsExperience || null
+        );
+
+        return { id: result.lastInsertRowid, ...skill };
+      }
+    } catch (error) {
+      log.error('Error upserting skill:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SKILLS_DELETE, async (_, id) => {
+    try {
+      const stmt = db.prepare('DELETE FROM skills WHERE id = ?');
+      stmt.run(id);
+      return { success: true };
+    } catch (error) {
+      log.error('Error deleting skill:', error);
+      throw error;
+    }
+  });
+
+  // Preferences operations
+  ipcMain.handle(IPC_CHANNELS.PREFERENCES_GET, async () => {
+    try {
+      const stmt = db.prepare('SELECT * FROM user_preferences WHERE id = 1');
+      const prefs = stmt.get();
+
+      if (!prefs) {
+        return null;
+      }
+
+      return prefs;
+    } catch (error) {
+      log.error('Error getting preferences:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.PREFERENCES_UPDATE, async (_, data) => {
+    try {
+      const stmt = db.prepare(`
+        INSERT INTO user_preferences (
+          id, min_salary, max_salary, preferred_locations, willing_to_relocate,
+          remote_work_preference, preferred_remote_percentage,
+          acceptable_remote_min, acceptable_remote_max
+        )
+        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          min_salary = excluded.min_salary,
+          max_salary = excluded.max_salary,
+          preferred_locations = excluded.preferred_locations,
+          willing_to_relocate = excluded.willing_to_relocate,
+          remote_work_preference = excluded.remote_work_preference,
+          preferred_remote_percentage = excluded.preferred_remote_percentage,
+          acceptable_remote_min = excluded.acceptable_remote_min,
+          acceptable_remote_max = excluded.acceptable_remote_max,
+          updated_at = CURRENT_TIMESTAMP
+      `);
+
+      stmt.run(
+        data.minSalary || null,
+        data.maxSalary || null,
+        data.preferredLocations ? JSON.stringify(data.preferredLocations) : null,
+        data.willingToRelocate ? 1 : 0,
+        data.remoteWorkPreference || null,
+        data.preferredRemotePercentage ?? null,
+        data.acceptableRemoteMin ?? null,
+        data.acceptableRemoteMax ?? null
+      );
+
+      return { id: 1, ...data };
+    } catch (error) {
+      log.error('Error updating preferences:', error);
+      throw error;
+    }
+  });
+
   // Test migration handler
   ipcMain.handle(IPC_CHANNELS.TEST_MIGRATION, async () => {
     try {

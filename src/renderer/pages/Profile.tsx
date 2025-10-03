@@ -130,21 +130,25 @@ function Profile() {
 
   const completion = calculateCompletion();
 
-  // Load profile data (will be replaced with actual IPC calls in T008-T010)
+  // Load profile data
   useEffect(() => {
     const loadProfile = async () => {
       try {
         setLoading(true);
-        // TODO: Replace with actual IPC calls
-        // const data = await window.electron.invoke('PROFILE_GET');
-        // setProfile(data.profile);
-        // setSkills(data.skills);
-        // setPreferences(data.preferences);
 
-        // Mock data for now
-        setProfile(null);
-        setSkills([]);
-        setPreferences(null);
+        // Load profile with skills and preferences
+        const profileData = await window.api.getProfile();
+
+        if (profileData) {
+          const { skills: profileSkills, preferences: profilePrefs, ...userProfile } = profileData;
+          setProfile(userProfile as UserProfile);
+          setSkills(profileSkills || []);
+          setPreferences(profilePrefs || null);
+        } else {
+          setProfile(null);
+          setSkills([]);
+          setPreferences(null);
+        }
       } catch (error) {
         console.error('Failed to load profile:', error);
       } finally {
@@ -156,28 +160,34 @@ function Profile() {
   }, []);
 
   const handleProfileSave = async (profileData: Partial<UserProfile>) => {
-    // TODO: Replace with actual IPC call in T008
-    console.log('Saving profile:', profileData);
-    setProfile(prev => {
-      if (prev) {
-        return { ...prev, ...profileData };
-      }
-      // For new profiles, only update if we have the partial data
-      // Full profile creation will happen in T008 with proper defaults
-      return prev;
-    });
+    try {
+      const savedProfile = await window.api.updateProfile(profileData);
+      setProfile(prev => prev ? { ...prev, ...savedProfile } : savedProfile);
+    } catch (error) {
+      console.error('Failed to save profile:', error);
+      throw error;
+    }
   };
 
   const handleSkillsSave = async (skillsData: HardSkill[]) => {
-    // TODO: Replace with actual IPC call in T009
-    console.log('Saving skills:', skillsData);
-    setSkills(skillsData);
+    try {
+      // Save all skills via upsert
+      await Promise.all(skillsData.map(skill => window.api.upsertSkill(skill)));
+      setSkills(skillsData);
+    } catch (error) {
+      console.error('Failed to save skills:', error);
+      throw error;
+    }
   };
 
   const handlePreferencesSave = async (preferencesData: UserPreferences) => {
-    // TODO: Replace with actual IPC call in T010
-    console.log('Saving preferences:', preferencesData);
-    setPreferences(preferencesData);
+    try {
+      const savedPrefs = await window.api.updatePreferences(preferencesData);
+      setPreferences(savedPrefs);
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+      throw error;
+    }
   };
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
