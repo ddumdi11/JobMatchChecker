@@ -382,7 +382,7 @@ export function registerIpcHandlers() {
   ipcMain.handle(IPC_CHANNELS.PREFERENCES_GET, async () => {
     try {
       const stmt = db.prepare('SELECT * FROM user_preferences WHERE id = 1');
-      const prefs = stmt.get();
+      const prefs = stmt.get() as any;
 
       if (!prefs) {
         return null;
