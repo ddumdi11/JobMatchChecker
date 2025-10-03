@@ -158,7 +158,9 @@ function Profile() {
   const handleProfileSave = async (profileData: Partial<UserProfile>) => {
     // TODO: Replace with actual IPC call in T008
     console.log('Saving profile:', profileData);
-    setProfile(prev => ({ ...prev, ...profileData } as UserProfile));
+    setProfile(prev =>
+      prev ? ({ ...prev, ...profileData } as UserProfile) : ({ ...profileData } as UserProfile)
+    );
   };
 
   const handleSkillsSave = async (skillsData: HardSkill[]) => {

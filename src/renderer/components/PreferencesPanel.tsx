@@ -228,7 +228,7 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
               label="City or Region"
               value={formData.locationInput}
               onChange={e => setFormData(prev => ({ ...prev, locationInput: e.target.value }))}
-              onKeyPress={e => e.key === 'Enter' && handleLocationAdd()}
+              onKeyDown={e => e.key === 'Enter' && handleLocationAdd()}
               fullWidth
             />
             <Button onClick={handleLocationAdd} variant="outlined">
