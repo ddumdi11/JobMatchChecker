@@ -130,21 +130,64 @@ function Profile() {
 
   const completion = calculateCompletion();
 
-  // Load profile data (will be replaced with actual IPC calls in T008-T010)
+  // Transform DB snake_case to camelCase
+  const transformProfile = (dbProfile: any): UserProfile => ({
+    id: dbProfile.id,
+    firstName: dbProfile.first_name || '',
+    lastName: dbProfile.last_name || '',
+    email: dbProfile.email || '',
+    phone: dbProfile.phone || '',
+    location: dbProfile.location || '',
+    createdAt: dbProfile.created_at ? new Date(dbProfile.created_at) : new Date(),
+    updatedAt: dbProfile.updated_at ? new Date(dbProfile.updated_at) : new Date()
+  });
+
+  const transformSkills = (dbSkills: any[]): HardSkill[] =>
+    dbSkills.map(skill => ({
+      id: skill.id,
+      name: skill.name,
+      level: skill.level,
+      categoryId: skill.category_id,
+      categoryName: skill.category_name,
+      yearsOfExperience: skill.years_experience
+    }));
+
+  const transformPreferences = (dbPrefs: any): UserPreferences => ({
+    minSalary: dbPrefs.min_salary,
+    maxSalary: dbPrefs.max_salary,
+    preferredLocations: dbPrefs.preferred_locations
+      ? JSON.parse(dbPrefs.preferred_locations)
+      : [],
+    willingToRelocate: Boolean(dbPrefs.willing_to_relocate),
+    remoteWorkPreference: dbPrefs.remote_work_preference,
+    preferredRemotePercentage: dbPrefs.preferred_remote_percentage,
+    acceptableRemoteMin: dbPrefs.acceptable_remote_min,
+    acceptableRemoteMax: dbPrefs.acceptable_remote_max,
+    remoteWorkUpdatedAt: dbPrefs.remote_work_updated_at
+      ? new Date(dbPrefs.remote_work_updated_at)
+      : undefined
+  });
+
+  // Load profile data
   useEffect(() => {
     const loadProfile = async () => {
       try {
         setLoading(true);
-        // TODO: Replace with actual IPC calls
-        // const data = await window.electron.invoke('PROFILE_GET');
-        // setProfile(data.profile);
-        // setSkills(data.skills);
-        // setPreferences(data.preferences);
 
-        // Mock data for now
-        setProfile(null);
-        setSkills([]);
-        setPreferences(null);
+        // Load profile with skills and preferences
+        const profileData = await window.api.getProfile();
+
+        if (profileData) {
+          const { skills: profileSkills, preferences: profilePrefs, ...dbProfile } = profileData;
+
+          setProfile(transformProfile(dbProfile));
+          setSkills(profileSkills ? transformSkills(profileSkills) : []);
+          setPreferences(profilePrefs ? transformPreferences(profilePrefs) : null);
+        } else {
+          setProfile(null);
+          setSkills([]);
+          setPreferences(null);
+        }
       } catch (error) {
         console.error('Failed to load profile:', error);
       } finally {
@@ -156,28 +199,38 @@ function Profile() {
   }, []);
 
   const handleProfileSave = async (profileData: Partial<UserProfile>) => {
-    // TODO: Replace with actual IPC call in T008
-    console.log('Saving profile:', profileData);
-    setProfile(prev => {
-      if (prev) {
-        return { ...prev, ...profileData };
-      }
-      // For new profiles, only update if we have the partial data
-      // Full profile creation will happen in T008 with proper defaults
-      return prev;
-    });
+    try {
+      await window.api.updateProfile(profileData);
+      // Update local state optimistically
+      setProfile(prev => prev ? { ...prev, ...profileData } : null);
+    } catch (error) {
+      console.error('Failed to save profile:', error);
+      throw error;
+    }
   };
 
   const handleSkillsSave = async (skillsData: HardSkill[]) => {
-    // TODO: Replace with actual IPC call in T009
-    console.log('Saving skills:', skillsData);
-    setSkills(skillsData);
+    try {
+      // Save all skills via upsert
+      const savedSkills = await Promise.all(
+        skillsData.map(skill => window.api.upsertSkill(skill))
+      );
+      setSkills(savedSkills);
+    } catch (error) {
+      console.error('Failed to save skills:', error);
+      throw error;
+    }
   };
 
   const handlePreferencesSave = async (preferencesData: UserPreferences) => {
-    // TODO: Replace with actual IPC call in T010
-    console.log('Saving preferences:', preferencesData);
-    setPreferences(preferencesData);
+    try {
+      await window.api.updatePreferences(preferencesData);
+      // Update local state optimistically
+      setPreferences(preferencesData);
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+      throw error;
+    }
   };
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {

@@ -18,6 +18,15 @@ contextBridge.exposeInMainWorld('api', {
   updateProfile: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_UPDATE, data),
   getProfile: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_GET),
 
+  // Skills operations
+  getAllSkills: () => ipcRenderer.invoke(IPC_CHANNELS.SKILLS_GET_ALL),
+  upsertSkill: (skill: any) => ipcRenderer.invoke(IPC_CHANNELS.SKILLS_UPSERT, skill),
+  deleteSkill: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.SKILLS_DELETE, id),
+
+  // Preferences operations
+  getPreferences: () => ipcRenderer.invoke(IPC_CHANNELS.PREFERENCES_GET),
+  updatePreferences: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.PREFERENCES_UPDATE, data),
+
   // Matching operations
   runMatch: (jobId: number, profileId: number) => ipcRenderer.invoke(IPC_CHANNELS.MATCH_RUN, jobId, profileId),
   getMatchResults: (jobId: number) => ipcRenderer.invoke(IPC_CHANNELS.MATCH_GET_RESULTS, jobId),
@@ -49,6 +58,11 @@ declare global {
       createProfile: (data: any) => Promise<any>;
       updateProfile: (data: any) => Promise<any>;
       getProfile: () => Promise<any>;
+      getAllSkills: () => Promise<any[]>;
+      upsertSkill: (skill: any) => Promise<any>;
+      deleteSkill: (id: number) => Promise<void>;
+      getPreferences: () => Promise<any>;
+      updatePreferences: (data: any) => Promise<any>;
       runMatch: (jobId: number, profileId: number) => Promise<any>;
       getMatchResults: (jobId: number) => Promise<any>;
       parseLatexCV: (content: string) => Promise<any>;

@@ -50,6 +50,15 @@ export const IPC_CHANNELS = {
   PROFILE_UPDATE: 'profile:update',
   PROFILE_GET: 'profile:get',
 
+  // Skills operations
+  SKILLS_GET_ALL: 'skills:getAll',
+  SKILLS_UPSERT: 'skills:upsert',
+  SKILLS_DELETE: 'skills:delete',
+
+  // Preferences operations
+  PREFERENCES_GET: 'preferences:get',
+  PREFERENCES_UPDATE: 'preferences:update',
+
   // Matching operations
   MATCH_RUN: 'match:run',
   MATCH_GET_RESULTS: 'match:getResults',
