@@ -31,7 +31,7 @@ export const useUnsavedChangesContext = () => {
 
 export const Layout: React.FC = () => {
   const [isDirty, setIsDirty] = React.useState(false);
-  const [onSave, setOnSave] = React.useState<(() => Promise<void>) | undefined>(undefined);
+  const [onSave, setOnSave] = React.useState<(() => Promise<void>) | undefined>(() => undefined);
 
   const { blocker, handleSave, handleDiscard, handleCancel } = useUnsavedChanges(isDirty, onSave);
 
@@ -39,7 +39,7 @@ export const Layout: React.FC = () => {
     isDirty,
     setIsDirty,
     onSave,
-    setOnSave
+    setOnSave: (callback) => setOnSave(() => callback)
   };
 
   const isBlocked = blocker.state === 'blocked';
