@@ -73,7 +73,11 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
         acceptableRemoteMin: preferences.acceptableRemoteMin ?? 0,
         acceptableRemoteMax: preferences.acceptableRemoteMax ?? 100,
         willingToRelocate: preferences.willingToRelocate || false,
-        jobTypes: {
+        jobTypes: preferences.jobTypes ? {
+          fullTime: preferences.jobTypes.fullTime ?? true,
+          partTime: preferences.jobTypes.partTime ?? false,
+          contract: preferences.jobTypes.contract ?? false
+        } : {
           fullTime: true,
           partTime: false,
           contract: false

@@ -23,6 +23,11 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
     location: profile?.location || ''
   });
 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
   // Sync incoming profile data
   useEffect(() => {
     if (!profile) return;
@@ -42,7 +47,48 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
     return emailRegex.test(email);
   };
 
-  // ...rest of the component
+  // Debounced auto-save (2 seconds)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!emailError && onSave) {
+        handleAutoSave();
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [formData, emailError, onSave]);
+
+  const handleAutoSave = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      await onSave?.(formData);
+
+      setSuccess(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (field: keyof typeof formData) => (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const value = event.target.value;
+    setFormData(prev => ({ ...prev, [field]: value }));
+
+    // Validate email on change
+    if (field === 'email') {
+      if (!validateEmail(value)) {
+        setEmailError('Please enter a valid email address');
+      } else {
+        setEmailError(null);
+      }
+    }
+  };
+
   const handleSnackbarClose = () => {
     setSuccess(false);
     setError(null);
