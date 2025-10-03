@@ -37,16 +37,16 @@ const REMOTE_WORK_OPTIONS: { value: RemoteWorkPreference; label: string }[] = [
 
 export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences, onSave }) => {
   const [formData, setFormData] = useState({
-    minSalary: preferences?.minSalary || undefined,
-    maxSalary: preferences?.maxSalary || undefined,
-    preferredLocations: preferences?.preferredLocations || [],
+    minSalary: preferences?.minSalary ?? undefined,
+    maxSalary: preferences?.maxSalary ?? undefined,
+    preferredLocations: preferences?.preferredLocations ?? [],
     locationInput: '',
-    remoteWorkPreference: preferences?.remoteWorkPreference || 'flexible' as RemoteWorkPreference,
-    preferredRemotePercentage: preferences?.preferredRemotePercentage || 50,
-    acceptableRemoteMin: preferences?.acceptableRemoteMin || 0,
-    acceptableRemoteMax: preferences?.acceptableRemoteMax || 100,
-    willingToRelocate: preferences?.willingToRelocate || false,
-    jobTypes: {
+    remoteWorkPreference: (preferences?.remoteWorkPreference ?? 'flexible') as RemoteWorkPreference,
+    preferredRemotePercentage: preferences?.preferredRemotePercentage ?? 50,
+    acceptableRemoteMin: preferences?.acceptableRemoteMin ?? 0,
+    acceptableRemoteMax: preferences?.acceptableRemoteMax ?? 100,
+    willingToRelocate: preferences?.willingToRelocate ?? false,
+    jobTypes: preferences?.jobTypes ?? {
       fullTime: true,
       partTime: false,
       contract: false
