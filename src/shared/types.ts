@@ -2,6 +2,15 @@
  * Shared type definitions for Job Match Checker
  */
 
+// Constants
+export const MAX_SKILLS_PER_PROFILE = 500;
+
+// Skill level range (0-10 scale)
+export type SkillLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+
+// Remote work preference types
+export type RemoteWorkPreference = 'remote_only' | 'hybrid' | 'on_site' | 'flexible';
+
 export interface UserProfile {
   id: number;
   firstName: string;
@@ -19,7 +28,7 @@ export interface HardSkill {
   id: number;
   name: string;
   category: string;
-  level: number; // 0-10
+  level: SkillLevel; // 0-10 scale
   yearsOfExperience?: number;
 }
 
@@ -27,8 +36,50 @@ export interface UserPreferences {
   minSalary?: number;
   maxSalary?: number;
   preferredLocations: string[];
-  remotePercentage: number; // 0-100
   willingToRelocate: boolean;
+
+  // Remote work preferences (new fields from migration 20251002000001)
+  remoteWorkPreference?: RemoteWorkPreference;
+  remoteWorkUpdatedAt?: Date;
+  preferredRemotePercentage?: number; // 0-100
+  acceptableRemoteMin?: number; // 0-100
+  acceptableRemoteMax?: number; // 0-100
+
+  // Job type preferences
+  jobTypes?: {
+    fullTime: boolean;
+    partTime: boolean;
+    contract: boolean;
+  };
+}
+
+// Validation helper type for remote work range
+export interface RemoteWorkRange {
+  min: number; // 0-100
+  preferred: number; // 0-100
+  max: number; // 0-100
+}
+
+/**
+ * Validates that a remote-work percentage range is well-formed.
+ *
+ * @param range - Partial object that may contain `min`, `preferred`, and `max` percentage values
+ * @returns `true` if `min`, `preferred`, and `max` are present, each is between 0 and 100 inclusive, and `min <= preferred <= max`; `false` otherwise. When `true`, narrows `range` to `RemoteWorkRange`.
+ */
+export function isValidRemoteWorkRange(range: Partial<RemoteWorkRange>): range is RemoteWorkRange {
+  if (range.min === undefined || range.preferred === undefined || range.max === undefined) {
+    return false;
+  }
+  // Reject non-finite numbers (NaN, Infinity, -Infinity)
+  if (!Number.isFinite(range.min) || !Number.isFinite(range.preferred) || !Number.isFinite(range.max)) {
+    return false;
+  }
+  // Check bounds: 0 <= all values <= 100
+  if (range.min < 0 || range.min > 100) return false;
+  if (range.preferred < 0 || range.preferred > 100) return false;
+  if (range.max < 0 || range.max > 100) return false;
+  // Check constraint: min <= preferred <= max
+  return range.min <= range.preferred && range.preferred <= range.max;
 }
 
 export interface JobOffer {
