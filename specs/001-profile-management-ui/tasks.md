@@ -5,7 +5,8 @@
 **Prerequisites**: PLAN_SUMMARY.md, spec.md
 
 ## Execution Flow (main)
-```
+
+```txt
 1. Load PLAN_SUMMARY.md from feature directory
    → Tech stack: Electron 32.3, React 18.2, TypeScript 5.3, Material-UI 5.15
    → Structure: src/main/ (Electron), src/renderer/ (React), src/shared/

@@ -65,6 +65,10 @@ export function isValidRemoteWorkRange(range: Partial<RemoteWorkRange>): range i
   if (range.min === undefined || range.preferred === undefined || range.max === undefined) {
     return false;
   }
+  // Reject non-finite numbers (NaN, Infinity, -Infinity)
+  if (!Number.isFinite(range.min) || !Number.isFinite(range.preferred) || !Number.isFinite(range.max)) {
+    return false;
+  }
   // Check bounds: 0 <= all values <= 100
   if (range.min < 0 || range.min > 100) return false;
   if (range.preferred < 0 || range.preferred > 100) return false;
