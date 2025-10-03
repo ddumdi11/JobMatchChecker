@@ -130,6 +130,44 @@ function Profile() {
 
   const completion = calculateCompletion();
 
+  // Transform DB snake_case to camelCase
+  const transformProfile = (dbProfile: any): UserProfile => ({
+    id: dbProfile.id,
+    firstName: dbProfile.first_name || '',
+    lastName: dbProfile.last_name || '',
+    email: dbProfile.email || '',
+    phone: dbProfile.phone || '',
+    location: dbProfile.location || '',
+    createdAt: dbProfile.created_at ? new Date(dbProfile.created_at) : new Date(),
+    updatedAt: dbProfile.updated_at ? new Date(dbProfile.updated_at) : new Date()
+  });
+
+  const transformSkills = (dbSkills: any[]): HardSkill[] =>
+    dbSkills.map(skill => ({
+      id: skill.id,
+      name: skill.name,
+      level: skill.level,
+      categoryId: skill.category_id,
+      categoryName: skill.category_name,
+      yearsOfExperience: skill.years_experience
+    }));
+
+  const transformPreferences = (dbPrefs: any): UserPreferences => ({
+    minSalary: dbPrefs.min_salary,
+    maxSalary: dbPrefs.max_salary,
+    preferredLocations: dbPrefs.preferred_locations
+      ? JSON.parse(dbPrefs.preferred_locations)
+      : [],
+    willingToRelocate: Boolean(dbPrefs.willing_to_relocate),
+    remoteWorkPreference: dbPrefs.remote_work_preference,
+    preferredRemotePercentage: dbPrefs.preferred_remote_percentage,
+    acceptableRemoteMin: dbPrefs.acceptable_remote_min,
+    acceptableRemoteMax: dbPrefs.acceptable_remote_max,
+    remoteWorkUpdatedAt: dbPrefs.remote_work_updated_at
+      ? new Date(dbPrefs.remote_work_updated_at)
+      : undefined
+  });
+
   // Load profile data
   useEffect(() => {
     const loadProfile = async () => {
@@ -140,10 +178,11 @@ function Profile() {
         const profileData = await window.api.getProfile();
 
         if (profileData) {
-          const { skills: profileSkills, preferences: profilePrefs, ...userProfile } = profileData;
-          setProfile(userProfile as UserProfile);
-          setSkills(profileSkills || []);
-          setPreferences(profilePrefs || null);
+          const { skills: profileSkills, preferences: profilePrefs, ...dbProfile } = profileData;
+
+          setProfile(transformProfile(dbProfile));
+          setSkills(profileSkills ? transformSkills(profileSkills) : []);
+          setPreferences(profilePrefs ? transformPreferences(profilePrefs) : null);
         } else {
           setProfile(null);
           setSkills([]);
@@ -161,8 +200,9 @@ function Profile() {
 
   const handleProfileSave = async (profileData: Partial<UserProfile>) => {
     try {
-      const savedProfile = await window.api.updateProfile(profileData);
-      setProfile(prev => prev ? { ...prev, ...savedProfile } : savedProfile);
+      await window.api.updateProfile(profileData);
+      // Update local state optimistically
+      setProfile(prev => prev ? { ...prev, ...profileData } : null);
     } catch (error) {
       console.error('Failed to save profile:', error);
       throw error;
@@ -182,8 +222,9 @@ function Profile() {
 
   const handlePreferencesSave = async (preferencesData: UserPreferences) => {
     try {
-      const savedPrefs = await window.api.updatePreferences(preferencesData);
-      setPreferences(savedPrefs);
+      await window.api.updatePreferences(preferencesData);
+      // Update local state optimistically
+      setPreferences(preferencesData);
     } catch (error) {
       console.error('Failed to save preferences:', error);
       throw error;
