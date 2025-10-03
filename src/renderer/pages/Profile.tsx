@@ -18,6 +18,7 @@ import { ProfileForm } from '../components/ProfileForm';
 import { SkillsManager } from '../components/SkillsManager';
 import { PreferencesPanel } from '../components/PreferencesPanel';
 import { UserProfile, HardSkill, UserPreferences } from '../../shared/types';
+import { useUnsavedChangesContext } from '../components/Layout';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -113,6 +114,11 @@ function Profile() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [skills, setSkills] = useState<HardSkill[]>([]);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
+
+  // Integrate with unsaved changes context
+  // Note: Child components (ProfileForm, SkillsManager, PreferencesPanel) track their own unsaved state
+  // In future iterations, we can lift this state here and aggregate it
+  const unsavedChangesContext = useUnsavedChangesContext();
 
   // Calculate profile completion percentage
   const calculateCompletion = (): number => {
