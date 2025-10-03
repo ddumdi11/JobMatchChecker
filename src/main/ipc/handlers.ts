@@ -374,7 +374,13 @@ export function registerIpcHandlers() {
         return null;
       }
 
-      return prefs;
+      return {
+        ...prefs,
+        preferred_locations: prefs.preferred_locations
+          ? JSON.parse(prefs.preferred_locations)
+          : [],
+        willing_to_relocate: Boolean(prefs.willing_to_relocate),
+      };
     } catch (error) {
       log.error('Error getting preferences:', error);
       throw error;

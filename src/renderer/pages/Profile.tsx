@@ -212,8 +212,10 @@ function Profile() {
   const handleSkillsSave = async (skillsData: HardSkill[]) => {
     try {
       // Save all skills via upsert
-      await Promise.all(skillsData.map(skill => window.api.upsertSkill(skill)));
-      setSkills(skillsData);
+      const savedSkills = await Promise.all(
+        skillsData.map(skill => window.api.upsertSkill(skill))
+      );
+      setSkills(savedSkills);
     } catch (error) {
       console.error('Failed to save skills:', error);
       throw error;
