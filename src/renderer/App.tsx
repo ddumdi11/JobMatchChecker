@@ -3,7 +3,10 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 
-// Import pages (to be created)
+// Import layout
+import { Layout } from './components/Layout';
+
+// Import pages
 import Dashboard from './pages/Dashboard';
 import JobDetail from './pages/JobDetail';
 import Profile from './pages/Profile';
@@ -27,10 +30,12 @@ function App() {
       <CssBaseline />
       <Router>
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/job/:id" element={<JobDetail />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="jobs" element={<JobDetail />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
         </Routes>
       </Router>
     </ThemeProvider>
