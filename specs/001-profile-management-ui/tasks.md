@@ -26,7 +26,7 @@
 5. Number tasks sequentially (T001-T016)
 6. Validate completeness:
    → All 3 components covered ✓
-   → All IPC channels implemented ✓
+   → All IPC channels implemented (Partial - T008-T010 pending)
    → All data model changes covered ✓
 7. Return: SUCCESS (tasks ready for execution)
 ```
@@ -145,7 +145,7 @@
     - `PROFILE_CREATE`: Create initial profile
   - **Dependencies**: T002 (database migration)
 
-- [ ] **T009** [P] Implement IPC handlers for skills operations
+- [ ] **T009** Implement IPC handlers for skills operations
   - **File**: `src/main/ipc/handlers.ts` (same file as T008, so run sequentially)
   - **Channels**:
     - `SKILLS_GET_ALL`: Get all skills for profile
