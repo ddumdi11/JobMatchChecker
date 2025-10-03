@@ -304,7 +304,14 @@ export function registerIpcHandlers() {
         ORDER BY sc.sort_order, s.name
       `);
 
-      return stmt.all();
+      const skills = stmt.all();
+      return skills.map((skill: any) => ({
+        id: skill.id,
+        name: skill.name,
+        category: skill.category_name || '',
+        level: skill.level,
+        yearsOfExperience: skill.years_experience,
+      }));
     } catch (error) {
       log.error('Error getting skills:', error);
       throw error;
