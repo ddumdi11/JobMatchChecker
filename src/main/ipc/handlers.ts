@@ -339,6 +339,13 @@ export function registerIpcHandlers() {
 
         return { id: skill.id, ...skill };
       } else {
+        // Check 500-item limit before inserting
+        const countStmt = db.prepare('SELECT COUNT(*) as count FROM skills');
+        const { count } = countStmt.get() as { count: number };
+        if (count >= 500) {
+          throw new Error('Cannot add more than 500 skills');
+        }
+
         // Insert new skill
         const stmt = db.prepare(`
           INSERT INTO skills (name, level, category_id, years_experience)
