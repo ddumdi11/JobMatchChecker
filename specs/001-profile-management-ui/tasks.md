@@ -137,7 +137,7 @@
 ---
 
 ## Phase 3.5: IPC Layer
-- [ ] **T008** [P] Implement IPC handlers for profile operations
+- [ ] **T008** Implement IPC handlers for profile operations
   - **File**: `src/main/ipc/handlers.ts`
   - **Channels**:
     - `PROFILE_GET`: Get user profile
@@ -177,8 +177,8 @@
 
 ---
 
-## Phase 3.7: Polish & Testing
-- [ ] **T012** [P] Add loading states and error handling to all components
+## Phase 3.7: Polish & Testing (Sequential - modify same component files)
+- [ ] **T012** Add loading states and error handling to all components
   - **Files**:
     - `src/renderer/components/ProfileForm.tsx`
     - `src/renderer/components/SkillsManager.tsx`
@@ -190,24 +190,24 @@
     - Skeleton loaders
   - **Dependencies**: T004, T005, T006
 
-- [ ] **T013** [P] Add input validation and constraints
-  - **Files**: All component files
+- [ ] **T013** Add input validation and constraints
+  - **Files**: All component files (same as T012)
   - **Validations**:
     - Email format validation
     - Salary range (min ≤ max)
     - Remote range (min ≤ preferred ≤ max)
     - Skill level (0-10)
     - Max 500 skills
-  - **Dependencies**: T004, T005, T006
+  - **Dependencies**: T004, T005, T006, T012
 
-- [ ] **T014** [P] Add Material-UI styling and responsive layout
-  - **Files**: All component files
+- [ ] **T014** Add Material-UI styling and responsive layout
+  - **Files**: All component files (same as T012/T013)
   - **Features**:
     - Consistent Material-UI theming
     - Responsive grid layout
     - Proper spacing and typography
     - Accessibility (ARIA labels, keyboard navigation)
-  - **Dependencies**: T004, T005, T006, T007
+  - **Dependencies**: T004, T005, T006, T007, T013
 
 - [ ] **T015** Implement unsaved changes warning
   - **Files**:
@@ -295,7 +295,7 @@ Task: "Add Material-UI styling and responsive layout"
 - [x] All data model changes covered (3 remote fields, max 500 skills)
 - [x] Parallel tasks truly independent (different files)
 - [x] Each task specifies exact file path
-- [x] No task modifies same file as another [P] task (except T008-T010 marked sequential)
+- [x] No task modifies same file as another [P] task (T008-T010 sequential, T012-T014 sequential)
 - [x] Setup task (T001) completed
 - [x] Database migration included (T002)
 - [x] State management included (T011)
