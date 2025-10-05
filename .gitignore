@@ -134,6 +134,9 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
+# Archive (local project documentation, not for repo)
+archive/
+
 # Keep empty directories
 !.gitkeep
 !backups/.gitkeep
