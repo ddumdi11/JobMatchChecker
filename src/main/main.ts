@@ -30,11 +30,16 @@ function createWindow() {
   });
 
   // Load the app
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:5173');
+  // In development, load from vite dev server. In production, load from built files.
+  // electron-vite automatically sets ELECTRON_RENDERER_URL in dev mode
+  if (!app.isPackaged && process.env['ELECTRON_RENDERER_URL']) {
+    log.info('Loading from dev server:', process.env['ELECTRON_RENDERER_URL']);
+    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    const indexPath = path.join(__dirname, '../renderer/index.html');
+    log.info('Loading from built files:', indexPath);
+    mainWindow.loadFile(indexPath);
   }
 
   // Show window when ready

@@ -10,7 +10,6 @@ import {
   Button
 } from '@mui/material';
 import { Sidebar } from './Sidebar';
-import { useUnsavedChanges } from '../hooks/useUnsavedChanges';
 
 export interface UnsavedChangesContextValue {
   isDirty: boolean;
@@ -33,7 +32,22 @@ export const Layout: React.FC = () => {
   const [isDirty, setIsDirty] = React.useState(false);
   const [onSave, setOnSave] = React.useState<(() => Promise<void>) | undefined>(() => undefined);
 
-  const { blocker, handleSave, handleDiscard, handleCancel } = useUnsavedChanges(isDirty, onSave);
+  // TODO(#9): Re-enable useUnsavedChanges after migrating to createBrowserRouter (Data Router)
+  // See: https://github.com/ddumdi11/JobMatchChecker/issues/9
+  // const { blocker, handleSave, handleDiscard, handleCancel } = useUnsavedChanges(isDirty, onSave);
+
+  // TEMPORARY: Disable unsaved changes blocker to fix router compatibility
+  // WARNING: Users can navigate away without being prompted to save!
+  if (process.env.NODE_ENV === 'development') {
+    console.warn(
+      '⚠️ Unsaved changes protection is disabled. ' +
+      'See https://github.com/ddumdi11/JobMatchChecker/issues/9'
+    );
+  }
+  const blocker = { state: 'unblocked' as const };
+  const handleSave = async () => {};
+  const handleDiscard = () => {};
+  const handleCancel = () => {};
 
   const contextValue: UnsavedChangesContextValue = {
     isDirty,
