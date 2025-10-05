@@ -33,7 +33,14 @@ export const Layout: React.FC = () => {
   const [isDirty, setIsDirty] = React.useState(false);
   const [onSave, setOnSave] = React.useState<(() => Promise<void>) | undefined>(() => undefined);
 
-  const { blocker, handleSave, handleDiscard, handleCancel } = useUnsavedChanges(isDirty, onSave);
+  // TODO: Re-enable useUnsavedChanges after migrating to createBrowserRouter (Data Router)
+  // const { blocker, handleSave, handleDiscard, handleCancel } = useUnsavedChanges(isDirty, onSave);
+
+  // Temporary: Disable unsaved changes blocker to fix router compatibility
+  const blocker = { state: 'unblocked' as const };
+  const handleSave = async () => {};
+  const handleDiscard = () => {};
+  const handleCancel = () => {};
 
   const contextValue: UnsavedChangesContextValue = {
     isDirty,
