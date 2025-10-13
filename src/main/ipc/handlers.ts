@@ -198,6 +198,8 @@ export function registerIpcHandlers() {
       const prefsStmt = db.prepare('SELECT * FROM user_preferences WHERE id = 1');
       const rawPrefs = prefsStmt.get() as any;
       
+      log.info('PROFILE_GET - Raw preferences from DB:', rawPrefs);
+      
       // Transform preferences to match frontend expectations
       const preferences = rawPrefs ? {
         min_salary: rawPrefs.desired_salary_min,
@@ -210,12 +212,18 @@ export function registerIpcHandlers() {
         acceptable_remote_min: rawPrefs.acceptable_remote_min,
         acceptable_remote_max: rawPrefs.acceptable_remote_max,
       } : null;
+      
+      log.info('PROFILE_GET - Transformed preferences:', preferences);
 
-      return {
+      const result = {
         ...profile,
         skills,
         preferences
       };
+      
+      log.info('PROFILE_GET - Final result has preferences:', !!result.preferences);
+
+      return result;
     } catch (error) {
       log.error('Error getting profile:', error);
       throw error;
