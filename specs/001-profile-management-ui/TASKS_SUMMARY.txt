@@ -1,0 +1,15 @@
+# Tasks: Profile Management UI
+
+T001 (P0): Fix Electron Startup - CRITICAL BLOCKER
+T002-T003 [P]: DB Migration + TypeScript Types
+T004-T006 [P]: Components (ProfileForm, SkillsManager, PreferencesPanel)
+T007: Profile Page Integration
+T008-T009: IPC Handlers + Preload
+T010: Zustand Store
+T011-T016: Polish + Testing
+
+Total: 16 tasks, Est. 15-20h
+Critical Path: T001 → T002/T003 → T004/T005/T006 → T007 → T008-T010 → T011-T016
+
+Status: READY FOR EXECUTION
+Start with T001 (Electron fix)!
