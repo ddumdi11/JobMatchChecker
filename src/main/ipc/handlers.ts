@@ -200,17 +200,17 @@ export function registerIpcHandlers() {
       
       log.info('PROFILE_GET - Raw preferences from DB:', rawPrefs);
       
-      // Transform preferences to match frontend expectations
+      // Transform preferences to match frontend expectations (camelCase)
       const preferences = rawPrefs ? {
-        min_salary: rawPrefs.desired_salary_min,
-        max_salary: rawPrefs.desired_salary_max,
-        preferred_locations: rawPrefs.desired_locations
+        minSalary: rawPrefs.desired_salary_min,
+        maxSalary: rawPrefs.desired_salary_max,
+        preferredLocations: rawPrefs.desired_locations
           ? JSON.parse(rawPrefs.desired_locations)
           : [],
-        remote_work_preference: rawPrefs.remote_preference,
-        preferred_remote_percentage: rawPrefs.preferred_remote_percentage,
-        acceptable_remote_min: rawPrefs.acceptable_remote_min,
-        acceptable_remote_max: rawPrefs.acceptable_remote_max,
+        remoteWorkPreference: rawPrefs.remote_preference,
+        preferredRemotePercentage: rawPrefs.preferred_remote_percentage,
+        acceptableRemoteMin: rawPrefs.acceptable_remote_min,
+        acceptableRemoteMax: rawPrefs.acceptable_remote_max,
       } : null;
       
       log.info('PROFILE_GET - Transformed preferences:', preferences);
@@ -422,17 +422,17 @@ export function registerIpcHandlers() {
         return null;
       }
 
-      // Map DB column names to frontend expected names
+      // Map DB column names to frontend expected names (camelCase)
       return {
-        min_salary: prefs.desired_salary_min,
-        max_salary: prefs.desired_salary_max,
-        preferred_locations: prefs.desired_locations
+        minSalary: prefs.desired_salary_min,
+        maxSalary: prefs.desired_salary_max,
+        preferredLocations: prefs.desired_locations
           ? JSON.parse(prefs.desired_locations)
           : [],
-        remote_work_preference: prefs.remote_preference,
-        preferred_remote_percentage: prefs.preferred_remote_percentage,
-        acceptable_remote_min: prefs.acceptable_remote_min,
-        acceptable_remote_max: prefs.acceptable_remote_max,
+        remoteWorkPreference: prefs.remote_preference,
+        preferredRemotePercentage: prefs.preferred_remote_percentage,
+        acceptableRemoteMin: prefs.acceptable_remote_min,
+        acceptableRemoteMax: prefs.acceptable_remote_max,
       };
     } catch (error) {
       log.error('Error getting preferences:', error);
