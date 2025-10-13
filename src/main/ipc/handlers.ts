@@ -326,7 +326,14 @@ export function registerIpcHandlers() {
 
   ipcMain.handle(IPC_CHANNELS.SKILLS_UPSERT, async (_, skill) => {
     try {
+      // Check if skill exists in database (not just has an ID)
+      let existingSkill = null;
       if (skill.id) {
+        const checkStmt = db.prepare('SELECT id FROM skills WHERE id = ?');
+        existingSkill = checkStmt.get(skill.id);
+      }
+
+      if (existingSkill) {
         // Update existing skill
         const stmt = db.prepare(`
           UPDATE skills
@@ -339,7 +346,7 @@ export function registerIpcHandlers() {
           skill.name,
           skill.level,
           skill.categoryId || null,
-          skill.yearsExperience || null,
+          skill.yearsOfExperience || null,
           skill.id
         );
 
@@ -352,7 +359,7 @@ export function registerIpcHandlers() {
           throw new Error('Cannot add more than 500 skills');
         }
 
-        // Insert new skill
+        // Insert new skill (ignore incoming ID, let DB assign)
         const stmt = db.prepare(`
           INSERT INTO skills (name, level, category_id, years_experience)
           VALUES (?, ?, ?, ?)
@@ -362,7 +369,7 @@ export function registerIpcHandlers() {
           skill.name,
           skill.level,
           skill.categoryId || null,
-          skill.yearsExperience || null
+          skill.yearsOfExperience || null
         );
 
         return { id: result.lastInsertRowid, ...skill };
