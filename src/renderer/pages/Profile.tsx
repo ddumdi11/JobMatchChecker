@@ -239,7 +239,24 @@ function Profile() {
     }
   };
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = async (_event: React.SyntheticEvent, newValue: number) => {
+    console.log('Tab change: from', activeTab, 'to', newValue);
+    // Reload profile data when switching tabs to ensure fresh data
+    try {
+      const profileData = await window.api.getProfile();
+      console.log('Loaded profile data:', profileData);
+      if (profileData) {
+        const { skills: profileSkills, preferences: profilePrefs, ...dbProfile } = profileData;
+        const transformedProfile = transformProfile(dbProfile);
+        console.log('Transformed profile:', transformedProfile);
+        setProfile(transformedProfile);
+        setSkills(profileSkills ? transformSkills(profileSkills) : []);
+        setPreferences(profilePrefs ? transformPreferences(profilePrefs) : null);
+      }
+    } catch (error) {
+      console.error('Failed to reload profile on tab change:', error);
+    }
+
     setActiveTab(newValue);
   };
 

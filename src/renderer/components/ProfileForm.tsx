@@ -32,6 +32,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
 
   // Sync incoming profile data
   useEffect(() => {
+    console.log('ProfileForm: profile prop changed', profile);
     if (!profile) return;
     const newData = {
       firstName: profile.firstName ?? '',
@@ -39,6 +40,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
       email: profile.email ?? '',
       location: profile.location ?? ''
     };
+    console.log('ProfileForm: setting formData to', newData);
     setFormData(newData);
     setInitialData(newData);
     setIsDirty(false);
