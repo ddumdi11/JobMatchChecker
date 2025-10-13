@@ -150,11 +150,17 @@ export function registerIpcHandlers() {
 
   ipcMain.handle(IPC_CHANNELS.PROFILE_UPDATE, async (_, data) => {
     try {
+      // Use INSERT ... ON CONFLICT to handle both create and update
       const stmt = db.prepare(`
-        UPDATE user_profile
-        SET first_name = ?, last_name = ?, email = ?, phone = ?, location = ?,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = 1
+        INSERT INTO user_profile (id, first_name, last_name, email, phone, location)
+        VALUES (1, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          first_name = excluded.first_name,
+          last_name = excluded.last_name,
+          email = excluded.email,
+          phone = excluded.phone,
+          location = excluded.location,
+          updated_at = CURRENT_TIMESTAMP
       `);
 
       stmt.run(
