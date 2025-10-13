@@ -247,11 +247,13 @@ function Profile() {
       console.log('Loaded profile data:', profileData);
       if (profileData) {
         const { skills: profileSkills, preferences: profilePrefs, ...dbProfile } = profileData;
+        console.log('Raw preferences from API:', profilePrefs);
         const transformedProfile = transformProfile(dbProfile);
-        console.log('Transformed profile:', transformedProfile);
+        const transformedPrefs = profilePrefs ? transformPreferences(profilePrefs) : null;
+        console.log('Transformed preferences:', transformedPrefs);
         setProfile(transformedProfile);
         setSkills(profileSkills ? transformSkills(profileSkills) : []);
-        setPreferences(profilePrefs ? transformPreferences(profilePrefs) : null);
+        setPreferences(transformedPrefs);
       }
     } catch (error) {
       console.error('Failed to reload profile on tab change:', error);
