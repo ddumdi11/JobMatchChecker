@@ -403,10 +403,12 @@ export function registerIpcHandlers() {
 
       return {
         ...prefs,
-        preferred_locations: prefs.preferred_locations
-          ? JSON.parse(prefs.preferred_locations)
+        min_salary: prefs.desired_salary_min,
+        max_salary: prefs.desired_salary_max,
+        preferred_locations: prefs.desired_locations
+          ? JSON.parse(prefs.desired_locations)
           : [],
-        willing_to_relocate: Boolean(prefs.willing_to_relocate),
+        remote_work_preference: prefs.remote_preference || prefs.remote_work_preference,
       };
     } catch (error) {
       log.error('Error getting preferences:', error);
@@ -418,16 +420,16 @@ export function registerIpcHandlers() {
     try {
       const stmt = db.prepare(`
         INSERT INTO user_preferences (
-          id, min_salary, max_salary, preferred_locations, willing_to_relocate,
+          id, desired_salary_min, desired_salary_max, desired_locations, remote_preference,
           remote_work_preference, preferred_remote_percentage,
           acceptable_remote_min, acceptable_remote_max
         )
         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
-          min_salary = excluded.min_salary,
-          max_salary = excluded.max_salary,
-          preferred_locations = excluded.preferred_locations,
-          willing_to_relocate = excluded.willing_to_relocate,
+          desired_salary_min = excluded.desired_salary_min,
+          desired_salary_max = excluded.desired_salary_max,
+          desired_locations = excluded.desired_locations,
+          remote_preference = excluded.remote_preference,
           remote_work_preference = excluded.remote_work_preference,
           preferred_remote_percentage = excluded.preferred_remote_percentage,
           acceptable_remote_min = excluded.acceptable_remote_min,
@@ -439,7 +441,7 @@ export function registerIpcHandlers() {
         data.minSalary || null,
         data.maxSalary || null,
         data.preferredLocations ? JSON.stringify(data.preferredLocations) : null,
-        data.willingToRelocate ? 1 : 0,
+        data.remoteWorkPreference || 'flexible',
         data.remoteWorkPreference || null,
         data.preferredRemotePercentage ?? null,
         data.acceptableRemoteMin ?? null,
