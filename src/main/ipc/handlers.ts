@@ -196,7 +196,20 @@ export function registerIpcHandlers() {
       const skills = skillsStmt.all();
 
       const prefsStmt = db.prepare('SELECT * FROM user_preferences WHERE id = 1');
-      const preferences = prefsStmt.get();
+      const rawPrefs = prefsStmt.get() as any;
+      
+      // Transform preferences to match frontend expectations
+      const preferences = rawPrefs ? {
+        min_salary: rawPrefs.desired_salary_min,
+        max_salary: rawPrefs.desired_salary_max,
+        preferred_locations: rawPrefs.desired_locations
+          ? JSON.parse(rawPrefs.desired_locations)
+          : [],
+        remote_work_preference: rawPrefs.remote_preference,
+        preferred_remote_percentage: rawPrefs.preferred_remote_percentage,
+        acceptable_remote_min: rawPrefs.acceptable_remote_min,
+        acceptable_remote_max: rawPrefs.acceptable_remote_max,
+      } : null;
 
       return {
         ...profile,
