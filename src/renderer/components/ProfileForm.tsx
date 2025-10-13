@@ -27,16 +27,21 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [initialData, setInitialData] = useState(formData);
 
   // Sync incoming profile data
   useEffect(() => {
     if (!profile) return;
-    setFormData({
+    const newData = {
       firstName: profile.firstName ?? '',
       lastName: profile.lastName ?? '',
       email: profile.email ?? '',
       location: profile.location ?? ''
-    });
+    };
+    setFormData(newData);
+    setInitialData(newData);
+    setIsDirty(false);
     setEmailError(null);
   }, [profile]);
 
@@ -47,8 +52,32 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
     return emailRegex.test(email);
   };
 
-  // Debounced auto-save (2 seconds)
+  // Check if data has actually changed
+  const hasChanges = (): boolean => {
+    return (
+      formData.firstName !== initialData.firstName ||
+      formData.lastName !== initialData.lastName ||
+      formData.email !== initialData.email ||
+      formData.location !== initialData.location
+    );
+  };
+
+  // Check if at least one field is filled
+  const hasData = (): boolean => {
+    return !!(
+      formData.firstName ||
+      formData.lastName ||
+      formData.email ||
+      formData.location
+    );
+  };
+
+  // Debounced auto-save (2 seconds) - only if dirty and valid
   useEffect(() => {
+    if (!isDirty || !hasChanges() || !hasData()) {
+      return; // Don't save if nothing changed or all fields empty
+    }
+
     const timer = setTimeout(() => {
       if (!emailError && onSave) {
         handleAutoSave();
@@ -56,7 +85,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [formData, emailError, onSave]);
+  }, [formData, emailError, onSave, isDirty]);
 
   const handleAutoSave = async () => {
     try {
@@ -65,6 +94,9 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
 
       await onSave?.(formData);
 
+      // Update initial data after successful save
+      setInitialData(formData);
+      setIsDirty(false);
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save profile');
@@ -78,6 +110,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
   ) => {
     const value = event.target.value;
     setFormData(prev => ({ ...prev, [field]: value }));
+    setIsDirty(true); // Mark as dirty on any change
 
     // Validate email on change
     if (field === 'email') {
@@ -110,7 +143,6 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
           onChange={handleChange('firstName')}
           required
           fullWidth
-          disabled={loading}
         />
 
         <TextField
@@ -119,7 +151,6 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
           onChange={handleChange('lastName')}
           required
           fullWidth
-          disabled={loading}
         />
 
         <TextField
@@ -130,7 +161,6 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
           error={!!emailError}
           helperText={emailError || 'Optional'}
           fullWidth
-          disabled={loading}
         />
 
         <TextField
@@ -139,7 +169,6 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
           onChange={handleChange('location')}
           helperText="City or region"
           fullWidth
-          disabled={loading}
         />
       </Box>
 
