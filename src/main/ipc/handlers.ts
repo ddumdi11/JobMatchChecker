@@ -420,20 +420,14 @@ export function registerIpcHandlers() {
     try {
       const stmt = db.prepare(`
         INSERT INTO user_preferences (
-          id, desired_salary_min, desired_salary_max, desired_locations, remote_preference,
-          remote_work_preference, preferred_remote_percentage,
-          acceptable_remote_min, acceptable_remote_max
+          id, desired_salary_min, desired_salary_max, desired_locations, remote_preference
         )
-        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (1, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           desired_salary_min = excluded.desired_salary_min,
           desired_salary_max = excluded.desired_salary_max,
           desired_locations = excluded.desired_locations,
           remote_preference = excluded.remote_preference,
-          remote_work_preference = excluded.remote_work_preference,
-          preferred_remote_percentage = excluded.preferred_remote_percentage,
-          acceptable_remote_min = excluded.acceptable_remote_min,
-          acceptable_remote_max = excluded.acceptable_remote_max,
           updated_at = CURRENT_TIMESTAMP
       `);
 
@@ -441,11 +435,7 @@ export function registerIpcHandlers() {
         data.minSalary || null,
         data.maxSalary || null,
         data.preferredLocations ? JSON.stringify(data.preferredLocations) : null,
-        data.remoteWorkPreference || 'flexible',
-        data.remoteWorkPreference || null,
-        data.preferredRemotePercentage ?? null,
-        data.acceptableRemoteMin ?? null,
-        data.acceptableRemoteMax ?? null
+        data.remoteWorkPreference || 'flexible'
       );
 
       return { id: 1, ...data };
