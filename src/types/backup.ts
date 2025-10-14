@@ -178,6 +178,7 @@ export type BackupErrorCode =
   | 'NOT_SQLITE_DATABASE'        // File is not a valid SQLite database
   | 'MISSING_MIGRATIONS_TABLE'   // knex_migrations table not found
   | 'NO_MIGRATIONS_FOUND'        // knex_migrations table is empty
+  | 'INVALID_FILENAME'           // Invalid filename (path traversal attempt)
   | 'UNKNOWN';                   // Unexpected error
 
 // ==================== IPC Channel Names ====================
@@ -212,5 +213,6 @@ export const BACKUP_ERROR_MESSAGES: Record<BackupErrorCode, string> = {
   NOT_SQLITE_DATABASE: 'File is not a valid SQLite database.',
   MISSING_MIGRATIONS_TABLE: 'Backup does not contain migration history table.',
   NO_MIGRATIONS_FOUND: 'Backup has no recorded migrations.',
+  INVALID_FILENAME: 'Invalid filename. Path traversal attempts are not allowed.',
   UNKNOWN: 'An unexpected error occurred. Please try again.'
 };

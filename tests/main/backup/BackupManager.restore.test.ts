@@ -184,6 +184,24 @@ describe('BackupManager.restoreBackup()', () => {
       ).rejects.toMatchObject({ code: 'FILE_NOT_FOUND' });
     });
 
+    it('should reject path traversal attempts in filename', async () => {
+      // Arrange - try various path traversal attacks
+      const maliciousFilenames = [
+        '../secrets.db',
+        '../../evil.db',
+        'subdir/../../malicious.db',
+        '..\\windows-style.db',
+        'backup/../../../etc/passwd'
+      ];
+
+      // Act & Assert - all should be rejected
+      for (const filename of maliciousFilenames) {
+        await expect(
+          backupManager.restoreBackup(filename)
+        ).rejects.toMatchObject({ code: 'INVALID_FILENAME' });
+      }
+    });
+
     it('should block restore if schema version too new', async () => {
       // Arrange - create backup with newer schema version
       const newerBackupFilename = 'backup_newer_schema.db';

@@ -198,7 +198,17 @@ export class BackupManager {
     let safetyBackupFilename: string | null = null;
 
     try {
-      // 1. Verify backup file exists
+      // 1. Validate filename for path traversal attacks
+      // SECURITY: Reject any filename containing '..' or path separators
+      if (!filename || filename.trim() === '') {
+        throw new BackupError('INVALID_FILENAME', 'Filename cannot be empty');
+      }
+
+      if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+        throw new BackupError('INVALID_FILENAME', 'Invalid filename: path traversal not allowed');
+      }
+
+      // 2. Verify backup file exists
       // SECURITY: path.join normalizes the path and prevents traversal
       const backupPath = path.join(this.backupDirectory, filename);
       try {
@@ -210,14 +220,14 @@ export class BackupManager {
         throw new BackupError('PERMISSION_DENIED', 'Cannot read backup file');
       }
 
-      // 2. Verify backup integrity
+      // 3. Verify backup integrity
       const verificationResult = await BackupVerifier.verifyBackup(backupPath);
       if (!verificationResult.isValid) {
         const errors = verificationResult.errors?.join(', ') || 'Unknown error';
         throw new BackupError('VERIFICATION_FAILED', `Backup verification failed: ${errors}`);
       }
 
-      // 3. Check schema version compatibility
+      // 4. Check schema version compatibility
       // Get current database schema version
       let currentSchemaVersion: string | null = null;
       try {
@@ -244,17 +254,17 @@ export class BackupManager {
         }
       }
 
-      // 4. Create safety backup of current database
+      // 5. Create safety backup of current database
       // Use internal method to bypass concurrency check (we're already in an operation)
       const safetyBackupMetadata = await this.createBackupInternal('safety');
       safetyBackupPath = safetyBackupMetadata.path;
       safetyBackupFilename = safetyBackupMetadata.filename;
 
-      // 5. Close all database connections before replacing file
+      // 6. Close all database connections before replacing file
       // This is CRITICAL to prevent file locks on Windows
       closeDatabase();
 
-      // 6. Replace database file atomically
+      // 7. Replace database file atomically
       // Copy backup to temp location first, then atomic rename
       const tempPath = this.sourceDatabasePath + '.restore.tmp';
       try {
@@ -287,7 +297,7 @@ export class BackupManager {
         throw new BackupError('UNKNOWN', `Failed to restore backup: ${(error as Error).message}`);
       }
 
-      // 7. Return success response
+      // 8. Return success response
       return {
         success: true,
         message: `Database successfully restored from ${filename}`,
