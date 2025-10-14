@@ -10,13 +10,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import { BackupManager } from '../../../../src/main/backup/BackupManager';
 import Database from 'better-sqlite3';
 import Knex from 'knex';
 
 describe('Integration: Pre-Migration Backup', () => {
-  const testBackupDir = path.join(process.cwd(), 'backups', 'test-migration');
-  const testDbPath = path.join(process.cwd(), 'data', 'test-migration.db');
+  const testBackupDir = path.join(os.tmpdir(), 'jobmatch-test-backups', 'test-migration');
+  const testDbPath = path.join(os.tmpdir(), 'jobmatch-test-data', 'test-migration.db');
+  const testMigrationsDir = path.join(os.tmpdir(), 'jobmatch-test-migrations');
   let backupManager: BackupManager;
   let knex: Knex.Knex;
 
@@ -58,7 +60,7 @@ describe('Integration: Pre-Migration Backup', () => {
       },
       useNullAsDefault: true,
       migrations: {
-        directory: path.join(process.cwd(), 'tests', 'fixtures', 'migrations')
+        directory: testMigrationsDir
       }
     });
 
@@ -76,6 +78,7 @@ describe('Integration: Pre-Migration Backup', () => {
     try {
       await fs.rm(testBackupDir, { recursive: true, force: true });
       await fs.rm(path.dirname(testDbPath), { recursive: true, force: true });
+      await fs.rm(testMigrationsDir, { recursive: true, force: true });
     } catch {
       // Ignore cleanup errors
     }
@@ -85,11 +88,10 @@ describe('Integration: Pre-Migration Backup', () => {
    * Helper to create a test migration file
    */
   async function createTestMigration(name: string, content: string): Promise<void> {
-    const migrationsDir = path.join(process.cwd(), 'tests', 'fixtures', 'migrations');
-    await fs.mkdir(migrationsDir, { recursive: true });
+    await fs.mkdir(testMigrationsDir, { recursive: true });
 
     const timestamp = Date.now();
-    const filename = path.join(migrationsDir, `${timestamp}_${name}.js`);
+    const filename = path.join(testMigrationsDir, `${timestamp}_${name}.js`);
 
     await fs.writeFile(filename, content);
   }

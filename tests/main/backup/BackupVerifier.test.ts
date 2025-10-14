@@ -10,11 +10,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import { BackupVerifier } from '../../../src/main/backup/BackupVerifier';
 import Database from 'better-sqlite3';
 
 describe('BackupVerifier', () => {
-  const testBackupDir = path.join(process.cwd(), 'backups', 'test');
+  const testBackupDir = path.join(os.tmpdir(), 'jobmatch-test-backups', 'backup-verifier');
   let validBackupPath: string;
   let corruptedBackupPath: string;
   let nonSqliteFilePath: string;

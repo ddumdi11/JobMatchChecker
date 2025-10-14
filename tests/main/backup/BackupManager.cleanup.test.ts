@@ -10,6 +10,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import { BackupManager } from '../../../src/main/backup/BackupManager';
 import Database from 'better-sqlite3';
 import type { CleanupOldBackupsResponse } from '../../../src/types/backup';
@@ -17,8 +18,8 @@ import type { CleanupOldBackupsResponse } from '../../../src/types/backup';
 describe('BackupManager.cleanupOldBackups()', () => {
   // NOTE: Most age-based tests are skipped on Windows because fs.utimes() cannot change birthtime
   // We keep tests that don't rely on simulating file age
-  const testBackupDir = path.join(process.cwd(), 'backups', 'test-cleanup');
-  const testDbPath = path.join(process.cwd(), 'data', 'test-cleanup.db');
+  const testBackupDir = path.join(os.tmpdir(), 'jobmatch-test-backups', 'cleanup');
+  const testDbPath = path.join(os.tmpdir(), 'jobmatch-test-data', 'cleanup.db');
   let backupManager: BackupManager;
 
   beforeEach(async () => {
@@ -115,7 +116,7 @@ describe('BackupManager.cleanupOldBackups()', () => {
 
     it('should keep pre-migration backups regardless of age', async () => {
       // Arrange - create old pre-migration backup
-      await createTestBackup('backup_2025-01-01_10-00-00_pre-migration.db', 90); // 90 days old
+      await createTestBackup('backup_2025-01-01_10-00-00-000_pre-migration.db', 90); // 90 days old
       await createTestBackup('backup_recent.db', 10); // Keep at least one other backup
 
       // Act
@@ -124,10 +125,10 @@ describe('BackupManager.cleanupOldBackups()', () => {
       // Assert
       expect(result.success).toBe(true);
       expect(result.deleted).toHaveLength(0);
-      expect(result.kept).toContain('backup_2025-01-01_10-00-00_pre-migration.db');
+      expect(result.kept).toContain('backup_2025-01-01_10-00-00-000_pre-migration.db');
 
       // Verify pre-migration backup still exists
-      await fs.access(path.join(testBackupDir, 'backup_2025-01-01_10-00-00_pre-migration.db'));
+      await fs.access(path.join(testBackupDir, 'backup_2025-01-01_10-00-00-000_pre-migration.db'));
     });
 
     it.skip('should always keep at least 1 backup', async () => {
@@ -258,39 +259,39 @@ describe('BackupManager.cleanupOldBackups()', () => {
     // TODO: All tests require age simulation which doesn't work on Windows
     it('should delete old manual backups', async () => {
       // Arrange
-      await createTestBackup('backup_2025-01-01_10-00-00.db', 35); // Manual, old
+      await createTestBackup('backup_2025-01-01_10-00-00-000.db', 35); // Manual, old
       await createTestBackup('backup_recent.db', 10);
 
       // Act
       const result: CleanupOldBackupsResponse = await backupManager.cleanupOldBackups();
 
       // Assert
-      expect(result.deleted).toContain('backup_2025-01-01_10-00-00.db');
+      expect(result.deleted).toContain('backup_2025-01-01_10-00-00-000.db');
     });
 
     it('should delete old safety backups', async () => {
       // Arrange
-      await createTestBackup('backup_2025-01-01_10-00-00_safety.db', 35); // Safety, old
+      await createTestBackup('backup_2025-01-01_10-00-00-000_safety.db', 35); // Safety, old
       await createTestBackup('backup_recent.db', 10);
 
       // Act
       const result: CleanupOldBackupsResponse = await backupManager.cleanupOldBackups();
 
       // Assert
-      expect(result.deleted).toContain('backup_2025-01-01_10-00-00_safety.db');
+      expect(result.deleted).toContain('backup_2025-01-01_10-00-00-000_safety.db');
     });
 
     it('should keep old pre-migration backups', async () => {
       // Arrange
-      await createTestBackup('backup_2025-01-01_10-00-00_pre-migration.db', 90);
+      await createTestBackup('backup_2025-01-01_10-00-00-000_pre-migration.db', 90);
       await createTestBackup('backup_recent.db', 10);
 
       // Act
       const result: CleanupOldBackupsResponse = await backupManager.cleanupOldBackups();
 
       // Assert
-      expect(result.deleted).not.toContain('backup_2025-01-01_10-00-00_pre-migration.db');
-      expect(result.kept).toContain('backup_2025-01-01_10-00-00_pre-migration.db');
+      expect(result.deleted).not.toContain('backup_2025-01-01_10-00-00-000_pre-migration.db');
+      expect(result.kept).toContain('backup_2025-01-01_10-00-00-000_pre-migration.db');
     });
 
     it('should handle mixed backup types correctly', async () => {

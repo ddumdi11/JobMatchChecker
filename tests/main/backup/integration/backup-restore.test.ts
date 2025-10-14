@@ -10,13 +10,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import { BackupManager } from '../../../../src/main/backup/BackupManager';
 import Database from 'better-sqlite3';
 import type { BackupMetadata } from '../../../../src/types/backup';
 
 describe('Integration: Backup/Restore Flow', () => {
-  const testBackupDir = path.join(process.cwd(), 'backups', 'test-integration');
-  const testDbPath = path.join(process.cwd(), 'data', 'test-integration.db');
+  const testBackupDir = path.join(os.tmpdir(), 'jobmatch-test-backups', 'test-integration');
+  const testDbPath = path.join(os.tmpdir(), 'jobmatch-test-data', 'test-integration.db');
   let backupManager: BackupManager;
 
   beforeEach(async () => {
@@ -70,7 +71,7 @@ describe('Integration: Backup/Restore Flow', () => {
       // Step 1: Create manual backup
       const backup: BackupMetadata = await backupManager.createBackup('manual');
 
-      expect(backup.filename).toMatch(/^backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.db$/);
+      expect(backup.filename).toMatch(/^backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-\d{3}\.db$/);
       expect(backup.type).toBe('manual');
       expect(backup.verified).toBe(true);
       expect(backup.size).toBeGreaterThan(0);

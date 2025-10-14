@@ -85,9 +85,11 @@ export class BackupManager {
       //   throw new BackupError('INSUFFICIENT_SPACE', 'Not enough disk space for backup');
       // }
 
-      // 4. Generate backup filename
-      const timestamp = new Date().toISOString().replace(/:/g, '-').split('.')[0].replace('T', '_');
-      let filename = `backup_${timestamp}`;
+      // 4. Generate backup filename with milliseconds to prevent collisions
+      const now = new Date();
+      const timestamp = now.toISOString().replace(/:/g, '-').replace('T', '_').replace(/\..+/, '');
+      const milliseconds = now.getMilliseconds().toString().padStart(3, '0');
+      let filename = `backup_${timestamp}-${milliseconds}`;
 
       if (type === 'pre-migration') {
         filename += '_pre-migration';
@@ -375,9 +377,9 @@ export class BackupManager {
       // 4. Sort by creation date (newest first)
       // Sort by filename timestamp to be deterministic (birthtime can vary by filesystem)
       backups.sort((a, b) => {
-        // Extract timestamp from filename (format: backup_YYYY-MM-DD_HH-MM-SS.db)
-        const timestampA = a.filename.match(/backup_(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})/)?.[1] || '';
-        const timestampB = b.filename.match(/backup_(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})/)?.[1] || '';
+        // Extract timestamp from filename (format: backup_YYYY-MM-DD_HH-MM-SS-mmm.db)
+        const timestampA = a.filename.match(/backup_(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-\d{3})/)?.[1] || '';
+        const timestampB = b.filename.match(/backup_(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-\d{3})/)?.[1] || '';
 
         // Sort descending (newest first)
         return timestampB.localeCompare(timestampA);

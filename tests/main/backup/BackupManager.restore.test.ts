@@ -10,13 +10,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import { BackupManager } from '../../../src/main/backup/BackupManager';
 import Database from 'better-sqlite3';
 import type { RestoreBackupResponse } from '../../../src/types/backup';
 
 describe('BackupManager.restoreBackup()', () => {
-  const testBackupDir = path.join(process.cwd(), 'backups', 'test-restore');
-  const testDbPath = path.join(process.cwd(), 'data', 'test-restore.db');
+  const testBackupDir = path.join(os.tmpdir(), 'jobmatch-test-backups', 'restore');
+  const testDbPath = path.join(os.tmpdir(), 'jobmatch-test-data', 'restore.db');
   let backupManager: BackupManager;
   let validBackupFilename: string;
 
@@ -55,7 +56,7 @@ describe('BackupManager.restoreBackup()', () => {
     db.close();
 
     // Create a valid backup file
-    validBackupFilename = 'backup_2025-10-14_10-00-00.db';
+    validBackupFilename = 'backup_2025-10-14_10-00-00-000.db';
     const backupPath = path.join(testBackupDir, validBackupFilename);
 
     const backupDb = new Database(backupPath);
@@ -175,7 +176,7 @@ describe('BackupManager.restoreBackup()', () => {
   describe('❌ Restore failures', () => {
     it('should fail if backup file not found', async () => {
       // Arrange
-      const nonExistentBackup = 'backup_2099-01-01_00-00-00.db';
+      const nonExistentBackup = 'backup_2099-01-01_00-00-00-000.db';
 
       // Act & Assert
       await expect(

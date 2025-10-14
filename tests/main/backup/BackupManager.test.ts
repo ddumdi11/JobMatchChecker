@@ -10,12 +10,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import { BackupManager } from '../../../src/main/backup/BackupManager';
 import type { BackupMetadata } from '../../../src/types/backup';
 
 describe('BackupManager.createBackup()', () => {
-  const testBackupDir = path.join(process.cwd(), 'backups');
-  const testDbPath = path.join(process.cwd(), 'data', 'test.db');
+  const testBackupDir = path.join(os.tmpdir(), 'jobmatch-test-backups', 'create-backup');
+  const testDbPath = path.join(os.tmpdir(), 'jobmatch-test-data', 'test.db');
   let backupManager: BackupManager;
 
   beforeEach(async () => {
@@ -80,7 +81,7 @@ describe('BackupManager.createBackup()', () => {
       const result: BackupMetadata = await backupManager.createBackup(type);
 
       // Assert
-      expect(result.filename).toMatch(/^backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.db$/);
+      expect(result.filename).toMatch(/^backup_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}-\d{3}\.db$/);
       expect(result.type).toBe('manual');
 
       // Verify file exists
@@ -172,7 +173,7 @@ describe('BackupManager.createBackup()', () => {
     it('should fail when source DB does not exist', async () => {
       // Arrange
       const type = 'manual';
-      const nonExistentDbPath = path.join(process.cwd(), 'data', 'nonexistent.db');
+      const nonExistentDbPath = path.join(os.tmpdir(), 'jobmatch-test-data', 'nonexistent.db');
       const managerWithInvalidDb = new BackupManager(nonExistentDbPath, testBackupDir);
 
       // Act & Assert
@@ -206,7 +207,7 @@ describe('BackupManager.createBackup()', () => {
     it('should fail when backup directory does not exist', async () => {
       // Arrange
       const type = 'manual';
-      const nonExistentDir = path.join(process.cwd(), 'nonexistent_dir');
+      const nonExistentDir = path.join(os.tmpdir(), 'jobmatch-nonexistent-dir');
       const managerWithInvalidDir = new BackupManager(testDbPath, nonExistentDir);
 
       // Act & Assert

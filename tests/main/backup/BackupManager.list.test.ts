@@ -10,13 +10,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import { BackupManager } from '../../../src/main/backup/BackupManager';
 import Database from 'better-sqlite3';
 import type { BackupMetadata } from '../../../src/types/backup';
 
 describe('BackupManager.listBackups()', () => {
-  const testBackupDir = path.join(process.cwd(), 'backups', 'test-list');
-  const testDbPath = path.join(process.cwd(), 'data', 'test-list.db');
+  const testBackupDir = path.join(os.tmpdir(), 'jobmatch-test-backups', 'list');
+  const testDbPath = path.join(os.tmpdir(), 'jobmatch-test-data', 'list.db');
   let backupManager: BackupManager;
 
   beforeEach(async () => {
@@ -97,31 +98,31 @@ describe('BackupManager.listBackups()', () => {
   describe('✅ Sorting and ordering', () => {
     it('should return all backups sorted by date (newest first)', async () => {
       // Arrange - create backups with different timestamps
-      await createTestBackup('backup_2025-10-14_09-00-00.db'); // Oldest
+      await createTestBackup('backup_2025-10-14_09-00-00-000.db'); // Oldest
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      await createTestBackup('backup_2025-10-14_10-00-00.db'); // Middle
+      await createTestBackup('backup_2025-10-14_10-00-00-000.db'); // Middle
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      await createTestBackup('backup_2025-10-14_11-00-00.db'); // Newest
+      await createTestBackup('backup_2025-10-14_11-00-00-000.db'); // Newest
 
       // Act
       const result: BackupMetadata[] = await backupManager.listBackups();
 
       // Assert - sorted by date (newest first)
       expect(result).toHaveLength(3);
-      expect(result[0].filename).toBe('backup_2025-10-14_11-00-00.db'); // Newest
-      expect(result[1].filename).toBe('backup_2025-10-14_10-00-00.db'); // Middle
-      expect(result[2].filename).toBe('backup_2025-10-14_09-00-00.db'); // Oldest
+      expect(result[0].filename).toBe('backup_2025-10-14_11-00-00-000.db'); // Newest
+      expect(result[1].filename).toBe('backup_2025-10-14_10-00-00-000.db'); // Middle
+      expect(result[2].filename).toBe('backup_2025-10-14_09-00-00-000.db'); // Oldest
     });
 
     it('should sort by creation time, not modification time', async () => {
       // Arrange
-      await createTestBackup('backup_2025-10-14_09-00-00.db');
-      await createTestBackup('backup_2025-10-14_10-00-00.db');
+      await createTestBackup('backup_2025-10-14_09-00-00-000.db');
+      await createTestBackup('backup_2025-10-14_10-00-00-000.db');
 
       // Touch the older file to change modification time
-      const olderFilePath = path.join(testBackupDir, 'backup_2025-10-14_09-00-00.db');
+      const olderFilePath = path.join(testBackupDir, 'backup_2025-10-14_09-00-00-000.db');
       const now = new Date();
       await fs.utimes(olderFilePath, now, now);
 
@@ -129,8 +130,8 @@ describe('BackupManager.listBackups()', () => {
       const result: BackupMetadata[] = await backupManager.listBackups();
 
       // Assert - still sorted by creation date from filename
-      expect(result[0].filename).toBe('backup_2025-10-14_10-00-00.db');
-      expect(result[1].filename).toBe('backup_2025-10-14_09-00-00.db');
+      expect(result[0].filename).toBe('backup_2025-10-14_10-00-00-000.db');
+      expect(result[1].filename).toBe('backup_2025-10-14_09-00-00-000.db');
     });
   });
 
@@ -139,9 +140,9 @@ describe('BackupManager.listBackups()', () => {
       // TODO: On Windows, fs.utimes() cannot change birthtime (it's read-only)
       // This test is not reliable across platforms
       // Arrange - create backup and manually set creation time to 10 days ago
-      await createTestBackup('backup_2025-10-14_10-00-00.db');
+      await createTestBackup('backup_2025-10-14_10-00-00-000.db');
 
-      const backupPath = path.join(testBackupDir, 'backup_2025-10-14_10-00-00.db');
+      const backupPath = path.join(testBackupDir, 'backup_2025-10-14_10-00-00-000.db');
       const tenDaysAgo = new Date();
       tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
 
@@ -158,7 +159,7 @@ describe('BackupManager.listBackups()', () => {
 
     it('should calculate age as 0 for backups created today', async () => {
       // Arrange
-      await createTestBackup('backup_2025-10-14_10-00-00.db');
+      await createTestBackup('backup_2025-10-14_10-00-00-000.db');
 
       // Act
       const result: BackupMetadata[] = await backupManager.listBackups();
@@ -170,9 +171,9 @@ describe('BackupManager.listBackups()', () => {
     it.skip('should round age down to nearest whole day', async () => {
       // TODO: On Windows, fs.utimes() cannot change birthtime (it's read-only)
       // Arrange - create backup 2.8 days ago
-      await createTestBackup('backup_2025-10-14_10-00-00.db');
+      await createTestBackup('backup_2025-10-14_10-00-00-000.db');
 
-      const backupPath = path.join(testBackupDir, 'backup_2025-10-14_10-00-00.db');
+      const backupPath = path.join(testBackupDir, 'backup_2025-10-14_10-00-00-000.db');
       const twoDaysAgo = new Date();
       twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
       twoDaysAgo.setHours(twoDaysAgo.getHours() - 20); // Add 20 hours (2.8 days total)
@@ -190,7 +191,7 @@ describe('BackupManager.listBackups()', () => {
   describe('🏷️ Backup type identification', () => {
     it('should identify manual backup type from filename', async () => {
       // Arrange
-      await createTestBackup('backup_2025-10-14_10-00-00.db');
+      await createTestBackup('backup_2025-10-14_10-00-00-000.db');
 
       // Act
       const result: BackupMetadata[] = await backupManager.listBackups();
@@ -201,7 +202,7 @@ describe('BackupManager.listBackups()', () => {
 
     it('should identify pre-migration backup type from filename', async () => {
       // Arrange
-      await createTestBackup('backup_2025-10-14_10-00-00_pre-migration.db');
+      await createTestBackup('backup_2025-10-14_10-00-00-000_pre-migration.db');
 
       // Act
       const result: BackupMetadata[] = await backupManager.listBackups();
@@ -212,7 +213,7 @@ describe('BackupManager.listBackups()', () => {
 
     it('should identify safety backup type from filename', async () => {
       // Arrange
-      await createTestBackup('backup_2025-10-14_10-00-00_safety.db');
+      await createTestBackup('backup_2025-10-14_10-00-00-000_safety.db');
 
       // Act
       const result: BackupMetadata[] = await backupManager.listBackups();
@@ -223,9 +224,9 @@ describe('BackupManager.listBackups()', () => {
 
     it('should handle mixed backup types in same directory', async () => {
       // Arrange
-      await createTestBackup('backup_2025-10-14_09-00-00.db'); // manual
-      await createTestBackup('backup_2025-10-14_10-00-00_pre-migration.db');
-      await createTestBackup('backup_2025-10-14_11-00-00_safety.db');
+      await createTestBackup('backup_2025-10-14_09-00-00-000.db'); // manual
+      await createTestBackup('backup_2025-10-14_10-00-00-000_pre-migration.db');
+      await createTestBackup('backup_2025-10-14_11-00-00-000_safety.db');
 
       // Act
       const result: BackupMetadata[] = await backupManager.listBackups();
@@ -289,7 +290,7 @@ describe('BackupManager.listBackups()', () => {
   describe('📊 Metadata completeness', () => {
     it('should return all required metadata fields', async () => {
       // Arrange
-      await createTestBackup('backup_2025-10-14_10-00-00.db');
+      await createTestBackup('backup_2025-10-14_10-00-00-000.db');
 
       // Act
       const result: BackupMetadata[] = await backupManager.listBackups();

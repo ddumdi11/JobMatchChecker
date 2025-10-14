@@ -14,6 +14,7 @@
 
 import Database from 'better-sqlite3';
 import * as fs from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
 import * as path from 'node:path';
 import type { BackupErrorCode } from '../../types/backup';
 
@@ -51,7 +52,7 @@ export class BackupVerifier {
     try {
       // 1. Check if file exists
       try {
-        await fs.access(backupPath, fs.constants.R_OK);
+        await fs.access(backupPath, fsConstants.R_OK);
       } catch (error: unknown) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
           result.isValid = false;

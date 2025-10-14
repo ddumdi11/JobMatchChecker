@@ -10,13 +10,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import * as os from 'node:os';
 import { BackupManager } from '../../../src/main/backup/BackupManager';
 import Database from 'better-sqlite3';
 import type { DeleteBackupResponse } from '../../../src/types/backup';
 
 describe('BackupManager.deleteBackup()', () => {
-  const testBackupDir = path.join(process.cwd(), 'backups', 'test-delete');
-  const testDbPath = path.join(process.cwd(), 'data', 'test-delete.db');
+  const testBackupDir = path.join(os.tmpdir(), 'jobmatch-test-backups', 'delete');
+  const testDbPath = path.join(os.tmpdir(), 'jobmatch-test-data', 'delete.db');
   let backupManager: BackupManager;
 
   beforeEach(async () => {
@@ -76,9 +77,9 @@ describe('BackupManager.deleteBackup()', () => {
   describe('✅ Successful deletion', () => {
     it('should delete backup file successfully', async () => {
       // Arrange - create 2 backups so we can delete one
-      const filename = 'backup_2025-10-14_10-00-00.db';
+      const filename = 'backup_2025-10-14_10-00-00-000.db';
       await createTestBackup(filename);
-      await createTestBackup('backup_2025-10-14_11-00-00.db'); // Keep at least one
+      await createTestBackup('backup_2025-10-14_11-00-00-000.db'); // Keep at least one
 
       const backupPath = path.join(testBackupDir, filename);
       await fs.access(backupPath); // Verify file exists
@@ -97,9 +98,9 @@ describe('BackupManager.deleteBackup()', () => {
 
     it('should return success message with backup filename', async () => {
       // Arrange - create 2 backups so we can delete one
-      const filename = 'backup_2025-10-14_10-00-00.db';
+      const filename = 'backup_2025-10-14_10-00-00-000.db';
       await createTestBackup(filename);
-      await createTestBackup('backup_2025-10-14_11-00-00.db'); // Keep at least one
+      await createTestBackup('backup_2025-10-14_11-00-00-000.db'); // Keep at least one
 
       // Act
       const result: DeleteBackupResponse = await backupManager.deleteBackup(filename);
@@ -111,11 +112,11 @@ describe('BackupManager.deleteBackup()', () => {
 
     it('should delete when multiple backups exist', async () => {
       // Arrange - create 3 backups
-      await createTestBackup('backup_2025-10-14_09-00-00.db');
-      await createTestBackup('backup_2025-10-14_10-00-00.db');
-      await createTestBackup('backup_2025-10-14_11-00-00.db');
+      await createTestBackup('backup_2025-10-14_09-00-00-000.db');
+      await createTestBackup('backup_2025-10-14_10-00-00-000.db');
+      await createTestBackup('backup_2025-10-14_11-00-00-000.db');
 
-      const fileToDelete = 'backup_2025-10-14_10-00-00.db';
+      const fileToDelete = 'backup_2025-10-14_10-00-00-000.db';
 
       // Act
       const result: DeleteBackupResponse = await backupManager.deleteBackup(fileToDelete);
@@ -127,16 +128,16 @@ describe('BackupManager.deleteBackup()', () => {
       const remainingFiles = await fs.readdir(testBackupDir);
       expect(remainingFiles).toHaveLength(2);
       expect(remainingFiles).not.toContain(fileToDelete);
-      expect(remainingFiles).toContain('backup_2025-10-14_09-00-00.db');
-      expect(remainingFiles).toContain('backup_2025-10-14_11-00-00.db');
+      expect(remainingFiles).toContain('backup_2025-10-14_09-00-00-000.db');
+      expect(remainingFiles).toContain('backup_2025-10-14_11-00-00-000.db');
     });
 
     it('should delete pre-migration backups', async () => {
       // Arrange
-      await createTestBackup('backup_2025-10-14_10-00-00_pre-migration.db');
-      await createTestBackup('backup_2025-10-14_11-00-00.db'); // Keep at least one
+      await createTestBackup('backup_2025-10-14_10-00-00-000_pre-migration.db');
+      await createTestBackup('backup_2025-10-14_11-00-00-000.db'); // Keep at least one
 
-      const filename = 'backup_2025-10-14_10-00-00_pre-migration.db';
+      const filename = 'backup_2025-10-14_10-00-00-000_pre-migration.db';
 
       // Act
       const result: DeleteBackupResponse = await backupManager.deleteBackup(filename);
@@ -148,10 +149,10 @@ describe('BackupManager.deleteBackup()', () => {
 
     it('should delete safety backups', async () => {
       // Arrange
-      await createTestBackup('backup_2025-10-14_10-00-00_safety.db');
-      await createTestBackup('backup_2025-10-14_11-00-00.db'); // Keep at least one
+      await createTestBackup('backup_2025-10-14_10-00-00-000_safety.db');
+      await createTestBackup('backup_2025-10-14_11-00-00-000.db'); // Keep at least one
 
-      const filename = 'backup_2025-10-14_10-00-00_safety.db';
+      const filename = 'backup_2025-10-14_10-00-00-000_safety.db';
 
       // Act
       const result: DeleteBackupResponse = await backupManager.deleteBackup(filename);
@@ -165,7 +166,7 @@ describe('BackupManager.deleteBackup()', () => {
   describe('❌ Deletion failures', () => {
     it('should block deletion of last remaining backup', async () => {
       // Arrange - create only one backup
-      const filename = 'backup_2025-10-14_10-00-00.db';
+      const filename = 'backup_2025-10-14_10-00-00-000.db';
       await createTestBackup(filename);
 
       // Act & Assert
@@ -179,7 +180,7 @@ describe('BackupManager.deleteBackup()', () => {
 
     it('should fail if file does not exist', async () => {
       // Arrange
-      const nonExistentFile = 'backup_2099-01-01_00-00-00.db';
+      const nonExistentFile = 'backup_2099-01-01_00-00-00-000.db';
 
       // Act & Assert
       await expect(
@@ -253,26 +254,26 @@ describe('BackupManager.deleteBackup()', () => {
 
     it('should prevent deletion if only one backup remains after deletion', async () => {
       // Arrange - create 2 backups
-      await createTestBackup('backup_2025-10-14_10-00-00.db');
-      await createTestBackup('backup_2025-10-14_11-00-00.db');
+      await createTestBackup('backup_2025-10-14_10-00-00-000.db');
+      await createTestBackup('backup_2025-10-14_11-00-00-000.db');
 
       // Act - delete first backup (should succeed)
-      const result1 = await backupManager.deleteBackup('backup_2025-10-14_10-00-00.db');
+      const result1 = await backupManager.deleteBackup('backup_2025-10-14_10-00-00-000.db');
       expect(result1.success).toBe(true);
 
       // Assert - deleting second backup should be blocked
       await expect(
-        backupManager.deleteBackup('backup_2025-10-14_11-00-00.db')
+        backupManager.deleteBackup('backup_2025-10-14_11-00-00-000.db')
       ).rejects.toMatchObject({ code: 'LAST_BACKUP_PROTECTED' });
     });
 
     it('should allow deletion if exactly 2 backups exist', async () => {
       // Arrange
-      await createTestBackup('backup_2025-10-14_10-00-00.db');
-      await createTestBackup('backup_2025-10-14_11-00-00.db');
+      await createTestBackup('backup_2025-10-14_10-00-00-000.db');
+      await createTestBackup('backup_2025-10-14_11-00-00-000.db');
 
       // Act - delete one backup
-      const result: DeleteBackupResponse = await backupManager.deleteBackup('backup_2025-10-14_10-00-00.db');
+      const result: DeleteBackupResponse = await backupManager.deleteBackup('backup_2025-10-14_10-00-00-000.db');
 
       // Assert
       expect(result.success).toBe(true);
@@ -325,7 +326,7 @@ describe('BackupManager.deleteBackup()', () => {
   describe('📝 Error messages', () => {
     it('should provide clear error message for last backup protection', async () => {
       // Arrange
-      const filename = 'backup_only.db';
+      const filename = 'backup_only-000.db';
       await createTestBackup(filename);
 
       // Act & Assert
@@ -355,7 +356,7 @@ describe('BackupManager.deleteBackup()', () => {
 
     it('should include filename in success message', async () => {
       // Arrange
-      const filename = 'backup_2025-10-14_10-00-00.db';
+      const filename = 'backup_2025-10-14_10-00-00-000.db';
       await createTestBackup(filename);
       await createTestBackup('backup_other.db'); // Ensure not the last
 
