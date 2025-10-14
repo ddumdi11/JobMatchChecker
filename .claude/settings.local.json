@@ -19,7 +19,10 @@
       "Bash(git commit:*)",
       "SlashCommand(/clarify)",
       "Bash(git checkout:*)",
-      "SlashCommand(/tasks)"
+      "SlashCommand(/tasks)",
+      "Bash(npm config set:*)",
+      "Bash(rm:*)",
+      "Bash(npx:*)"
     ],
     "deny": [],
     "ask": [

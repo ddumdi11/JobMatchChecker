@@ -148,7 +148,7 @@ As a job seeker, I want to efficiently manage all my job applications in one pla
 #### Job List View
 - **FR-001**: System MUST display a `/jobs` route showing all saved job offers
 - **FR-002**: Job list MUST show key information for each job: title, company name, status, posted date, job source, and match score (if available)
-- **FR-003**: System MUST [NEEDS CLARIFICATION: display format - table, cards, or list view? User preference or fixed?]
+- **FR-003**: System MUST display jobs in table format using Material-UI Table component (decision documented in research.md)
 - **FR-004**: System MUST support pagination with 25 jobs per page
 - **FR-005**: System MUST display a count showing "X of Y jobs" when filters are active
 
@@ -185,7 +185,7 @@ As a job seeker, I want to efficiently manage all my job applications in one pla
 - **FR-029**: System MUST allow user to review and manually edit all extracted fields before saving
 - **FR-030**: System MUST store original pasted text in the "Full Text" field
 - **FR-031**: System MUST pre-fill fields with AI-extracted data even if required fields are missing, highlight missing required fields in red with validation message, and allow user to manually complete them
-- **FR-032**: System MUST [NEEDS CLARIFICATION: handle AI extraction timeout - fallback to manual, retry, or error message?]
+- **FR-032**: System MUST timeout AI extraction after 5 seconds and return partial results with user notification, allowing manual completion (decision documented in research.md)
 - **FR-033**: System MUST [NEEDS CLARIFICATION: AI service cost limits - rate limiting, max extractions per day, or unlimited?]
 
 #### Update Job
