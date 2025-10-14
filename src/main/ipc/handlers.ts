@@ -150,19 +150,25 @@ export function registerIpcHandlers() {
 
   ipcMain.handle(IPC_CHANNELS.PROFILE_UPDATE, async (_, data) => {
     try {
+      // Use INSERT ... ON CONFLICT with COALESCE to preserve existing values
       const stmt = db.prepare(`
-        UPDATE user_profile
-        SET first_name = ?, last_name = ?, email = ?, phone = ?, location = ?,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = 1
+        INSERT INTO user_profile (id, first_name, last_name, email, phone, location)
+        VALUES (1, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          first_name = COALESCE(excluded.first_name, user_profile.first_name),
+          last_name = COALESCE(excluded.last_name, user_profile.last_name),
+          email = COALESCE(excluded.email, user_profile.email),
+          phone = COALESCE(excluded.phone, user_profile.phone),
+          location = COALESCE(excluded.location, user_profile.location),
+          updated_at = CURRENT_TIMESTAMP
       `);
 
       stmt.run(
-        data.firstName,
-        data.lastName,
-        data.email || null,
-        data.phone || null,
-        data.location || null
+        data.firstName ?? null,
+        data.lastName ?? null,
+        data.email ?? null,
+        data.phone ?? null,
+        data.location ?? null
       );
 
       return { id: 1, ...data };
@@ -190,7 +196,20 @@ export function registerIpcHandlers() {
       const skills = skillsStmt.all();
 
       const prefsStmt = db.prepare('SELECT * FROM user_preferences WHERE id = 1');
-      const preferences = prefsStmt.get();
+      const rawPrefs = prefsStmt.get() as any;
+      
+      // Transform preferences to match frontend expectations (camelCase)
+      const preferences = rawPrefs ? {
+        minSalary: rawPrefs.desired_salary_min,
+        maxSalary: rawPrefs.desired_salary_max,
+        preferredLocations: rawPrefs.desired_locations
+          ? JSON.parse(rawPrefs.desired_locations)
+          : [],
+        remoteWorkPreference: rawPrefs.remote_work_preference ?? rawPrefs.remote_preference,
+        preferredRemotePercentage: rawPrefs.preferred_remote_percentage,
+        acceptableRemoteMin: rawPrefs.acceptable_remote_min,
+        acceptableRemoteMax: rawPrefs.acceptable_remote_max,
+      } : null;
 
       return {
         ...profile,
@@ -320,7 +339,14 @@ export function registerIpcHandlers() {
 
   ipcMain.handle(IPC_CHANNELS.SKILLS_UPSERT, async (_, skill) => {
     try {
+      // Check if skill exists in database (not just has an ID)
+      let existingSkill = null;
       if (skill.id) {
+        const checkStmt = db.prepare('SELECT id FROM skills WHERE id = ?');
+        existingSkill = checkStmt.get(skill.id);
+      }
+
+      if (existingSkill) {
         // Update existing skill
         const stmt = db.prepare(`
           UPDATE skills
@@ -332,8 +358,8 @@ export function registerIpcHandlers() {
         stmt.run(
           skill.name,
           skill.level,
-          skill.categoryId || null,
-          skill.yearsExperience || null,
+          skill.categoryId ?? null,
+          skill.yearsOfExperience ?? null,
           skill.id
         );
 
@@ -346,7 +372,7 @@ export function registerIpcHandlers() {
           throw new Error('Cannot add more than 500 skills');
         }
 
-        // Insert new skill
+        // Insert new skill (ignore incoming ID, let DB assign)
         const stmt = db.prepare(`
           INSERT INTO skills (name, level, category_id, years_experience)
           VALUES (?, ?, ?, ?)
@@ -355,8 +381,8 @@ export function registerIpcHandlers() {
         const result = stmt.run(
           skill.name,
           skill.level,
-          skill.categoryId || null,
-          skill.yearsExperience || null
+          skill.categoryId ?? null,
+          skill.yearsOfExperience ?? null
         );
 
         return { id: result.lastInsertRowid, ...skill };
@@ -388,12 +414,17 @@ export function registerIpcHandlers() {
         return null;
       }
 
+      // Map DB column names to frontend expected names (camelCase)
       return {
-        ...prefs,
-        preferred_locations: prefs.preferred_locations
-          ? JSON.parse(prefs.preferred_locations)
+        minSalary: prefs.desired_salary_min,
+        maxSalary: prefs.desired_salary_max,
+        preferredLocations: prefs.desired_locations
+          ? JSON.parse(prefs.desired_locations)
           : [],
-        willing_to_relocate: Boolean(prefs.willing_to_relocate),
+        remoteWorkPreference: prefs.remote_work_preference ?? prefs.remote_preference,
+        preferredRemotePercentage: prefs.preferred_remote_percentage,
+        acceptableRemoteMin: prefs.acceptable_remote_min,
+        acceptableRemoteMax: prefs.acceptable_remote_max,
       };
     } catch (error) {
       log.error('Error getting preferences:', error);
@@ -405,16 +436,15 @@ export function registerIpcHandlers() {
     try {
       const stmt = db.prepare(`
         INSERT INTO user_preferences (
-          id, min_salary, max_salary, preferred_locations, willing_to_relocate,
+          id, desired_salary_min, desired_salary_max, desired_locations,
           remote_work_preference, preferred_remote_percentage,
           acceptable_remote_min, acceptable_remote_max
         )
-        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (1, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
-          min_salary = excluded.min_salary,
-          max_salary = excluded.max_salary,
-          preferred_locations = excluded.preferred_locations,
-          willing_to_relocate = excluded.willing_to_relocate,
+          desired_salary_min = excluded.desired_salary_min,
+          desired_salary_max = excluded.desired_salary_max,
+          desired_locations = excluded.desired_locations,
           remote_work_preference = excluded.remote_work_preference,
           preferred_remote_percentage = excluded.preferred_remote_percentage,
           acceptable_remote_min = excluded.acceptable_remote_min,
@@ -423,11 +453,10 @@ export function registerIpcHandlers() {
       `);
 
       stmt.run(
-        data.minSalary || null,
-        data.maxSalary || null,
+        data.minSalary ?? null,
+        data.maxSalary ?? null,
         data.preferredLocations ? JSON.stringify(data.preferredLocations) : null,
-        data.willingToRelocate ? 1 : 0,
-        data.remoteWorkPreference || null,
+        data.remoteWorkPreference ?? 'flexible',
         data.preferredRemotePercentage ?? null,
         data.acceptableRemoteMin ?? null,
         data.acceptableRemoteMax ?? null

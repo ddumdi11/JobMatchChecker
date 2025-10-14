@@ -23,7 +23,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, '../main/preload.js')
+      preload: path.join(__dirname, '../preload/index.js')
     },
     title: 'Job Match Checker',
     show: false

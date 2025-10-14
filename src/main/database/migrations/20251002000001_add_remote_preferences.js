@@ -109,8 +109,6 @@ exports.up = function(knex) {
       END;
     `);
   }).then(() => {
-    // …next, the existing timestamp trigger…
-  }).then(() => {
     // Add trigger to auto-update remote_work_updated_at when remote_work_preference changes
     // NOTE: Using AFTER UPDATE instead of BEFORE UPDATE due to SQLite limitations.
     // SQLite does not support directly setting NEW.column values in BEFORE triggers
@@ -163,8 +161,6 @@ exports.up = function(knex) {
 exports.down = function(knex) {
   // Drop triggers in reverse order
   return knex.raw('DROP TRIGGER IF EXISTS update_remote_work_timestamp_on_percentage')
-  // Drop triggers in reverse order
-  return knex.raw('DROP TRIGGER IF EXISTS update_remote_work_timestamp_on_percentage')
     .then(() => knex.raw('DROP TRIGGER IF EXISTS set_remote_work_timestamp_on_insert'))
     .then(() => knex.raw('DROP TRIGGER IF EXISTS update_remote_work_timestamp_on_preference'))
     .then(() => knex.raw('DROP TRIGGER IF EXISTS check_remote_bounds_update'))
@@ -183,5 +179,4 @@ exports.down = function(knex) {
         table.dropColumn('remote_work_preference');
       });
     });
-};
 };

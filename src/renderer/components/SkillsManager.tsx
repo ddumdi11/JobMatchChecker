@@ -131,7 +131,7 @@ export const SkillsManager: React.FC<SkillsManagerProps> = ({ skills = [], onSav
       : skillForm.category;
 
     const newSkill: HardSkill = {
-      id: editingSkill?.id || Date.now(),
+      id: editingSkill?.id || Date.now(), // Temporary ID for UI, DB will assign real ID
       name: skillForm.name,
       category,
       level: skillForm.level,

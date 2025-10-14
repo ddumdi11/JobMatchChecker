@@ -11,15 +11,15 @@ let knex: Knex.Knex | null = null;
  * Get knex configuration (lazy loaded)
  */
 function getKnexConfig() {
-  // In compiled code: dist/main/main/database/db.js -> ../../../../knexfile.js
-  return require(path.join(__dirname, '../../../../knexfile.js'));
+  // In compiled code: dist/main/index.js -> ../../knexfile.js
+  return require(path.join(__dirname, '../../knexfile.js'));
 }
 
 /**
  * Get the database file path
  */
 export function getDbPath(): string {
-  const dbPath = process.env.DB_PATH || path.join(__dirname, '../../../../data/jobmatcher.db');
+  const dbPath = process.env.DB_PATH || path.join(__dirname, '../../data/jobmatcher.db');
 
   // Ensure data directory exists
   const dataDir = path.dirname(dbPath);

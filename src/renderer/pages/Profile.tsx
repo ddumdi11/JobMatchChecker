@@ -159,18 +159,17 @@ function Profile() {
     }));
 
   const transformPreferences = (dbPrefs: any): UserPreferences => ({
-    minSalary: dbPrefs.min_salary,
-    maxSalary: dbPrefs.max_salary,
-    preferredLocations: dbPrefs.preferred_locations
-      ? JSON.parse(dbPrefs.preferred_locations)
-      : [],
-    willingToRelocate: Boolean(dbPrefs.willing_to_relocate),
-    remoteWorkPreference: dbPrefs.remote_work_preference,
-    preferredRemotePercentage: dbPrefs.preferred_remote_percentage,
-    acceptableRemoteMin: dbPrefs.acceptable_remote_min,
-    acceptableRemoteMax: dbPrefs.acceptable_remote_max,
-    remoteWorkUpdatedAt: dbPrefs.remote_work_updated_at
-      ? new Date(dbPrefs.remote_work_updated_at)
+    // Handler already returns camelCase, so just pass through
+    minSalary: dbPrefs.minSalary,
+    maxSalary: dbPrefs.maxSalary,
+    preferredLocations: dbPrefs.preferredLocations ?? [],
+    willingToRelocate: Boolean(dbPrefs.willingToRelocate),
+    remoteWorkPreference: dbPrefs.remoteWorkPreference,
+    preferredRemotePercentage: dbPrefs.preferredRemotePercentage,
+    acceptableRemoteMin: dbPrefs.acceptableRemoteMin,
+    acceptableRemoteMax: dbPrefs.acceptableRemoteMax,
+    remoteWorkUpdatedAt: dbPrefs.remoteWorkUpdatedAt
+      ? new Date(dbPrefs.remoteWorkUpdatedAt)
       : undefined
   });
 
@@ -239,8 +238,32 @@ function Profile() {
     }
   };
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = async (_event: React.SyntheticEvent, newValue: number) => {
+    // Set active tab immediately for responsive UI
     setActiveTab(newValue);
+    
+    // Don't reload if there are unsaved changes (would overwrite user edits)
+    // Note: Individual components track their own unsaved state
+    // In future, we can check unsavedChangesContext here
+    
+    // Reload profile data when switching tabs to ensure fresh data
+    try {
+      const profileData = await window.api.getProfile();
+      
+      if (profileData) {
+        const { skills: profileSkills, preferences: profilePrefs, ...dbProfile } = profileData;
+        setProfile(transformProfile(dbProfile));
+        setSkills(profileSkills ? transformSkills(profileSkills) : []);
+        setPreferences(profilePrefs ? transformPreferences(profilePrefs) : null);
+      } else {
+        // Clear stale state if no profile data
+        setProfile(null);
+        setSkills([]);
+        setPreferences(null);
+      }
+    } catch (error) {
+      console.error('Failed to reload profile on tab change:', error);
+    }
   };
 
   return (
