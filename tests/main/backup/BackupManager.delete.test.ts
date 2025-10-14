@@ -20,6 +20,14 @@ describe('BackupManager.deleteBackup()', () => {
   let backupManager: BackupManager;
 
   beforeEach(async () => {
+    // Clean up any existing test files first
+    try {
+      await fs.rm(testBackupDir, { recursive: true, force: true });
+      await fs.rm(path.dirname(testDbPath), { recursive: true, force: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+
     // Create test directories
     await fs.mkdir(testBackupDir, { recursive: true });
     await fs.mkdir(path.dirname(testDbPath), { recursive: true });
@@ -67,9 +75,10 @@ describe('BackupManager.deleteBackup()', () => {
 
   describe('✅ Successful deletion', () => {
     it('should delete backup file successfully', async () => {
-      // Arrange
+      // Arrange - create 2 backups so we can delete one
       const filename = 'backup_2025-10-14_10-00-00.db';
       await createTestBackup(filename);
+      await createTestBackup('backup_2025-10-14_11-00-00.db'); // Keep at least one
 
       const backupPath = path.join(testBackupDir, filename);
       await fs.access(backupPath); // Verify file exists
@@ -87,9 +96,10 @@ describe('BackupManager.deleteBackup()', () => {
     });
 
     it('should return success message with backup filename', async () => {
-      // Arrange
+      // Arrange - create 2 backups so we can delete one
       const filename = 'backup_2025-10-14_10-00-00.db';
       await createTestBackup(filename);
+      await createTestBackup('backup_2025-10-14_11-00-00.db'); // Keep at least one
 
       // Act
       const result: DeleteBackupResponse = await backupManager.deleteBackup(filename);
@@ -161,7 +171,7 @@ describe('BackupManager.deleteBackup()', () => {
       // Act & Assert
       await expect(
         backupManager.deleteBackup(filename)
-      ).rejects.toThrow('LAST_BACKUP_PROTECTED');
+      ).rejects.toMatchObject({ code: 'LAST_BACKUP_PROTECTED' });
 
       // Verify file still exists
       await fs.access(path.join(testBackupDir, filename)); // Should not throw
@@ -174,7 +184,7 @@ describe('BackupManager.deleteBackup()', () => {
       // Act & Assert
       await expect(
         backupManager.deleteBackup(nonExistentFile)
-      ).rejects.toThrow('FILE_NOT_FOUND');
+      ).rejects.toMatchObject({ code: 'FILE_NOT_FOUND' });
     });
 
     it('should fail if permission denied', async () => {
@@ -196,7 +206,7 @@ describe('BackupManager.deleteBackup()', () => {
       // Act & Assert
       await expect(
         backupManager.deleteBackup(filename)
-      ).rejects.toThrow('PERMISSION_DENIED');
+      ).rejects.toMatchObject({ code: 'PERMISSION_DENIED' });
 
       // Cleanup - restore permissions
       await fs.chmod(testBackupDir, 0o755);
@@ -238,7 +248,7 @@ describe('BackupManager.deleteBackup()', () => {
       // Last one should be protected
       await expect(
         backupManager.deleteBackup('backup_safety_safety.db')
-      ).rejects.toThrow('LAST_BACKUP_PROTECTED');
+      ).rejects.toMatchObject({ code: 'LAST_BACKUP_PROTECTED' });
     });
 
     it('should prevent deletion if only one backup remains after deletion', async () => {
@@ -253,7 +263,7 @@ describe('BackupManager.deleteBackup()', () => {
       // Assert - deleting second backup should be blocked
       await expect(
         backupManager.deleteBackup('backup_2025-10-14_11-00-00.db')
-      ).rejects.toThrow('LAST_BACKUP_PROTECTED');
+      ).rejects.toMatchObject({ code: 'LAST_BACKUP_PROTECTED' });
     });
 
     it('should allow deletion if exactly 2 backups exist', async () => {
@@ -308,7 +318,7 @@ describe('BackupManager.deleteBackup()', () => {
       // Act & Assert - should detect file is already gone
       await expect(
         backupManager.deleteBackup(filename)
-      ).rejects.toThrow('FILE_NOT_FOUND');
+      ).rejects.toMatchObject({ code: 'FILE_NOT_FOUND' });
     });
   });
 
@@ -372,7 +382,7 @@ describe('BackupManager.deleteBackup()', () => {
       const deleteOperation = backupManager.deleteBackup(filename);
 
       // Assert
-      await expect(deleteOperation).rejects.toThrow('OPERATION_IN_PROGRESS');
+      await expect(deleteOperation).rejects.toMatchObject({ code: 'OPERATION_IN_PROGRESS' });
 
       // Cleanup
       try {
@@ -395,7 +405,7 @@ describe('BackupManager.deleteBackup()', () => {
       const deleteOperation = backupManager.deleteBackup(filename);
 
       // Assert
-      await expect(deleteOperation).rejects.toThrow('OPERATION_IN_PROGRESS');
+      await expect(deleteOperation).rejects.toMatchObject({ code: 'OPERATION_IN_PROGRESS' });
 
       // Cleanup
       try {
