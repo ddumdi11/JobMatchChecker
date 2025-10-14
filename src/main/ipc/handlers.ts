@@ -205,7 +205,7 @@ export function registerIpcHandlers() {
         preferredLocations: rawPrefs.desired_locations
           ? JSON.parse(rawPrefs.desired_locations)
           : [],
-        remoteWorkPreference: rawPrefs.remote_preference,
+        remoteWorkPreference: rawPrefs.remote_work_preference ?? rawPrefs.remote_preference,
         preferredRemotePercentage: rawPrefs.preferred_remote_percentage,
         acceptableRemoteMin: rawPrefs.acceptable_remote_min,
         acceptableRemoteMax: rawPrefs.acceptable_remote_max,
@@ -358,8 +358,8 @@ export function registerIpcHandlers() {
         stmt.run(
           skill.name,
           skill.level,
-          skill.categoryId || null,
-          skill.yearsOfExperience || null,
+          skill.categoryId ?? null,
+          skill.yearsOfExperience ?? null,
           skill.id
         );
 
@@ -381,8 +381,8 @@ export function registerIpcHandlers() {
         const result = stmt.run(
           skill.name,
           skill.level,
-          skill.categoryId || null,
-          skill.yearsOfExperience || null
+          skill.categoryId ?? null,
+          skill.yearsOfExperience ?? null
         );
 
         return { id: result.lastInsertRowid, ...skill };
@@ -421,7 +421,7 @@ export function registerIpcHandlers() {
         preferredLocations: prefs.desired_locations
           ? JSON.parse(prefs.desired_locations)
           : [],
-        remoteWorkPreference: prefs.remote_preference,
+        remoteWorkPreference: prefs.remote_work_preference ?? prefs.remote_preference,
         preferredRemotePercentage: prefs.preferred_remote_percentage,
         acceptableRemoteMin: prefs.acceptable_remote_min,
         acceptableRemoteMax: prefs.acceptable_remote_max,
@@ -436,15 +436,16 @@ export function registerIpcHandlers() {
     try {
       const stmt = db.prepare(`
         INSERT INTO user_preferences (
-          id, desired_salary_min, desired_salary_max, desired_locations, remote_preference,
-          preferred_remote_percentage, acceptable_remote_min, acceptable_remote_max
+          id, desired_salary_min, desired_salary_max, desired_locations,
+          remote_work_preference, preferred_remote_percentage,
+          acceptable_remote_min, acceptable_remote_max
         )
         VALUES (1, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           desired_salary_min = excluded.desired_salary_min,
           desired_salary_max = excluded.desired_salary_max,
           desired_locations = excluded.desired_locations,
-          remote_preference = excluded.remote_preference,
+          remote_work_preference = excluded.remote_work_preference,
           preferred_remote_percentage = excluded.preferred_remote_percentage,
           acceptable_remote_min = excluded.acceptable_remote_min,
           acceptable_remote_max = excluded.acceptable_remote_max,
@@ -452,10 +453,10 @@ export function registerIpcHandlers() {
       `);
 
       stmt.run(
-        data.minSalary || null,
-        data.maxSalary || null,
+        data.minSalary ?? null,
+        data.maxSalary ?? null,
         data.preferredLocations ? JSON.stringify(data.preferredLocations) : null,
-        data.remoteWorkPreference || 'flexible',
+        data.remoteWorkPreference ?? 'flexible',
         data.preferredRemotePercentage ?? null,
         data.acceptableRemoteMin ?? null,
         data.acceptableRemoteMax ?? null
