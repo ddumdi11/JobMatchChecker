@@ -183,10 +183,9 @@ describe('BackupVerifier', () => {
       `);
       db.close();
 
-      // Corrupt the database file by overwriting part of it
-      const fileHandle = await fs.open(corruptDbPath, 'r+');
-      await fileHandle.write(Buffer.from('CORRUPTED'), 100); // Write garbage at offset 100
-      await fileHandle.close();
+      // Corrupt the database file by truncating it significantly
+      const stats = await fs.stat(corruptDbPath);
+      await fs.truncate(corruptDbPath, Math.floor(stats.size * 0.6)); // Truncate to 60% of size
 
       // Act
       const result = await BackupVerifier.verifyBackup(corruptDbPath);

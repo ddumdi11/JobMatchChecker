@@ -166,16 +166,19 @@ export interface CheckBackupStatusResponse {
  * Error codes for backup operations
  */
 export type BackupErrorCode =
-  | 'INSUFFICIENT_SPACE'      // Not enough disk space
-  | 'PERMISSION_DENIED'       // File/directory permission error
-  | 'VERIFICATION_FAILED'     // Backup verification failed
-  | 'FILE_NOT_FOUND'          // Backup file not found
-  | 'SCHEMA_TOO_NEW'          // Backup schema version too new
-  | 'INTEGRITY_FAILED'        // Backup file corrupted
-  | 'OPERATION_IN_PROGRESS'   // Another operation running
-  | 'LAST_BACKUP_PROTECTED'   // Cannot delete last backup
-  | 'DIRECTORY_NOT_FOUND'     // Backups directory not found
-  | 'UNKNOWN';                // Unexpected error
+  | 'INSUFFICIENT_SPACE'         // Not enough disk space
+  | 'PERMISSION_DENIED'          // File/directory permission error
+  | 'VERIFICATION_FAILED'        // Backup verification failed
+  | 'FILE_NOT_FOUND'             // Backup file not found
+  | 'SCHEMA_TOO_NEW'             // Backup schema version too new
+  | 'INTEGRITY_FAILED'           // Backup file corrupted
+  | 'OPERATION_IN_PROGRESS'      // Another operation running
+  | 'LAST_BACKUP_PROTECTED'      // Cannot delete last backup
+  | 'DIRECTORY_NOT_FOUND'        // Backups directory not found
+  | 'NOT_SQLITE_DATABASE'        // File is not a valid SQLite database
+  | 'MISSING_MIGRATIONS_TABLE'   // knex_migrations table not found
+  | 'NO_MIGRATIONS_FOUND'        // knex_migrations table is empty
+  | 'UNKNOWN';                   // Unexpected error
 
 // ==================== IPC Channel Names ====================
 
@@ -206,5 +209,8 @@ export const BACKUP_ERROR_MESSAGES: Record<BackupErrorCode, string> = {
   OPERATION_IN_PROGRESS: 'Another backup/restore operation is already running. Please wait.',
   LAST_BACKUP_PROTECTED: 'Cannot delete the last remaining backup for safety.',
   DIRECTORY_NOT_FOUND: 'Backups directory not found.',
+  NOT_SQLITE_DATABASE: 'File is not a valid SQLite database.',
+  MISSING_MIGRATIONS_TABLE: 'Backup does not contain migration history table.',
+  NO_MIGRATIONS_FOUND: 'Backup has no recorded migrations.',
   UNKNOWN: 'An unexpected error occurred. Please try again.'
 };
