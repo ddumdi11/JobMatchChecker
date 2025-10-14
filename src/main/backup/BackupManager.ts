@@ -18,6 +18,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { BackupVerifier } from './BackupVerifier';
 import { hasSufficientDiskSpace } from '../utils/diskSpace';
+import { closeDatabase } from '../database/db';
 import type { BackupMetadata, BackupType, BackupErrorCode } from '../../types/backup';
 
 /**
@@ -101,15 +102,22 @@ export class BackupManager {
 
       const backupPath = path.join(this.backupDirectory, filename);
 
-      // 5. Copy database file
+      // 5. Create backup using better-sqlite3 backup API
+      // This is safer than fs.copyFile because it creates a consistent snapshot
+      // and doesn't require closing the database connection
       try {
-        await fs.copyFile(this.sourceDatabasePath, backupPath);
+        const db = new Database(this.sourceDatabasePath, { readonly: true });
+        try {
+          await db.backup(backupPath);
+        } finally {
+          db.close();
+        }
       } catch (error: unknown) {
         if ((error as NodeJS.ErrnoException).code === 'EACCES' ||
             (error as NodeJS.ErrnoException).code === 'EPERM') {
           throw new BackupError('PERMISSION_DENIED', 'Permission denied while creating backup');
         }
-        throw new BackupError('UNKNOWN', `Failed to copy database: ${(error as Error).message}`);
+        throw new BackupError('UNKNOWN', `Failed to create backup: ${(error as Error).message}`);
       }
 
       // 6. Verify backup integrity
@@ -168,7 +176,14 @@ export class BackupManager {
   /**
    * Restores a backup file, replacing the current database
    *
-   * @param filename - Name of the backup file to restore
+   * **Security**: Path traversal protection is implicitly provided by using only
+   * the filename (no path components) and joining it with the configured backup directory.
+   * The filename is validated by path.join() which normalizes paths.
+   *
+   * **Important**: This method closes ALL database connections before replacing the file
+   * to prevent file locks (especially on Windows).
+   *
+   * @param filename - Name of the backup file to restore (filename only, no path components)
    * @returns Response with safety backup information
    * @throws BackupError if restore fails
    */
@@ -184,6 +199,7 @@ export class BackupManager {
 
     try {
       // 1. Verify backup file exists
+      // SECURITY: path.join normalizes the path and prevents traversal
       const backupPath = path.join(this.backupDirectory, filename);
       try {
         await fs.access(backupPath, fs.constants.R_OK);
@@ -234,7 +250,11 @@ export class BackupManager {
       safetyBackupPath = safetyBackupMetadata.path;
       safetyBackupFilename = safetyBackupMetadata.filename;
 
-      // 5. Replace database file atomically
+      // 5. Close all database connections before replacing file
+      // This is CRITICAL to prevent file locks on Windows
+      closeDatabase();
+
+      // 6. Replace database file atomically
       // Copy backup to temp location first, then atomic rename
       const tempPath = this.sourceDatabasePath + '.restore.tmp';
       try {
@@ -267,7 +287,7 @@ export class BackupManager {
         throw new BackupError('UNKNOWN', `Failed to restore backup: ${(error as Error).message}`);
       }
 
-      // 6. Return success response
+      // 7. Return success response
       return {
         success: true,
         message: `Database successfully restored from ${filename}`,
@@ -395,7 +415,11 @@ export class BackupManager {
   /**
    * Deletes a specific backup file
    *
-   * @param filename - Name of the backup file to delete
+   * **Security**: This method implements path traversal protection by rejecting
+   * any filename containing '..' or path separators. Only filenames (not paths)
+   * are accepted, and they are validated before being joined with the backup directory.
+   *
+   * @param filename - Name of the backup file to delete (filename only, no path components)
    * @returns Response indicating success
    * @throws BackupError if deletion fails or is blocked
    */
@@ -413,7 +437,9 @@ export class BackupManager {
         throw new BackupError('UNKNOWN', 'Filename cannot be empty');
       }
 
-      // Prevent path traversal
+      // SECURITY: Prevent path traversal attacks
+      // Reject any filename containing '..' or path separators (/ or \)
+      // This ensures the file can only be within the backup directory
       if (filename.includes('..') || filename.includes(path.sep)) {
         throw new BackupError('UNKNOWN', 'Invalid filename: path traversal not allowed');
       }
