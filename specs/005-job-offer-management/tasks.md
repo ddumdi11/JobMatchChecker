@@ -279,7 +279,7 @@ export interface JobSortConfig {
 - [ ] Export `deleteJob(id)` function
 - [ ] Export `getJobSources()` function
 - [ ] Export `getJobStatusOptions()` function
-- [ ] Implement all 6 business rules from data-model.md
+- [ ] Implement all 7 business rules from data-model.md (BR-1 through BR-7 as defined in T010)
 - [ ] Use prepared statements for SQL queries
 - [ ] Return proper error codes: VALIDATION_ERROR, NOT_FOUND, DATABASE_ERROR
 - [ ] Test T010 now passes
@@ -570,6 +570,7 @@ const handleExtract = async () => {
 - [ ] Render `<JobListTable>` component
 - [ ] Render Material-UI `<Pagination>` component (25 items/page)
 - [ ] "Add Job" button (FloatingActionButton or AppBar action)
+- [ ] User can change job status from dropdown in table row (FR-014)
 - [ ] Re-fetch jobs when filters, sort, or page changes
 - [ ] Loading state (skeleton or spinner)
 - [ ] Error state (error message with retry button)

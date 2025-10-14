@@ -43,7 +43,7 @@ Implement comprehensive Job Offer Management system enabling users to create, re
 **Project Type**: Single project (Electron app with main + renderer processes)
 **Performance Goals**: Job list render < 200ms for 100 items, AI extraction < 5 seconds, filter/sort operations < 100ms
 **Constraints**: <200ms p95 for UI interactions, <5s for AI calls, maintain < 100MB memory footprint for job list page
-**Scale/Scope**: Support 1000+ jobs in database, 25 jobs per page, AI cost limit ~$5/month at 50 extractions
+**Scale/Scope**: Support 1000+ jobs in database, 25 jobs per page, AI cost monitoring ~$5/month at 50 extractions (Phase 1: monitor only, no hard rate limits)
 
 ## Constitution Check
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
