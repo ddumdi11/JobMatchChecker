@@ -63,10 +63,9 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
 
   // Sync incoming preferences to formData
   useEffect(() => {
-    console.log('PreferencesPanel: preferences prop changed', preferences);
     if (preferences) {
       skipUnsavedRef.current = true;
-      const newFormData = {
+      setFormData({
         minSalary: preferences.minSalary ?? undefined,
         maxSalary: preferences.maxSalary,
         preferredLocations: preferences.preferredLocations ?? [],
@@ -85,9 +84,7 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
           partTime: false,
           contract: false
         }
-      };
-      console.log('PreferencesPanel: setting formData to', newFormData);
-      setFormData(newFormData);
+      });
       setValidationError(null);
       setHasUnsavedChanges(false);
       skipUnsavedRef.current = false;

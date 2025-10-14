@@ -239,26 +239,31 @@ function Profile() {
   };
 
   const handleTabChange = async (_event: React.SyntheticEvent, newValue: number) => {
-    console.log('Tab change: from', activeTab, 'to', newValue);
+    // Set active tab immediately for responsive UI
+    setActiveTab(newValue);
+    
+    // Don't reload if there are unsaved changes (would overwrite user edits)
+    // Note: Individual components track their own unsaved state
+    // In future, we can check unsavedChangesContext here
+    
     // Reload profile data when switching tabs to ensure fresh data
     try {
       const profileData = await window.api.getProfile();
-      console.log('Loaded profile data:', profileData);
+      
       if (profileData) {
         const { skills: profileSkills, preferences: profilePrefs, ...dbProfile } = profileData;
-        console.log('Raw preferences from API:', profilePrefs);
-        const transformedProfile = transformProfile(dbProfile);
-        const transformedPrefs = profilePrefs ? transformPreferences(profilePrefs) : null;
-        console.log('Transformed preferences:', transformedPrefs);
-        setProfile(transformedProfile);
+        setProfile(transformProfile(dbProfile));
         setSkills(profileSkills ? transformSkills(profileSkills) : []);
-        setPreferences(transformedPrefs);
+        setPreferences(profilePrefs ? transformPreferences(profilePrefs) : null);
+      } else {
+        // Clear stale state if no profile data
+        setProfile(null);
+        setSkills([]);
+        setPreferences(null);
       }
     } catch (error) {
       console.error('Failed to reload profile on tab change:', error);
     }
-
-    setActiveTab(newValue);
   };
 
   return (

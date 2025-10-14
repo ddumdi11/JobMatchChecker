@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   TextField,
@@ -29,19 +29,24 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
   const [emailError, setEmailError] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [initialData, setInitialData] = useState(formData);
+  const formDataRef = useRef(formData);
 
-  // Sync incoming profile data
+  // Sync incoming profile data - handle both populated and empty profiles
   useEffect(() => {
-    console.log('ProfileForm: profile prop changed', profile);
-    if (!profile) return;
-    const newData = {
+    const newData = profile ? {
       firstName: profile.firstName ?? '',
       lastName: profile.lastName ?? '',
       email: profile.email ?? '',
       location: profile.location ?? ''
+    } : {
+      firstName: '',
+      lastName: '',
+      email: '',
+      location: ''
     };
-    console.log('ProfileForm: setting formData to', newData);
+    
     setFormData(newData);
+    formDataRef.current = newData;
     setInitialData(newData);
     setIsDirty(false);
     setEmailError(null);
@@ -64,40 +69,34 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
     );
   };
 
-  // Check if at least one field is filled
-  const hasData = (): boolean => {
-    return !!(
-      formData.firstName ||
-      formData.lastName ||
-      formData.email ||
-      formData.location
-    );
-  };
-
-  // Debounced auto-save (2 seconds) - only if dirty and valid
+  // Debounced auto-save (2 seconds) - only if dirty, valid, and not already saving
   useEffect(() => {
-    if (!isDirty || !hasChanges() || !hasData()) {
-      return; // Don't save if nothing changed or all fields empty
+    if (!isDirty || !hasChanges() || loading) {
+      return; // Don't save if nothing changed or save in progress
     }
 
     const timer = setTimeout(() => {
-      if (!emailError && onSave) {
+      if (!emailError && onSave && !loading) {
         handleAutoSave();
       }
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [formData, emailError, onSave, isDirty]);
+  }, [formData, emailError, onSave, isDirty, loading]);
 
   const handleAutoSave = async () => {
+    if (loading) return; // Prevent overlapping saves
+    
     try {
       setLoading(true);
       setError(null);
 
-      await onSave?.(formData);
+      // Capture snapshot to preserve in-flight edits
+      const snapshot = { ...formDataRef.current };
+      await onSave?.(snapshot);
 
       // Update initial data after successful save
-      setInitialData(formData);
+      setInitialData(snapshot);
       setIsDirty(false);
       setSuccess(true);
     } catch (err) {
@@ -111,7 +110,9 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const value = event.target.value;
-    setFormData(prev => ({ ...prev, [field]: value }));
+    const newData = { ...formData, [field]: value };
+    setFormData(newData);
+    formDataRef.current = newData; // Keep ref in sync
     setIsDirty(true); // Mark as dirty on any change
 
     // Validate email on change

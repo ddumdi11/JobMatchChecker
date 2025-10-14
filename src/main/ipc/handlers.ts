@@ -150,25 +150,25 @@ export function registerIpcHandlers() {
 
   ipcMain.handle(IPC_CHANNELS.PROFILE_UPDATE, async (_, data) => {
     try {
-      // Use INSERT ... ON CONFLICT to handle both create and update
+      // Use INSERT ... ON CONFLICT with COALESCE to preserve existing values
       const stmt = db.prepare(`
         INSERT INTO user_profile (id, first_name, last_name, email, phone, location)
         VALUES (1, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
-          first_name = excluded.first_name,
-          last_name = excluded.last_name,
-          email = excluded.email,
-          phone = excluded.phone,
-          location = excluded.location,
+          first_name = COALESCE(excluded.first_name, user_profile.first_name),
+          last_name = COALESCE(excluded.last_name, user_profile.last_name),
+          email = COALESCE(excluded.email, user_profile.email),
+          phone = COALESCE(excluded.phone, user_profile.phone),
+          location = COALESCE(excluded.location, user_profile.location),
           updated_at = CURRENT_TIMESTAMP
       `);
 
       stmt.run(
-        data.firstName,
-        data.lastName,
-        data.email || null,
-        data.phone || null,
-        data.location || null
+        data.firstName ?? null,
+        data.lastName ?? null,
+        data.email ?? null,
+        data.phone ?? null,
+        data.location ?? null
       );
 
       return { id: 1, ...data };
@@ -198,8 +198,6 @@ export function registerIpcHandlers() {
       const prefsStmt = db.prepare('SELECT * FROM user_preferences WHERE id = 1');
       const rawPrefs = prefsStmt.get() as any;
       
-      log.info('PROFILE_GET - Raw preferences from DB:', rawPrefs);
-      
       // Transform preferences to match frontend expectations (camelCase)
       const preferences = rawPrefs ? {
         minSalary: rawPrefs.desired_salary_min,
@@ -212,18 +210,12 @@ export function registerIpcHandlers() {
         acceptableRemoteMin: rawPrefs.acceptable_remote_min,
         acceptableRemoteMax: rawPrefs.acceptable_remote_max,
       } : null;
-      
-      log.info('PROFILE_GET - Transformed preferences:', preferences);
 
-      const result = {
+      return {
         ...profile,
         skills,
         preferences
       };
-      
-      log.info('PROFILE_GET - Final result has preferences:', !!result.preferences);
-
-      return result;
     } catch (error) {
       log.error('Error getting profile:', error);
       throw error;
