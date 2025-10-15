@@ -306,7 +306,6 @@ components:
       required:
         - id
         - sourceId
-        - sourceName
         - title
         - company
         - postedDate
@@ -323,6 +322,7 @@ components:
           description: Foreign key to job_sources
         sourceName:
           type: string
+          nullable: true
           example: "LinkedIn"
           description: Joined from job_sources table (read-only)
         title:
@@ -342,14 +342,14 @@ components:
           example: "https://example.com/job/12345"
         postedDate:
           type: string
-          format: date
-          example: "2025-10-14"
+          format: date-time
+          example: "2025-10-14T00:00:00Z"
           description: Must not be in the future
         deadline:
           type: string
-          format: date
+          format: date-time
           nullable: true
-          example: "2025-11-30"
+          example: "2025-11-30T00:00:00Z"
           description: Must be after postedDate if provided
         location:
           type: string
@@ -429,12 +429,13 @@ components:
           nullable: true
         postedDate:
           type: string
-          format: date
-          example: "2025-10-14"
+          format: date-time
+          example: "2025-10-14T00:00:00Z"
         deadline:
           type: string
-          format: date
+          format: date-time
           nullable: true
+          example: "2025-11-30T00:00:00Z"
         location:
           type: string
           nullable: true

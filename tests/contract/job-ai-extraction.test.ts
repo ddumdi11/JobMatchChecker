@@ -16,17 +16,17 @@ import type { AIExtractionResult } from '../../src/shared/types';
 declare global {
   interface Window {
     api: {
-      extractJobWithAI: (text: string) => Promise<AIExtractionResult>;
+      extractJobFields: (text: string) => Promise<AIExtractionResult>;
     };
   }
 }
 
 describe('Contract: AI Job Extraction IPC Handler', () => {
 
-  describe('T007: extractJobWithAI() - Extract job fields from text', () => {
+  describe('T007: extractJobFields() - Extract job fields from text', () => {
     it('should exist on window.api', () => {
-      expect(window.api.extractJobWithAI).toBeDefined();
-      expect(typeof window.api.extractJobWithAI).toBe('function');
+      expect(window.api.extractJobFields).toBeDefined();
+      expect(typeof window.api.extractJobFields).toBe('function');
     });
 
     it('should accept text string parameter', async () => {
@@ -41,7 +41,7 @@ describe('Contract: AI Job Extraction IPC Handler', () => {
       `;
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobWithAI(jobText);
+      const result = await window.api.extractJobFields(jobText);
 
       expect(result).toBeDefined();
     });
@@ -50,7 +50,7 @@ describe('Contract: AI Job Extraction IPC Handler', () => {
       const jobText = 'Sample job posting text';
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobWithAI(jobText);
+      const result = await window.api.extractJobFields(jobText);
 
       // Verify response structure
       expect(result).toHaveProperty('success');
@@ -76,7 +76,7 @@ describe('Contract: AI Job Extraction IPC Handler', () => {
       `;
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobWithAI(jobText);
+      const result = await window.api.extractJobFields(jobText);
 
       expect(result.success).toBe(true);
       expect(result.fields).toBeDefined();
@@ -100,7 +100,7 @@ describe('Contract: AI Job Extraction IPC Handler', () => {
       `;
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobWithAI(incompleteText);
+      const result = await window.api.extractJobFields(incompleteText);
 
       // Should identify missing required fields
       expect(result.missingRequired.length).toBeGreaterThan(0);
@@ -116,7 +116,7 @@ describe('Contract: AI Job Extraction IPC Handler', () => {
       const ambiguousText = 'Some vague job text';
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobWithAI(ambiguousText);
+      const result = await window.api.extractJobFields(ambiguousText);
 
       if (result.warnings) {
         expect(Array.isArray(result.warnings)).toBe(true);
@@ -131,7 +131,7 @@ describe('Contract: AI Job Extraction IPC Handler', () => {
       const startTime = Date.now();
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobWithAI(longText);
+      const result = await window.api.extractJobFields(longText);
 
       const duration = Date.now() - startTime;
 
@@ -153,7 +153,7 @@ describe('Contract: AI Job Extraction IPC Handler', () => {
       const emptyText = '';
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobWithAI(emptyText);
+      const result = await window.api.extractJobFields(emptyText);
 
       // Should return error in result, not throw
       expect(result).toBeDefined();
@@ -167,7 +167,7 @@ describe('Contract: AI Job Extraction IPC Handler', () => {
       const originalText = 'Original job posting text here';
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobWithAI(originalText);
+      const result = await window.api.extractJobFields(originalText);
 
       expect(result.success).toBe(true);
       expect(result.fields.fullText).toBeDefined();
@@ -178,7 +178,7 @@ describe('Contract: AI Job Extraction IPC Handler', () => {
       const jobText = 'Sample job text';
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobWithAI(jobText);
+      const result = await window.api.extractJobFields(jobText);
 
       expect(result.success).toBe(true);
       expect(result.fields.importMethod).toBeDefined();
@@ -189,7 +189,7 @@ describe('Contract: AI Job Extraction IPC Handler', () => {
       const jobText = 'Sample job text for import';
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobWithAI(jobText);
+      const result = await window.api.extractJobFields(jobText);
 
       expect(result.success).toBe(true);
       expect(result.fields.rawImportData).toBeDefined();

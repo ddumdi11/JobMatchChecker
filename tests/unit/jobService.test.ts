@@ -503,14 +503,14 @@ describe('Unit: jobService validation logic', () => {
 
   describe('Update validation (same rules as create)', () => {
     it('should validate required fields on update', async () => {
-      const invalidUpdate = {
-        id: 1,
+      const jobId = 1;
+      const invalidUpdates: Partial<JobOfferInput> = {
         title: '', // Empty title should fail
       };
 
       // This WILL FAIL until service is implemented
       await expect(
-        jobService.updateJob(invalidUpdate as any)
+        jobService.updateJob(jobId, invalidUpdates)
       ).rejects.toThrow(/title.*required/i);
     });
 
@@ -518,14 +518,14 @@ describe('Unit: jobService validation logic', () => {
       const futureDate = new Date();
       futureDate.setFullYear(futureDate.getFullYear() + 1);
 
-      const invalidUpdate = {
-        id: 1,
+      const jobId = 1;
+      const invalidUpdates: Partial<JobOfferInput> = {
         postedDate: futureDate
       };
 
       // This WILL FAIL until service is implemented
       await expect(
-        jobService.updateJob(invalidUpdate as any)
+        jobService.updateJob(jobId, invalidUpdates)
       ).rejects.toThrow(/posted.*date.*future/i);
     });
   });

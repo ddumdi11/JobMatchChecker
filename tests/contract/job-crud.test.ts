@@ -25,17 +25,17 @@ declare global {
   interface Window {
     api: {
       getJobs: (
-        pagination?: PaginationParams,
         filters?: JobFilters,
-        sort?: JobSortConfig
+        sort?: JobSortConfig,
+        pagination?: PaginationParams
       ) => Promise<PaginatedJobsResponse>;
       getJobById: (id: number) => Promise<JobOffer>;
       createJob: (data: JobOfferInput) => Promise<JobOffer>;
-      updateJob: (data: JobOfferUpdate) => Promise<JobOffer>;
-      deleteJob: (id: number) => Promise<{ success: boolean; message: string }>;
+      updateJob: (id: number, data: Partial<JobOfferInput>) => Promise<JobOffer>;
+      deleteJob: (id: number) => Promise<void>;
       getJobSources: () => Promise<Array<{ id: number; name: string }>>;
       getJobStatusOptions: () => Promise<Array<{ value: string; label: string }>>;
-      extractJobWithAI: (text: string) => Promise<any>;
+      extractJobFields: (text: string) => Promise<any>;
     };
   }
 }
@@ -55,7 +55,7 @@ describe('Contract: Job CRUD IPC Handlers', () => {
       };
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.getJobs(pagination);
+      const result = await window.api.getJobs(undefined, undefined, pagination);
 
       expect(result).toBeDefined();
       expect(result.pagination).toBeDefined();
@@ -74,7 +74,7 @@ describe('Contract: Job CRUD IPC Handlers', () => {
       };
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.getJobs(undefined, filters);
+      const result = await window.api.getJobs(filters);
 
       expect(result).toBeDefined();
       expect(result.jobs).toBeInstanceOf(Array);
@@ -87,7 +87,7 @@ describe('Contract: Job CRUD IPC Handlers', () => {
       };
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.getJobs(undefined, undefined, sort);
+      const result = await window.api.getJobs(undefined, sort);
 
       expect(result).toBeDefined();
       expect(result.jobs).toBeInstanceOf(Array);
@@ -118,7 +118,7 @@ describe('Contract: Job CRUD IPC Handlers', () => {
       const emptyFilters: JobFilters = {};
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.getJobs(undefined, emptyFilters);
+      const result = await window.api.getJobs(emptyFilters);
 
       expect(result).toBeDefined();
       expect(result.jobs).toBeInstanceOf(Array);
@@ -131,7 +131,7 @@ describe('Contract: Job CRUD IPC Handlers', () => {
       };
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.getJobs(undefined, filters);
+      const result = await window.api.getJobs(filters);
 
       expect(result).toBeDefined();
       expect(result.jobs).toBeInstanceOf(Array);
@@ -325,15 +325,15 @@ describe('Contract: Job CRUD IPC Handlers', () => {
       expect(typeof window.api.updateJob).toBe('function');
     });
 
-    it('should accept JobOfferUpdate object with id', async () => {
-      const jobUpdate: JobOfferUpdate = {
-        id: 1,
+    it('should accept id and partial JobOfferInput', async () => {
+      const jobId = 1;
+      const updates: Partial<JobOfferInput> = {
         status: 'applied',
         notes: 'Applied via company website'
       };
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.updateJob(jobUpdate);
+      const result = await window.api.updateJob(jobId, updates);
 
       expect(result).toBeDefined();
       expect(result.id).toBe(1);
@@ -342,13 +342,13 @@ describe('Contract: Job CRUD IPC Handlers', () => {
     });
 
     it('should return updated JobOffer with new updatedAt timestamp', async () => {
-      const jobUpdate: JobOfferUpdate = {
-        id: 1,
+      const jobId = 1;
+      const updates: Partial<JobOfferInput> = {
         title: 'Updated Title'
       };
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.updateJob(jobUpdate);
+      const result = await window.api.updateJob(jobId, updates);
 
       expect(result.updatedAt).toBeInstanceOf(Date);
       // updatedAt should be recent (within last 5 seconds)
@@ -358,26 +358,26 @@ describe('Contract: Job CRUD IPC Handlers', () => {
     });
 
     it('should throw NOT_FOUND error for non-existent job', async () => {
-      const invalidUpdate: JobOfferUpdate = {
-        id: 99999,
+      const nonExistentId = 99999;
+      const updates: Partial<JobOfferInput> = {
         status: 'applied'
       };
 
       // This WILL FAIL until handler is implemented
       await expect(
-        window.api.updateJob(invalidUpdate)
+        window.api.updateJob(nonExistentId, updates)
       ).rejects.toThrow();
     });
 
     it('should validate required fields on update (same as create)', async () => {
-      const invalidUpdate: JobOfferUpdate = {
-        id: 1,
+      const jobId = 1;
+      const invalidUpdates: Partial<JobOfferInput> = {
         title: '', // Empty title should fail
       };
 
       // This WILL FAIL until handler is implemented
       await expect(
-        window.api.updateJob(invalidUpdate)
+        window.api.updateJob(jobId, invalidUpdates)
       ).rejects.toThrow();
     });
   });
@@ -388,26 +388,21 @@ describe('Contract: Job CRUD IPC Handlers', () => {
       expect(typeof window.api.deleteJob).toBe('function');
     });
 
-    it('should accept integer ID parameter', async () => {
+    it('should accept integer ID parameter and return void', async () => {
       const jobId = 1;
 
       // This WILL FAIL until handler is implemented
       const result = await window.api.deleteJob(jobId);
 
-      expect(result).toBeDefined();
-      expect(result.success).toBe(true);
-      expect(result.message).toBeDefined();
-      expect(typeof result.message).toBe('string');
+      // Should return void (undefined)
+      expect(result).toBeUndefined();
     });
 
-    it('should return success response structure', async () => {
+    it('should complete successfully without errors', async () => {
       // This WILL FAIL until handler is implemented
-      const result = await window.api.deleteJob(1);
-
-      expect(result).toHaveProperty('success');
-      expect(result).toHaveProperty('message');
-      expect(typeof result.success).toBe('boolean');
-      expect(typeof result.message).toBe('string');
+      await expect(
+        window.api.deleteJob(1)
+      ).resolves.toBeUndefined();
     });
 
     it('should throw NOT_FOUND error for non-existent job', async () => {
@@ -424,9 +419,10 @@ describe('Contract: Job CRUD IPC Handlers', () => {
       // The handler itself doesn't need special logic - it's handled by DB schema
 
       // This WILL FAIL until handler is implemented
-      const result = await window.api.deleteJob(1);
+      await expect(
+        window.api.deleteJob(1)
+      ).resolves.toBeUndefined();
 
-      expect(result.success).toBe(true);
       // Note: Actual cascade verification would be in integration tests
     });
   });
