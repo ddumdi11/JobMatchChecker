@@ -15,6 +15,7 @@
 
 import Database from 'better-sqlite3';
 import * as fs from 'node:fs/promises';
+import { constants as fsConstants } from 'node:fs';
 import * as path from 'node:path';
 import { BackupVerifier } from './BackupVerifier';
 import { hasSufficientDiskSpace } from '../utils/diskSpace';
@@ -58,7 +59,7 @@ export class BackupManager {
   private async createBackupInternal(type: BackupType): Promise<BackupMetadata> {
       // 1. Verify source database exists
       try {
-        await fs.access(this.sourceDatabasePath, fs.constants.R_OK);
+        await fs.access(this.sourceDatabasePath, fsConstants.R_OK);
       } catch (error: unknown) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
           throw new BackupError('FILE_NOT_FOUND', 'Source database file not found');
@@ -68,7 +69,7 @@ export class BackupManager {
 
       // 2. Verify backup directory exists
       try {
-        await fs.access(this.backupDirectory, fs.constants.W_OK);
+        await fs.access(this.backupDirectory, fsConstants.W_OK);
       } catch (error: unknown) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
           throw new BackupError('DIRECTORY_NOT_FOUND', 'Backup directory does not exist');
@@ -212,7 +213,7 @@ export class BackupManager {
       // SECURITY: path.join normalizes the path and prevents traversal
       const backupPath = path.join(this.backupDirectory, filename);
       try {
-        await fs.access(backupPath, fs.constants.R_OK);
+        await fs.access(backupPath, fsConstants.R_OK);
       } catch (error: unknown) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
           throw new BackupError('FILE_NOT_FOUND', `Backup file not found: ${filename}`);
@@ -457,7 +458,7 @@ export class BackupManager {
 
       // 1. Check if file exists
       try {
-        await fs.access(backupPath, fs.constants.F_OK);
+        await fs.access(backupPath, fsConstants.F_OK);
       } catch (error: unknown) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
           throw new BackupError('FILE_NOT_FOUND', `Backup file not found: ${filename}`);
