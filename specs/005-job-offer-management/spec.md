@@ -186,7 +186,7 @@ As a job seeker, I want to efficiently manage all my job applications in one pla
 - **FR-030**: System MUST store original pasted text in the "Full Text" field
 - **FR-031**: System MUST pre-fill fields with AI-extracted data even if required fields are missing, highlight missing required fields in red with validation message, and allow user to manually complete them
 - **FR-032**: System MUST timeout AI extraction after 5 seconds and return partial results with user notification, allowing manual completion (decision documented in research.md)
-- **FR-033**: System MUST [NEEDS CLARIFICATION: AI service cost limits - rate limiting, max extractions per day, or unlimited?]
+- **FR-033**: System MUST NOT enforce hard limits on AI service usage in Phase 1; usage will be monitored for cost and operational concerns (decision documented in research.md)
 
 #### Update Job
 - **FR-034**: System MUST provide an "Edit" button on job detail view
@@ -214,7 +214,7 @@ As a job seeker, I want to efficiently manage all my job applications in one pla
 - **FR-050**: System MUST display user-friendly error messages for all validation failures
 - **FR-051**: System MUST display error message if job source dropdown is empty with guidance to add sources first
 - **FR-052**: System MUST handle AI service unavailability gracefully with fallback to manual entry
-- **FR-053**: System MUST display error if duplicate job detected [NEEDS CLARIFICATION: duplicate detection criteria - URL match, or title+company match?]
+- **FR-053**: [DEFERRED TO PHASE 2] Duplicate job detection (research.md documents this as out of scope for Phase 1)
 
 ### Key Entities
 

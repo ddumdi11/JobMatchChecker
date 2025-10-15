@@ -135,13 +135,19 @@ describe('Contract: AI Job Extraction IPC Handler', () => {
 
       const duration = Date.now() - startTime;
 
-      // Should complete within 5 seconds (5000ms)
-      expect(duration).toBeLessThan(6000); // Allow 1s buffer
+      // Should complete within 5 seconds (5000ms) + 1s buffer for overhead
+      expect(duration).toBeLessThan(6000);
 
       // Should return result even if partial
       expect(result).toBeDefined();
       expect(result.success).toBeDefined();
-    });
+
+      // If timeout occurred, should indicate it in result
+      if (duration >= 5000) {
+        expect(result.warnings).toBeDefined();
+        expect(result.warnings).toContain('Extraction timed out after 5 seconds');
+      }
+    }, 10000); // Set Vitest timeout to 10s to allow for the 5s+buffer
 
     it('should handle AI service errors gracefully', async () => {
       const emptyText = '';
@@ -163,9 +169,9 @@ describe('Contract: AI Job Extraction IPC Handler', () => {
       // This WILL FAIL until handler is implemented
       const result = await window.api.extractJobWithAI(originalText);
 
-      if (result.success && result.fields.fullText) {
-        expect(result.fields.fullText).toBe(originalText);
-      }
+      expect(result.success).toBe(true);
+      expect(result.fields.fullText).toBeDefined();
+      expect(result.fields.fullText).toBe(originalText);
     });
 
     it('should set importMethod to ai_paste', async () => {
@@ -174,9 +180,9 @@ describe('Contract: AI Job Extraction IPC Handler', () => {
       // This WILL FAIL until handler is implemented
       const result = await window.api.extractJobWithAI(jobText);
 
-      if (result.success && result.fields.importMethod) {
-        expect(result.fields.importMethod).toBe('ai_paste');
-      }
+      expect(result.success).toBe(true);
+      expect(result.fields.importMethod).toBeDefined();
+      expect(result.fields.importMethod).toBe('ai_paste');
     });
 
     it('should store raw import data for debugging', async () => {
@@ -185,10 +191,10 @@ describe('Contract: AI Job Extraction IPC Handler', () => {
       // This WILL FAIL until handler is implemented
       const result = await window.api.extractJobWithAI(jobText);
 
-      if (result.success && result.fields.rawImportData) {
-        expect(typeof result.fields.rawImportData).toBe('string');
-        expect(result.fields.rawImportData).toContain('Sample job text');
-      }
+      expect(result.success).toBe(true);
+      expect(result.fields.rawImportData).toBeDefined();
+      expect(typeof result.fields.rawImportData).toBe('string');
+      expect(result.fields.rawImportData).toContain('Sample job text');
     });
   });
 });

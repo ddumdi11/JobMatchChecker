@@ -20,9 +20,16 @@
       "SlashCommand(/clarify)",
       "Bash(git checkout:*)",
       "SlashCommand(/tasks)",
-      "Bash(npm config set:*)",
-      "Bash(rm:*)",
-      "Bash(npx:*)"
+      "Bash(npm config set registry:*)",
+      "Bash(npm config set unsafe-perm:*)",
+      "Bash(rm -rf dist:*)",
+      "Bash(rm -rf node_modules:*)",
+      "Bash(rm -rf .vite:*)",
+      "Bash(rm -rf coverage:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx electron:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx eslint:*)"
     ],
     "deny": [],
     "ask": [
