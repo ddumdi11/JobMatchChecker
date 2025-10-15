@@ -20,7 +20,7 @@
       "SlashCommand(/clarify)",
       "Bash(git checkout:*)",
       "SlashCommand(/tasks)",
-      "Bash(npm config set registry https\\://registry.npmjs.org/)",
+      "Bash(npm config set registry https://registry.npmjs.org/)",
       "Bash(npm config set unsafe-perm true)",
       "Bash(npm config set unsafe-perm false)",
       "Bash(rm -rf dist)",
