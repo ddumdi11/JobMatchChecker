@@ -9,8 +9,8 @@
 
 This task list implements the Job Offer Management feature following TDD (Test-Driven Development) principles. Tasks are ordered by dependencies, with parallel-executable tasks marked [P].
 
-**Total Estimated Tasks**: 33
-**Estimated Completion Time**: 12-16 hours
+**Total Estimated Tasks**: 37
+**Estimated Completion Time**: 14-18 hours
 **Complexity**: Medium-High
 
 ## Path Conventions
