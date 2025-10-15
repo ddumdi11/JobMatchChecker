@@ -33,6 +33,8 @@ declare global {
       createJob: (data: JobOfferInput) => Promise<JobOffer>;
       updateJob: (data: JobOfferUpdate) => Promise<JobOffer>;
       deleteJob: (id: number) => Promise<{ success: boolean; message: string }>;
+      getJobSources: () => Promise<Array<{ id: number; name: string }>>;
+      getJobStatusOptions: () => Promise<Array<{ value: string; label: string }>>;
       extractJobWithAI: (text: string) => Promise<any>;
     };
   }
@@ -426,6 +428,86 @@ describe('Contract: Job CRUD IPC Handlers', () => {
 
       expect(result.success).toBe(true);
       // Note: Actual cascade verification would be in integration tests
+    });
+  });
+
+  describe('T007: getJobSources() - Get list of job sources', () => {
+    it('should exist on window.api', () => {
+      expect(window.api.getJobSources).toBeDefined();
+      expect(typeof window.api.getJobSources).toBe('function');
+    });
+
+    it('should return array of JobSource objects', async () => {
+      // This WILL FAIL until handler is implemented
+      const result = await window.api.getJobSources();
+
+      expect(result).toBeDefined();
+      expect(Array.isArray(result)).toBe(true);
+    });
+
+    it('should return empty array if no sources configured', async () => {
+      // This WILL FAIL until handler is implemented
+      const result = await window.api.getJobSources();
+
+      // Should always return an array (even if empty)
+      expect(Array.isArray(result)).toBe(true);
+
+      // If sources exist, verify structure
+      if (result.length > 0) {
+        const source = result[0];
+        expect(source).toHaveProperty('id');
+        expect(source).toHaveProperty('name');
+        expect(typeof source.id).toBe('number');
+        expect(typeof source.name).toBe('string');
+      }
+    });
+  });
+
+  describe('T008: getJobStatusOptions() - Get list of job status options', () => {
+    it('should exist on window.api', () => {
+      expect(window.api.getJobStatusOptions).toBeDefined();
+      expect(typeof window.api.getJobStatusOptions).toBe('function');
+    });
+
+    it('should return array of status option objects', async () => {
+      // This WILL FAIL until handler is implemented
+      const result = await window.api.getJobStatusOptions();
+
+      expect(result).toBeDefined();
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBeGreaterThan(0);
+
+      // Verify structure of first element
+      const option = result[0];
+      expect(option).toHaveProperty('value');
+      expect(option).toHaveProperty('label');
+      expect(typeof option.value).toBe('string');
+      expect(typeof option.label).toBe('string');
+    });
+
+    it('should return all 5 status values', async () => {
+      // This WILL FAIL until handler is implemented
+      const result = await window.api.getJobStatusOptions();
+
+      expect(result.length).toBe(5);
+
+      const values = result.map(opt => opt.value);
+      expect(values).toContain('new');
+      expect(values).toContain('interesting');
+      expect(values).toContain('applied');
+      expect(values).toContain('rejected');
+      expect(values).toContain('archived');
+    });
+
+    it('should have user-friendly labels (capitalized)', async () => {
+      // This WILL FAIL until handler is implemented
+      const result = await window.api.getJobStatusOptions();
+
+      result.forEach(option => {
+        // Label should be capitalized (first letter uppercase)
+        expect(option.label[0]).toBe(option.label[0].toUpperCase());
+        expect(option.label.length).toBeGreaterThan(0);
+      });
     });
   });
 });
