@@ -82,22 +82,39 @@ export function isValidRemoteWorkRange(range: Partial<RemoteWorkRange>): range i
   return range.min <= range.preferred && range.preferred <= range.max;
 }
 
+// Job Management Types (Feature 005)
+
+export type JobStatus = 'new' | 'interesting' | 'applied' | 'rejected' | 'archived';
+export type ImportMethod = 'manual' | 'ai_paste' | 'bulk' | 'copy_paste';
+
 export interface JobOffer {
   id: number;
   sourceId: number;
+  sourceName?: string;        // Joined from job_sources (read-only)
   title: string;
   company: string;
-  location: string;
-  url: string;
-  fullText: string;
+  url?: string | null;
   postedDate: Date;
-  deadline?: Date;
-  salaryMin?: number;
-  salaryMax?: number;
-  remoteOption: boolean;
+  deadline?: Date | null;
+  location?: string | null;
+  remoteOption?: string | null;
+  salaryRange?: string | null;
+  contractType?: string | null;
+  fullText?: string | null;
+  rawImportData?: string | null;
+  importMethod?: ImportMethod | null;
+  notes?: string | null;
+  status: JobStatus;
+  matchScore?: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
+
+// Input type for creating/updating jobs (omits system-generated fields)
+export type JobOfferInput = Omit<JobOffer, 'id' | 'createdAt' | 'updatedAt' | 'sourceName'>;
+
+// Partial input for updates (all fields optional except id)
+export type JobOfferUpdate = Partial<JobOfferInput> & { id: number };
 
 export interface JobSource {
   id: number;
@@ -105,6 +122,50 @@ export interface JobSource {
   url?: string;
   apiConfig?: string;
   createdAt: Date;
+}
+
+// AI Extraction types
+export interface AIExtractionResult {
+  success: boolean;
+  fields: Partial<JobOffer>;
+  confidence: 'high' | 'medium' | 'low';
+  missingRequired: string[];
+  warnings?: string[];
+  error?: string;
+}
+
+// Filter types
+export interface JobFilters {
+  status?: JobStatus | null;
+  sourceId?: number | null;
+  postedDateFrom?: Date | null;
+  postedDateTo?: Date | null;
+  matchScoreMin?: number | null;
+  matchScoreMax?: number | null;
+}
+
+// Sort types
+export interface JobSortConfig {
+  sortBy: 'postedDate' | 'company' | 'status' | 'matchScore';
+  sortOrder: 'asc' | 'desc';
+}
+
+// Pagination types
+export interface PaginationParams {
+  page: number;      // 1-based
+  limit: number;     // Items per page
+}
+
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface PaginatedJobsResponse {
+  jobs: JobOffer[];
+  pagination: PaginationMeta;
 }
 
 export interface MatchingResult {
