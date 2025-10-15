@@ -51,6 +51,7 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "@electron/rebuild": "^3.7.2",
     "@testing-library/jest-dom": "^6.1.5",
     "@testing-library/react": "^14.1.2",
     "@types/better-sqlite3": "^7.6.8",
