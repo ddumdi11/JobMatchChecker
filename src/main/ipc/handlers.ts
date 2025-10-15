@@ -3,6 +3,8 @@ import * as log from 'electron-log';
 import { IPC_CHANNELS } from '../../shared/constants';
 import { getDatabase } from '../database/db';
 import { backupDatabase, restoreDatabase, runMigrations } from '../database/db';
+import * as jobService from '../services/jobService';
+import * as aiExtractionService from '../services/aiExtractionService';
 
 /**
  * Register all IPC handlers
@@ -12,108 +14,76 @@ export function registerIpcHandlers() {
 
   const db = getDatabase();
 
-  // Job operations
-  ipcMain.handle(IPC_CHANNELS.JOB_CREATE, async (_, data) => {
+  // Job operations (Feature 005 - using jobService)
+  ipcMain.handle('getJobs', async (_, filters, sort, pagination) => {
     try {
-      const stmt = db.prepare(`
-        INSERT INTO job_offers (
-          source_id, title, company, url, posted_date, location,
-          remote_option, full_text, import_method, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-
-      const result = stmt.run(
-        data.sourceId,
-        data.title,
-        data.company,
-        data.url,
-        data.postedDate,
-        data.location || null,
-        data.remoteOption || null,
-        data.fullText || null,
-        data.importMethod || 'copy_paste',
-        data.status || 'new'
-      );
-
-      return { id: result.lastInsertRowid, ...data };
-    } catch (error) {
-      log.error('Error creating job:', error);
+      return await jobService.getJobs(filters, sort, pagination);
+    } catch (error: any) {
+      log.error('Error in getJobs:', error);
       throw error;
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS.JOB_UPDATE, async (_, id, data) => {
+  ipcMain.handle('getJobById', async (_, id) => {
     try {
-      const stmt = db.prepare(`
-        UPDATE job_offers
-        SET title = ?, company = ?, location = ?, status = ?, notes = ?,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `);
-
-      stmt.run(
-        data.title,
-        data.company,
-        data.location,
-        data.status,
-        data.notes || null,
-        id
-      );
-
-      return { id, ...data };
-    } catch (error) {
-      log.error('Error updating job:', error);
+      return await jobService.getJobById(id);
+    } catch (error: any) {
+      log.error('Error in getJobById:', error);
       throw error;
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS.JOB_DELETE, async (_, id) => {
+  ipcMain.handle('createJob', async (_, data) => {
     try {
-      const stmt = db.prepare('DELETE FROM job_offers WHERE id = ?');
-      stmt.run(id);
-      return { success: true };
-    } catch (error) {
-      log.error('Error deleting job:', error);
+      return await jobService.createJob(data);
+    } catch (error: any) {
+      log.error('Error in createJob:', error);
       throw error;
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS.JOB_GET_ALL, async () => {
+  ipcMain.handle('updateJob', async (_, id, data) => {
     try {
-      const stmt = db.prepare(`
-        SELECT
-          jo.*,
-          js.name as source_name,
-          mr.match_score,
-          mr.match_category
-        FROM job_offers jo
-        LEFT JOIN job_sources js ON jo.source_id = js.id
-        LEFT JOIN matching_results mr ON jo.id = mr.job_id
-        ORDER BY jo.posted_date DESC
-      `);
-
-      return stmt.all();
-    } catch (error) {
-      log.error('Error getting jobs:', error);
+      return await jobService.updateJob(id, data);
+    } catch (error: any) {
+      log.error('Error in updateJob:', error);
       throw error;
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS.JOB_GET_BY_ID, async (_, id) => {
+  ipcMain.handle('deleteJob', async (_, id) => {
     try {
-      const stmt = db.prepare(`
-        SELECT
-          jo.*,
-          js.name as source_name,
-          js.url as source_url
-        FROM job_offers jo
-        LEFT JOIN job_sources js ON jo.source_id = js.id
-        WHERE jo.id = ?
-      `);
+      await jobService.deleteJob(id);
+      // Return void (no content) as per contract
+    } catch (error: any) {
+      log.error('Error in deleteJob:', error);
+      throw error;
+    }
+  });
 
-      return stmt.get(id);
-    } catch (error) {
-      log.error('Error getting job by id:', error);
+  ipcMain.handle('getJobSources', async () => {
+    try {
+      return await jobService.getJobSources();
+    } catch (error: any) {
+      log.error('Error in getJobSources:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('getJobStatusOptions', async () => {
+    try {
+      return await jobService.getJobStatusOptions();
+    } catch (error: any) {
+      log.error('Error in getJobStatusOptions:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('extractJobFields', async (_, text) => {
+    try {
+      return await aiExtractionService.extractJobFields(text);
+    } catch (error: any) {
+      log.error('Error in extractJobFields:', error);
       throw error;
     }
   });
