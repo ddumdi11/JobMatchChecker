@@ -1,0 +1,226 @@
+openapi: 3.0.0
+info:
+  title: AI Extraction IPC API
+  description: Contract for Electron IPC communication between renderer and main process for AI-assisted job field extraction
+  version: 1.0.0
+
+paths:
+  /api/jobs/extract:
+    post:
+      summary: Extract structured job fields from unstructured text using AI
+      operationId: extractJobFields
+      description: |
+        Sends unstructured job description text to Claude API and returns
+        structured field extraction results. Implements FR-024 to FR-031.
+
+        **Behavior**:
+        - Timeout: 5 seconds (aborts request if exceeded)
+        - Partial results: Returns extracted fields even if some are missing
+        - Required fields: Highlights missing required fields in response
+        - Confidence: Indicates AI's confidence level in extraction
+
+        **User Flow**:
+        1. User pastes job text into textarea
+        2. Clicks "Extract with AI" button
+        3. Loading indicator shown (5s max)
+        4. Form fields pre-filled with extracted data
+        5. Missing required fields highlighted in red
+        6. User reviews, edits, and saves
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+              properties:
+                text:
+                  type: string
+                  minLength: 10
+                  maxLength: 50000
+                  example: |
+                    Senior React Developer
+                    TechCorp GmbH - Berlin, Germany
+                    Posted 2 days ago
+
+                    We're looking for an experienced React developer to join our team.
+                    Requirements: 5+ years React, TypeScript, REST APIs
+                    Salary: 70-90k EUR
+                    100% remote possible
+                  description: Unstructured job posting text (from copy-paste)
+      responses:
+        '200':
+          description: Extraction completed (may include partial results)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtractionSuccess'
+        '400':
+          description: Invalid input (text too short, too long, or empty)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtractionValidationError'
+        '408':
+          description: AI extraction timeout (>5 seconds)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtractionTimeout'
+        '500':
+          description: AI service error (API unavailable, rate limit, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtractionServiceError'
+
+components:
+  schemas:
+    ExtractionSuccess:
+      type: object
+      required:
+        - success
+        - fields
+        - confidence
+        - missingRequired
+      properties:
+        success:
+          type: boolean
+          const: true
+        fields:
+          type: object
+          description: Extracted job fields (partial or complete)
+          properties:
+            title:
+              type: string
+              nullable: true
+              example: "Senior React Developer"
+            company:
+              type: string
+              nullable: true
+              example: "TechCorp GmbH"
+            url:
+              type: string
+              format: uri
+              nullable: true
+              example: "https://techcorp.de/jobs/senior-react"
+            postedDate:
+              type: string
+              format: date
+              nullable: true
+              example: "2025-10-12"
+              description: AI infers from relative dates ("2 days ago")
+            deadline:
+              type: string
+              format: date
+              nullable: true
+            location:
+              type: string
+              nullable: true
+              example: "Berlin, Germany"
+            remoteOption:
+              type: string
+              nullable: true
+              example: "100% remote possible"
+            salaryRange:
+              type: string
+              nullable: true
+              example: "70-90k EUR"
+            contractType:
+              type: string
+              nullable: true
+              example: "Full-time"
+            fullText:
+              type: string
+              description: Original text stored for future matching
+              example: "We're looking for an experienced React developer..."
+        confidence:
+          type: string
+          enum: [high, medium, low]
+          description: |
+            AI's confidence in extraction quality:
+            - high: All required fields extracted with clear values
+            - medium: Some fields extracted, some missing or ambiguous
+            - low: Minimal extraction, mostly manual input needed
+          example: "medium"
+        missingRequired:
+          type: array
+          items:
+            type: string
+          description: List of required field names that AI couldn't extract
+          example: ["postedDate"]
+        warnings:
+          type: array
+          items:
+            type: string
+          description: Optional warnings about extraction quality
+          example:
+            - "Could not determine exact posted date (relative date '2 days ago' used)"
+            - "Salary range format is non-standard"
+
+    ExtractionValidationError:
+      type: object
+      required:
+        - success
+        - code
+        - message
+      properties:
+        success:
+          type: boolean
+          const: false
+        code:
+          type: string
+          enum: [VALIDATION_ERROR]
+        message:
+          type: string
+          example: "Text must be between 10 and 50,000 characters"
+        field:
+          type: string
+          enum: [text]
+
+    ExtractionTimeout:
+      type: object
+      required:
+        - success
+        - code
+        - message
+      properties:
+        success:
+          type: boolean
+          const: false
+        code:
+          type: string
+          enum: [TIMEOUT]
+        message:
+          type: string
+          example: "AI extraction timed out after 5 seconds. Please try again or enter fields manually."
+        partialData:
+          type: object
+          description: Any data received before timeout (may be empty)
+          nullable: true
+
+    ExtractionServiceError:
+      type: object
+      required:
+        - success
+        - code
+        - message
+      properties:
+        success:
+          type: boolean
+          const: false
+        code:
+          type: string
+          enum: [SERVICE_ERROR, RATE_LIMIT, API_KEY_MISSING]
+        message:
+          type: string
+          examples:
+            - "Claude API is currently unavailable. Please try again later."
+            - "Rate limit exceeded. Please wait before trying again."
+            - "API key not configured. Please add ANTHROPIC_API_KEY to .env file."
+        retryAfter:
+          type: integer
+          nullable: true
+          description: Seconds to wait before retrying (for RATE_LIMIT errors)
+          example: 60

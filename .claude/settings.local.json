@@ -19,7 +19,18 @@
       "Bash(git commit:*)",
       "SlashCommand(/clarify)",
       "Bash(git checkout:*)",
-      "SlashCommand(/tasks)"
+      "SlashCommand(/tasks)",
+      "Bash(npm config set registry https\\://registry.npmjs.org/:*)",
+      "Bash(npm config set unsafe-perm true:*)",
+      "Bash(npm config set unsafe-perm false:*)",
+      "Bash(rm -rf dist:*)",
+      "Bash(rm -rf node_modules:*)",
+      "Bash(rm -rf .vite:*)",
+      "Bash(rm -rf coverage:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx electron:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx eslint:*)"
     ],
     "deny": [],
     "ask": [

@@ -3,15 +3,11 @@ import { resolve } from 'path';
 
 export default defineConfig({
   test: {
-    globals: false,
+    globals: true,
     environment: 'node',
-    include: ['tests/**/*.{test,spec}.{ts,tsx}'],
-    exclude: ['node_modules', 'dist', 'tests/e2e/**'],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: ['node_modules', 'dist', 'tests']
-    }
+    include: ['tests/**/*.test.ts', 'tests/**/*.spec.ts'],
+    exclude: ['**/node_modules/**', '**/dist/**'],
+    setupFiles: [],
   },
   resolve: {
     alias: {
@@ -19,7 +15,6 @@ export default defineConfig({
       '@main': resolve(__dirname, 'src/main'),
       '@renderer': resolve(__dirname, 'src/renderer'),
       '@shared': resolve(__dirname, 'src/shared')
-    },
-    extensions: ['.ts', '.tsx', '.js', '.jsx', '.json']
+    }
   }
 });
