@@ -38,6 +38,29 @@ npm run validate  # Run validation before assuming config issue
 - ✅ ASK human before modifying any protected file
 - ✅ Explain your reasoning before making changes
 
+## 🚨 HÄUFIGSTES PROBLEM: NODE_MODULE_VERSION Mismatch
+
+**Wenn du diesen Fehler siehst:**
+```
+Error: The module 'better-sqlite3.node' was compiled against a different Node.js version
+using NODE_MODULE_VERSION 115. This version requires NODE_MODULE_VERSION 139.
+```
+
+**Lösung (IMMER diese exakte Sequenz):**
+```bash
+rm -rf dist out             # Optional: Build-Artefakte löschen (bei hartnäckigen Problemen)
+rm -rf node_modules
+npm cache clean --force     # ← KRITISCH! Nicht überspringen!
+npm install
+npx electron-rebuild
+```
+
+**WICHTIG:**
+- ❌ NICHT nur `npx electron-rebuild` ausführen - reicht NICHT!
+- ✅ IMMER `npm cache clean --force` mit einbeziehen
+- ✅ Die komplette 4-Schritte-Sequenz ist notwendig
+- ℹ️ Detaillierte Erklärung: siehe [DEVELOPMENT_REQUIREMENTS.md](DEVELOPMENT_REQUIREMENTS.md) Zeile 137-179
+
 ## 📁 PROJECT CONTEXT
 
 Read these files at session start:
