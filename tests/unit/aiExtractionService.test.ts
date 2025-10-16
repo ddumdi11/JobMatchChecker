@@ -51,7 +51,7 @@ describe('Unit: aiExtractionService', () => {
       expect(result.fields.url).toBeDefined();
       expect(result.fields.fullText).toBe(jobText);
       expect(result.missingRequired).toHaveLength(0);
-    }, 10000);
+    });
 
     it('should return high confidence for well-structured job postings', async () => {
       const jobText = `
@@ -66,7 +66,7 @@ describe('Unit: aiExtractionService', () => {
 
       expect(result.confidence).toBe('high');
       expect(result.success).toBe(true);
-    }, 10000);
+    });
   });
 
   describe('Partial extraction with medium/low confidence', () => {
@@ -82,7 +82,7 @@ describe('Unit: aiExtractionService', () => {
       expect(result.success).toBe(true);
       expect(['medium', 'low']).toContain(result.confidence);
       expect(result.missingRequired.length).toBeGreaterThan(0);
-    }, 10000);
+    });
 
     it('should return low confidence for ambiguous text', async () => {
       const ambiguousText = 'Some vague job text without clear structure';
@@ -93,7 +93,7 @@ describe('Unit: aiExtractionService', () => {
       expect(result.confidence).toBe('low');
       expect(result.missingRequired).toBeDefined();
       expect(result.missingRequired.length).toBeGreaterThan(0);
-    }, 10000);
+    });
 
     it('should identify missing required fields', async () => {
       const incompleteText = `
@@ -112,7 +112,7 @@ describe('Unit: aiExtractionService', () => {
       result.missingRequired.forEach(field => {
         expect(possibleMissing).toContain(field);
       });
-    }, 10000);
+    });
 
     it('should include warnings for low confidence extractions', async () => {
       const ambiguousText = 'Some vague job description';
@@ -127,7 +127,7 @@ describe('Unit: aiExtractionService', () => {
           expect(result.warnings.length).toBeGreaterThan(0);
         }
       }
-    }, 10000);
+    });
   });
 
   describe('Timeout handling (5 seconds)', () => {
@@ -190,7 +190,7 @@ describe('Unit: aiExtractionService', () => {
         expect(result).toHaveProperty('error');
         expect(typeof result.error).toBe('string');
       }
-    }, 10000);
+    });
 
     it('should return error message when API key is missing', async () => {
       // This test will be implemented properly during GREEN phase
@@ -206,7 +206,7 @@ describe('Unit: aiExtractionService', () => {
       if (!result.success && result.error) {
         expect(typeof result.error).toBe('string');
       }
-    }, 10000);
+    });
   });
 
   describe('Rate limit handling', () => {
@@ -224,7 +224,7 @@ describe('Unit: aiExtractionService', () => {
       if (!result.success && result.error) {
         expect(typeof result.error).toBe('string');
       }
-    }, 10000);
+    });
 
     it('should include rate limit in error message when applicable', async () => {
       // This test will be enhanced during GREEN phase with proper mocking
@@ -235,7 +235,7 @@ describe('Unit: aiExtractionService', () => {
 
       expect(result).toBeDefined();
       // Service should handle all error cases
-    }, 10000);
+    });
   });
 
   describe('JSON parsing from Claude response', () => {
@@ -253,7 +253,7 @@ describe('Unit: aiExtractionService', () => {
       expect(result.success).toBe(true);
       expect(result.fields).toBeDefined();
       expect(typeof result.fields).toBe('object');
-    }, 10000);
+    });
 
     it('should handle malformed JSON response gracefully', async () => {
       // This test requires mocking Claude API to return invalid JSON
@@ -270,7 +270,7 @@ describe('Unit: aiExtractionService', () => {
         expect(result).toHaveProperty('error');
         expect(typeof result.error).toBe('string');
       }
-    }, 10000);
+    });
 
     it('should handle non-JSON Claude responses', async () => {
       // Sometimes Claude might return explanatory text instead of JSON
@@ -281,7 +281,7 @@ describe('Unit: aiExtractionService', () => {
 
       expect(result).toBeDefined();
       // Should attempt to parse or return error
-    }, 10000);
+    });
   });
 
   describe('Field mapping to JobOffer interface', () => {
@@ -317,7 +317,7 @@ describe('Unit: aiExtractionService', () => {
       if (result.fields.salaryRange) {
         expect(typeof result.fields.salaryRange).toBe('string');
       }
-    }, 10000);
+    });
 
     it('should convert postedDate string to Date object', async () => {
       const jobText = `
@@ -334,7 +334,7 @@ describe('Unit: aiExtractionService', () => {
         expect(result.fields.postedDate).toBeDefined();
         // Date handling will be validated in implementation
       }
-    }, 10000);
+    });
 
     it('should set importMethod to ai_paste', async () => {
       const jobText = 'Sample job text';
@@ -345,7 +345,7 @@ describe('Unit: aiExtractionService', () => {
       if (result.success) {
         expect(result.fields.importMethod).toBe('ai_paste');
       }
-    }, 10000);
+    });
 
     it('should store original text in fullText field', async () => {
       const originalText = 'Original job posting text here';
@@ -356,7 +356,7 @@ describe('Unit: aiExtractionService', () => {
       if (result.success) {
         expect(result.fields.fullText).toBe(originalText);
       }
-    }, 10000);
+    });
 
     it('should store raw import data for debugging', async () => {
       const jobText = 'Sample job text for import';
@@ -368,7 +368,7 @@ describe('Unit: aiExtractionService', () => {
         expect(typeof result.fields.rawImportData).toBe('string');
         expect(result.fields.rawImportData).toContain('Sample job text');
       }
-    }, 10000);
+    });
   });
 
   describe('Error handling', () => {
@@ -402,7 +402,7 @@ describe('Unit: aiExtractionService', () => {
         expect(result).toHaveProperty('error');
         expect(typeof result.error).toBe('string');
       }
-    }, 10000);
+    });
 
     it('should return error structure on AI service failure', async () => {
       // This test verifies error response structure
@@ -416,6 +416,6 @@ describe('Unit: aiExtractionService', () => {
       expect(result).toHaveProperty('fields');
       expect(result).toHaveProperty('confidence');
       expect(result).toHaveProperty('missingRequired');
-    }, 10000);
+    });
   });
 });

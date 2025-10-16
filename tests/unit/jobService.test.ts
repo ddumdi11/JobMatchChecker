@@ -9,19 +9,14 @@
  * Task: T010
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { JobOfferInput } from '../../src/shared/types';
-import { initTestDatabase } from '../helpers/testDatabase';
 
 // Import the service (will not exist until implementation phase)
 // This import will cause the tests to fail initially
 import * as jobService from '../../src/main/services/jobService';
 
 describe('Unit: jobService validation logic', () => {
-  // Initialize test database before running tests
-  beforeAll(async () => {
-    await initTestDatabase();
-  });
 
   describe('BR-1: Required fields validation', () => {
     it('should reject job without title', async () => {
