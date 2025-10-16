@@ -1,19 +1,24 @@
-// Vitest setup file
-import { expect, beforeAll } from 'vitest';
-import { runMigrations, getDatabase } from '../src/main/database/db';
+/**
+ * Vitest global setup file
+ *
+ * This file runs once before all tests to configure the test environment.
+ * Feature: 005-job-offer-management
+ */
 
-// Run database migrations before all tests
-beforeAll(async () => {
-  // Initialize database and run migrations
-  try {
-    getDatabase(); // Initialize DB
-    await runMigrations(); // Run all migrations
-    console.log('Database migrations completed successfully');
-  } catch (error) {
-    console.error('Failed to run database migrations:', error);
-    throw error;
-  }
-});
+import * as path from 'path';
+import dotenv from 'dotenv';
 
-// Export to ensure module is loaded
-export {};
+// Load environment variables from .env file
+dotenv.config();
+
+// Set test database path BEFORE any imports that might use it
+const TEST_DATA_DIR = path.join(__dirname, 'data');
+const TEST_DB_PATH = path.join(TEST_DATA_DIR, 'test.db');
+
+// Configure environment for tests
+process.env.DB_PATH = TEST_DB_PATH;
+process.env.NODE_ENV = 'test';
+
+console.log(`[Test Setup] DB_PATH set to: ${TEST_DB_PATH}`);
+console.log(`[Test Setup] NODE_ENV set to: test`);
+console.log(`[Test Setup] ANTHROPIC_API_KEY ${process.env.ANTHROPIC_API_KEY ? 'is set ✓' : 'is NOT set ✗'}`);

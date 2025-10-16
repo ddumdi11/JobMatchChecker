@@ -48,9 +48,9 @@ export async function extractJobFields(text: string): Promise<AIExtractionResult
     apiKey: apiKey
   });
 
-  // Create AbortController for 5-second timeout
+  // Create AbortController for 30-second timeout
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
 
   try {
     const prompt = `Extract structured job offer fields from the following job posting text.
@@ -72,7 +72,7 @@ ${text}
 Return ONLY valid JSON, no explanation or markdown. If a field cannot be extracted, omit it from the JSON.`;
 
     const message = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
+      model: 'claude-sonnet-4-5',
       max_tokens: 1024,
       messages: [
         {
@@ -92,11 +92,33 @@ Return ONLY valid JSON, no explanation or markdown. If a field cannot be extract
       .map((block: any) => block.text)
       .join('');
 
+    // Debug logging (can be removed later)
+    if (process.env.NODE_ENV === 'test') {
+      console.log('[AI Extraction Debug] Raw response:', responseText.substring(0, 200));
+    }
+
+    // Try to extract JSON from markdown code blocks if present
+    let jsonText = responseText.trim();
+    const jsonBlockMatch = jsonText.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonBlockMatch) {
+      jsonText = jsonBlockMatch[1].trim();
+    } else {
+      // Also try without "json" tag
+      const codeBlockMatch = jsonText.match(/```\s*([\s\S]*?)\s*```/);
+      if (codeBlockMatch) {
+        jsonText = codeBlockMatch[1].trim();
+      }
+    }
+
     // Parse JSON response
     let extractedData: any;
     try {
-      extractedData = JSON.parse(responseText);
+      extractedData = JSON.parse(jsonText);
     } catch (parseError) {
+      if (process.env.NODE_ENV === 'test') {
+        console.error('[AI Extraction Debug] JSON parse failed. Text:', jsonText.substring(0, 200));
+        console.error('[AI Extraction Debug] Parse error:', parseError);
+      }
       return {
         success: false,
         fields: {
@@ -174,6 +196,12 @@ Return ONLY valid JSON, no explanation or markdown. If a field cannot be extract
   } catch (error: any) {
     clearTimeout(timeoutId);
 
+    // Debug logging
+    if (process.env.NODE_ENV === 'test') {
+      console.error('[AI Extraction Debug] Caught error:', error.name, error.message);
+      console.error('[AI Extraction Debug] Error status:', error.status);
+    }
+
     // Handle timeout
     if (error.name === 'AbortError' || error.message?.includes('aborted')) {
       return {
@@ -185,8 +213,8 @@ Return ONLY valid JSON, no explanation or markdown. If a field cannot be extract
         },
         confidence: 'low',
         missingRequired: ['title', 'company', 'postedDate'],
-        error: 'Extraction timed out after 5 seconds',
-        warnings: ['Extraction timed out after 5 seconds. Please try again or enter fields manually.']
+        error: 'Extraction timed out after 30 seconds',
+        warnings: ['Extraction timed out after 30 seconds. Please try again or enter fields manually.']
       };
     }
 

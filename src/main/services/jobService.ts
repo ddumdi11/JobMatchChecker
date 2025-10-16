@@ -77,7 +77,7 @@ function validateJobData(data: Partial<JobOfferInput>, isUpdate = false): void {
 
   if (!isUpdate || data.postedDate !== undefined) {
     if (!data.postedDate) {
-      throw new ValidationError('postedDate', 'Posted date is required');
+      throw new ValidationError('postedDate', 'postedDate is required');
     }
   }
 
@@ -116,7 +116,7 @@ function validateJobData(data: Partial<JobOfferInput>, isUpdate = false): void {
         throw new Error('Invalid protocol');
       }
     } catch (error) {
-      throw new ValidationError('url', 'URL must be a valid HTTP or HTTPS URL');
+      throw new ValidationError('url', 'Invalid URL format');
     }
   }
 
@@ -124,7 +124,7 @@ function validateJobData(data: Partial<JobOfferInput>, isUpdate = false): void {
   if (data.status) {
     const validStatuses: JobStatus[] = ['new', 'interesting', 'applied', 'rejected', 'archived'];
     if (!validStatuses.includes(data.status as JobStatus)) {
-      throw new ValidationError('status', `Status must be one of: ${validStatuses.join(', ')}`);
+      throw new ValidationError('status', 'Invalid status value');
     }
   }
 
@@ -175,7 +175,7 @@ function rowToJobOffer(row: any): JobOffer {
 /**
  * Create a new job offer
  */
-export function createJob(data: JobOfferInput): JobOffer {
+export async function createJob(data: JobOfferInput): Promise<JobOffer> {
   // Validate business rules
   validateJobData(data, false);
 
@@ -211,13 +211,13 @@ export function createJob(data: JobOfferInput): JobOffer {
   const jobId = info.lastInsertRowid as number;
 
   // Fetch and return the created job
-  return getJobById(jobId);
+  return await getJobById(jobId);
 }
 
 /**
  * Get a job offer by ID
  */
-export function getJobById(id: number): JobOffer {
+export async function getJobById(id: number): Promise<JobOffer> {
   const db = getDatabase();
 
   const row = db.prepare(`
@@ -239,11 +239,11 @@ export function getJobById(id: number): JobOffer {
 /**
  * Get jobs with filters, sorting, and pagination
  */
-export function getJobs(
+export async function getJobs(
   filters?: JobFilters,
   sort?: JobSortConfig,
   pagination?: PaginationParams
-): PaginatedJobsResponse {
+): Promise<PaginatedJobsResponse> {
   const db = getDatabase();
 
   // Build WHERE clause
@@ -344,7 +344,7 @@ export function getJobs(
 /**
  * Update a job offer
  */
-export function updateJob(id: number, data: Partial<JobOfferInput>): JobOffer {
+export async function updateJob(id: number, data: Partial<JobOfferInput>): Promise<JobOffer> {
   // Validate business rules
   validateJobData(data, true);
 
@@ -454,13 +454,13 @@ export function updateJob(id: number, data: Partial<JobOfferInput>): JobOffer {
   db.prepare(sql).run(...params);
 
   // Fetch and return updated job
-  return getJobById(id);
+  return await getJobById(id);
 }
 
 /**
  * Delete a job offer
  */
-export function deleteJob(id: number): void {
+export async function deleteJob(id: number): Promise<void> {
   const db = getDatabase();
 
   // Check if job exists
