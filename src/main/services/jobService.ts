@@ -89,7 +89,11 @@ function validateJobData(data: Partial<JobOfferInput>, isUpdate = false): void {
 
   // BR-2: postedDate not in future
   if (data.postedDate) {
-    const postedDate = new Date(data.postedDate);
+    const postedDate = new Date(String(data.postedDate));
+    if (isNaN(postedDate.getTime())) {
+      throw new ValidationError('postedDate', 'Invalid posted date format');
+    }
+
     const now = new Date();
     now.setHours(23, 59, 59, 999); // End of today
 
@@ -100,8 +104,15 @@ function validateJobData(data: Partial<JobOfferInput>, isUpdate = false): void {
 
   // BR-3: deadline after postedDate
   if (data.deadline && data.postedDate) {
-    const deadline = new Date(data.deadline);
-    const postedDate = new Date(data.postedDate);
+    const deadline = new Date(String(data.deadline));
+    if (isNaN(deadline.getTime())) {
+      throw new ValidationError('deadline', 'Invalid deadline format');
+    }
+
+    const postedDate = new Date(String(data.postedDate));
+    if (isNaN(postedDate.getTime())) {
+      throw new ValidationError('postedDate', 'Invalid posted date format');
+    }
 
     if (deadline <= postedDate) {
       throw new ValidationError('deadline', 'Deadline must be after posted date');
@@ -189,13 +200,23 @@ export async function createJob(data: JobOfferInput): Promise<JobOffer> {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
+  // Normalize dates to ISO strings
+  const postedDate = new Date(String(data.postedDate));
+  const postedIso = isNaN(postedDate.getTime()) ? null : postedDate.toISOString();
+
+  let deadlineIso: string | null = null;
+  if (data.deadline) {
+    const deadline = new Date(String(data.deadline));
+    deadlineIso = isNaN(deadline.getTime()) ? null : deadline.toISOString();
+  }
+
   const info = stmt.run(
     data.sourceId,
     data.title,
     data.company,
     data.url || null,
-    data.postedDate.toISOString(),
-    data.deadline ? data.deadline.toISOString() : null,
+    postedIso,
+    deadlineIso,
     data.location || null,
     data.remoteOption || null,
     data.salaryRange || null,
@@ -288,7 +309,10 @@ export async function getJobs(
 
   // Build ORDER BY clause
   const sortBy = sort?.sortBy || 'postedDate';
-  const sortOrder = sort?.sortOrder || 'desc';
+
+  // Normalize and whitelist sortOrder
+  const rawSortOrder = (sort?.sortOrder || 'desc').toString().trim().toLowerCase();
+  const sortOrder = rawSortOrder === 'asc' ? 'ASC' : 'DESC';
 
   const columnMap: Record<string, string> = {
     postedDate: 'jo.posted_date',
@@ -298,7 +322,7 @@ export async function getJobs(
   };
 
   const orderByColumn = columnMap[sortBy] || 'jo.posted_date';
-  const orderByClause = `ORDER BY ${orderByColumn} ${sortOrder.toUpperCase()}`;
+  const orderByClause = `ORDER BY ${orderByColumn} ${sortOrder}`;
 
   // Pagination
   const page = pagination?.page || 1;
@@ -382,12 +406,26 @@ export async function updateJob(id: number, data: Partial<JobOfferInput>): Promi
 
   if (data.postedDate !== undefined) {
     updates.push('posted_date = ?');
-    params.push(data.postedDate.toISOString());
+    if (data.postedDate === null) {
+      params.push(null);
+    } else if (data.postedDate instanceof Date) {
+      params.push(data.postedDate.toISOString());
+    } else {
+      const date = new Date(String(data.postedDate));
+      params.push(isNaN(date.getTime()) ? null : date.toISOString());
+    }
   }
 
   if (data.deadline !== undefined) {
     updates.push('deadline = ?');
-    params.push(data.deadline ? data.deadline.toISOString() : null);
+    if (data.deadline === null) {
+      params.push(null);
+    } else if (data.deadline instanceof Date) {
+      params.push(data.deadline.toISOString());
+    } else {
+      const date = new Date(String(data.deadline));
+      params.push(isNaN(date.getTime()) ? null : date.toISOString());
+    }
   }
 
   if (data.location !== undefined) {

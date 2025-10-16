@@ -8,7 +8,9 @@
 
 exports.up = function(knex) {
   return knex.schema.table('job_offers', (table) => {
-    table.integer('match_score').checkBetween([0, 100]);
+    // Add match_score column (0-100 range enforced at application level)
+    // Note: SQLite doesn't support CHECK constraints in ALTER TABLE
+    table.integer('match_score');
     table.index('match_score', 'idx_job_offers_match_score');
   });
 };
