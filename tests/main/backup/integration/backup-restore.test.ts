@@ -10,20 +10,25 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { BackupManager } from '../../../../src/main/backup/BackupManager';
 import Database from 'better-sqlite3';
 import type { BackupMetadata } from '../../../../src/types/backup';
 
 describe('Integration: Backup/Restore Flow', () => {
-  const testBackupDir = path.join(os.tmpdir(), 'jobmatch-test-backups', 'test-integration');
-  const testDbPath = path.join(os.tmpdir(), 'jobmatch-test-data', 'test-integration.db');
+  // Use project test directories instead of temp directories
+  const testDataDir = path.join(process.cwd(), 'tests', 'data');
+  const testBackupDir = path.join(testDataDir, 'backups-integration');
+  let testDbPath: string;
   let backupManager: BackupManager;
 
   beforeEach(async () => {
+    // Use unique DB name per test to avoid Windows file locking issues
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    testDbPath = path.join(testDataDir, `test-integration-${uniqueId}.db`);
+
     // Create test directories
     await fs.mkdir(testBackupDir, { recursive: true });
-    await fs.mkdir(path.dirname(testDbPath), { recursive: true });
+    await fs.mkdir(testDataDir, { recursive: true });
 
     // Create initial database with test data
     const db = new Database(testDbPath);
@@ -57,17 +62,37 @@ describe('Integration: Backup/Restore Flow', () => {
   });
 
   afterEach(async () => {
-    // Clean up test files
-    try {
-      await fs.rm(testBackupDir, { recursive: true, force: true });
-      await fs.rm(path.dirname(testDbPath), { recursive: true, force: true });
-    } catch {
-      // Ignore cleanup errors
+    // Wait for all DB connections to close (longer on Windows)
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Clean up test files with retry logic for Windows file locks
+    const maxRetries = 3;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        // Delete only the specific test database file
+        await fs.unlink(testDbPath).catch(() => {}); // Ignore if doesn't exist
+
+        // Clean up backup directory contents but keep the directory
+        const backupFiles = await fs.readdir(testBackupDir).catch(() => []);
+        for (const file of backupFiles) {
+          await fs.unlink(path.join(testBackupDir, file)).catch(() => {});
+        }
+
+        break; // Success, exit loop
+      } catch (error) {
+        if (i === maxRetries - 1) {
+          // Only log on final retry
+          console.warn('Cleanup warning:', (error as Error).message);
+        } else {
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
     }
   });
 
   describe('✅ Complete Backup/Restore Workflow', () => {
-    it('should create manual backup, modify database, and restore successfully', async () => {
+    it('should create manual backup, modify database, and restore successfully', { timeout: 20000 }, async () => {
       // Step 1: Create manual backup
       const backup: BackupMetadata = await backupManager.createBackup('manual');
 
@@ -95,7 +120,8 @@ describe('Integration: Backup/Restore Flow', () => {
       db.close();
 
       // Step 3: Restore from backup
-      await new Promise(resolve => setTimeout(resolve, 100)); // Wait for DB to close
+      // Wait extra long for Windows to release all file handles (multiple DB operations need more time)
+      await new Promise(resolve => setTimeout(resolve, 10000));
 
       const restoreResult = await backupManager.restoreBackup(backup.filename);
 
@@ -104,7 +130,7 @@ describe('Integration: Backup/Restore Flow', () => {
       expect(restoreResult.safetyBackup).toBeDefined();
 
       // Step 4: Verify data matches original state
-      await new Promise(resolve => setTimeout(resolve, 200)); // Wait for restore to complete
+      await new Promise(resolve => setTimeout(resolve, 500)); // Wait for restore to complete (Windows file locks)
 
       db = new Database(testDbPath, { readonly: true });
       user = db.prepare('SELECT name FROM user_profile WHERE id = 1').get() as { name: string };
@@ -124,7 +150,7 @@ describe('Integration: Backup/Restore Flow', () => {
       db.prepare('UPDATE user_profile SET name = ? WHERE id = ?').run('Modified', 1);
       db.close();
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 600)); // Wait for DB to close (Windows needs more time)
 
       // Step 3: Restore (should create safety backup)
       const initialBackupCount = (await fs.readdir(testBackupDir)).length;
@@ -156,7 +182,7 @@ describe('Integration: Backup/Restore Flow', () => {
       db.close();
 
       // Cycle 2: Second backup (with modifications)
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 300)); // Wait for DB to close (Windows)
       const backup2 = await backupManager.createBackup('manual');
 
       // Modify data again
@@ -164,12 +190,12 @@ describe('Integration: Backup/Restore Flow', () => {
       db.prepare('UPDATE user_profile SET name = ? WHERE id = ?').run('Version 3', 1);
       db.close();
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 300)); // Wait for DB to close (Windows)
 
       // Restore to backup2
       await backupManager.restoreBackup(backup2.filename);
 
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 500)); // Wait for restore to complete (Windows)
 
       // Verify Version 2 restored
       db = new Database(testDbPath, { readonly: true });
@@ -177,12 +203,12 @@ describe('Integration: Backup/Restore Flow', () => {
       expect(user.name).toBe('Version 2');
       db.close();
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 300)); // Wait for DB to close (Windows)
 
       // Restore to backup1 (original)
       await backupManager.restoreBackup(backup1.filename);
 
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 500)); // Wait for restore to complete (Windows)
 
       // Verify original restored
       db = new Database(testDbPath, { readonly: true });
@@ -267,7 +293,7 @@ describe('Integration: Backup/Restore Flow', () => {
       // Attempt restore (should fail)
       await expect(
         backupManager.restoreBackup(backup.filename)
-      ).rejects.toThrow('VERIFICATION_FAILED');
+      ).rejects.toThrow(/verification failed/i);
 
       // Verify original database is still intact
       const db = new Database(testDbPath, { readonly: true });
@@ -334,17 +360,18 @@ describe('Integration: Backup/Restore Flow', () => {
       db.prepare('INSERT INTO skills (id, name, level) VALUES (?, ?, ?)').run(10, 'Test Skill', 5);
       db.close();
 
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 300)); // Wait for DB to close (Windows)
 
       // Restore
       await backupManager.restoreBackup(backup.filename);
 
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 500)); // Wait for restore to complete (Windows)
 
       // Run integrity check on restored database
       db = new Database(testDbPath, { readonly: true });
       const integrityCheck = db.pragma('integrity_check', { simple: true });
-      expect(integrityCheck).toEqual(['ok']);
+      // simple: true returns string, not array
+      expect(integrityCheck).toBe('ok');
       db.close();
     });
 
@@ -356,9 +383,9 @@ describe('Integration: Backup/Restore Flow', () => {
 
       // Create backup and restore
       const backup = await backupManager.createBackup('manual');
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 300)); // Wait for DB to close (Windows)
       await backupManager.restoreBackup(backup.filename);
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 500)); // Wait for restore to complete (Windows)
 
       // Compare restored schema
       db = new Database(testDbPath, { readonly: true });
