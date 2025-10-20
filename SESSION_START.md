@@ -19,6 +19,32 @@ These files control the build system. Changes can break the entire project.
 3. 🤝 Ask human for approval
 4. ⏸️ STOP implementation until confirmed
 
+## 💻 WINDOWS ENVIRONMENT - CRITICAL
+
+**This project runs on Windows. NEVER use Linux/Unix commands!**
+
+❌ **DANGEROUS - NEVER USE:**
+- `cat`, `grep`, `sed`, `awk`, `head`, `tail`
+- Any bash/shell redirects like `>`, `>>`, `<<`, `|`
+- Unix path separators like `/usr/bin/`
+
+✅ **SAFE - USE INSTEAD:**
+- **Read files:** Use the `Read` tool (NOT cat/head/tail)
+- **Search in files:** Use the `Grep` tool (NOT grep/sed/awk)
+- **Windows commands ONLY:** `type`, `dir`, `findstr` via Bash tool
+- **Check existence:** Test via Read tool or PowerShell commands
+
+**Why this is CRITICAL:**
+- Linux commands on Windows can **CORRUPT FILES**
+- Example: `cat > file.txt << 'EOF'` will write shell code INTO the file
+- Bash redirects (`>`, `<<`) are especially dangerous
+
+**If you need to run a command:**
+1. Use the `Read` tool for file operations
+2. Use the `Grep` tool for searching
+3. Use PowerShell syntax if you must use Bash tool
+4. When in doubt: **ASK FIRST**
+
 ## 🐛 DEBUGGING PROTOCOL
 
 When encountering build errors:
@@ -29,7 +55,7 @@ When encountering build errors:
 - Verify function signatures
 
 ### Step 2: Validate Configuration (only if code is correct)
-```bash
+```powershell
 npm run validate  # Run validation before assuming config issue
 ```
 
