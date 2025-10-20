@@ -14,27 +14,29 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import { BackupManager } from '../../../../src/main/backup/BackupManager';
 import Database from 'better-sqlite3';
 import Knex from 'knex';
 
 describe('Integration: Pre-Migration Backup', () => {
-  const testBackupDir = path.join(os.tmpdir(), 'jobmatch-test-backups', 'test-migration');
+  // Use project test directories instead of temp directories
+  const testDataDir = path.join(process.cwd(), 'tests', 'data');
+  let testBackupDir: string;
   let testDbPath: string;
   let testMigrationsDir: string;
   let backupManager: BackupManager;
   let knex: Knex.Knex;
 
   beforeEach(async () => {
-    // Use unique DB and migrations dir per test to avoid Windows file locking issues
+    // Use unique paths per test to avoid Windows file locking issues
     const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    testDbPath = path.join(os.tmpdir(), 'jobmatch-test-data', `test-migration-${uniqueId}.db`);
-    testMigrationsDir = path.join(os.tmpdir(), `jobmatch-test-migrations-${uniqueId}`);
+    testDbPath = path.join(testDataDir, `test-migration-${uniqueId}.db`);
+    testBackupDir = path.join(testDataDir, `backups-migration-${uniqueId}`);
+    testMigrationsDir = path.join(testDataDir, `migrations-${uniqueId}`);
 
     // Create test directories
+    await fs.mkdir(testDataDir, { recursive: true });
     await fs.mkdir(testBackupDir, { recursive: true });
-    await fs.mkdir(path.dirname(testDbPath), { recursive: true });
     await fs.mkdir(testMigrationsDir, { recursive: true });
 
     // Create fake initial migration file that Knex expects
@@ -105,9 +107,13 @@ describe('Integration: Pre-Migration Backup', () => {
     const maxRetries = 3;
     for (let i = 0; i < maxRetries; i++) {
       try {
+        // Delete specific test database file
+        await fs.unlink(testDbPath).catch(() => {}); // Ignore if doesn't exist
+
+        // Remove per-test backup and migrations directories
         await fs.rm(testBackupDir, { recursive: true, force: true });
-        await fs.rm(path.dirname(testDbPath), { recursive: true, force: true });
         await fs.rm(testMigrationsDir, { recursive: true, force: true });
+
         break; // Success, exit loop
       } catch (error) {
         if (i === maxRetries - 1) {
