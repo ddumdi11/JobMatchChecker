@@ -6,12 +6,15 @@ import { IPC_CHANNELS } from '../shared/constants';
  */
 
 contextBridge.exposeInMainWorld('api', {
-  // Job operations
-  createJob: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.JOB_CREATE, data),
-  updateJob: (id: number, data: any) => ipcRenderer.invoke(IPC_CHANNELS.JOB_UPDATE, id, data),
-  deleteJob: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.JOB_DELETE, id),
-  getAllJobs: () => ipcRenderer.invoke(IPC_CHANNELS.JOB_GET_ALL),
-  getJobById: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.JOB_GET_BY_ID, id),
+  // Job operations (Feature 005)
+  getJobs: (filters?: any, sort?: any, pagination?: any) => ipcRenderer.invoke('getJobs', filters, sort, pagination),
+  getJobById: (id: number) => ipcRenderer.invoke('getJobById', id),
+  createJob: (data: any) => ipcRenderer.invoke('createJob', data),
+  updateJob: (id: number, data: any) => ipcRenderer.invoke('updateJob', id, data),
+  deleteJob: (id: number) => ipcRenderer.invoke('deleteJob', id),
+  getJobSources: () => ipcRenderer.invoke('getJobSources'),
+  getJobStatusOptions: () => ipcRenderer.invoke('getJobStatusOptions'),
+  extractJobFields: (text: string) => ipcRenderer.invoke('extractJobFields', text),
 
   // Profile operations
   createProfile: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_CREATE, data),
@@ -50,11 +53,15 @@ contextBridge.exposeInMainWorld('api', {
 declare global {
   interface Window {
     api: {
+      // Job operations (Feature 005)
+      getJobs: (filters?: any, sort?: any, pagination?: any) => Promise<any>;
+      getJobById: (id: number) => Promise<any>;
       createJob: (data: any) => Promise<any>;
       updateJob: (id: number, data: any) => Promise<any>;
       deleteJob: (id: number) => Promise<void>;
-      getAllJobs: () => Promise<any[]>;
-      getJobById: (id: number) => Promise<any>;
+      getJobSources: () => Promise<Array<{ id: number; name: string }>>;
+      getJobStatusOptions: () => Promise<Array<{ value: string; label: string }>>;
+      extractJobFields: (text: string) => Promise<any>;
       createProfile: (data: any) => Promise<any>;
       updateProfile: (data: any) => Promise<any>;
       getProfile: () => Promise<any>;

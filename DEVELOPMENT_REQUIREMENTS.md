@@ -134,6 +134,54 @@ node-gyp failed to rebuild 'better-sqlite3'
 3. **Node.js Version prüfen:**
    - Verwende Node.js 18.x oder 22.x (LTS-Versionen)
 
+### **KRITISCH:** "NODE_MODULE_VERSION Mismatch" (häufigster Fehler!)
+
+**Symptom:**
+```
+Error: The module 'better-sqlite3.node' was compiled against a different Node.js version
+using NODE_MODULE_VERSION 115. This version of Node.js requires NODE_MODULE_VERSION 139.
+```
+
+**Ursache:**
+- npm cache enthält veraltete/falsche Binärdateien
+- node_modules sind nicht synchron mit package.json/package-lock.json
+- Native Module wurden gegen falsche Electron-Version kompiliert
+
+**LÖSUNG (Die einzig zuverlässige Methode):**
+
+```bash
+# 1. Alle Build-Artefakte löschen (optional, aber empfohlen bei hartnäckigen Problemen)
+rm -rf dist
+rm -rf out
+
+# 2. Alle node_modules löschen
+rm -rf node_modules
+
+# 3. NPM Cache komplett leeren (WICHTIG!)
+npm cache clean --force
+
+# 4. Alle Dependencies neu installieren
+npm install
+
+# 5. Native Module für Electron neu kompilieren
+npx electron-rebuild
+```
+
+**WICHTIG:**
+- Dieser Fehler tritt besonders nach Git-Branch-Wechseln oder Updates auf
+- `npx electron-rebuild` allein reicht NICHT aus!
+- Der `npm cache clean --force` Schritt ist KRITISCH und darf nicht übersprungen werden!
+- Die komplette Sequenz dauert 2-5 Minuten, löst aber 99% aller nativen Modul-Probleme
+
+**Verifikation nach dem Fix:**
+```bash
+# Sollte zeigen: v38.2.1 (oder die Version aus package.json)
+./node_modules/.bin/electron --version
+
+# App starten - sollte jetzt ohne Fehler laufen
+npm run dev
+```
+
 ### "Electron failed to start" / Blank Window
 
 **Mögliche Ursachen:**
@@ -198,6 +246,7 @@ Bei Problemen:
 
 ---
 
-**Zuletzt aktualisiert:** 2025-10-05
+**Zuletzt aktualisiert:** 2025-10-15
 **Electron Version:** 38.2.1
 **Node.js Version:** 18.x / 22.x
+**Letzte Änderung:** Kritischer NODE_MODULE_VERSION Mismatch Fix dokumentiert
