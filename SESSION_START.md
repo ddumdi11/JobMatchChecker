@@ -27,23 +27,51 @@ These files control the build system. Changes can break the entire project.
 - `cat`, `grep`, `sed`, `awk`, `head`, `tail`
 - Any bash/shell redirects like `>`, `>>`, `<<`, `|`
 - Unix path separators like `/usr/bin/`
+- **`os.tmpdir()` in Tests** - führt zu Race Conditions!
 
 ✅ **SAFE - USE INSTEAD:**
 - **Read files:** Use the `Read` tool (NOT cat/head/tail)
 - **Search in files:** Use the `Grep` tool (NOT grep/sed/awk)
 - **Windows commands ONLY:** `type`, `dir`, `findstr` via Bash tool
 - **Check existence:** Test via Read tool or PowerShell commands
+- **Test directories:** `path.join(process.cwd(), 'tests', 'data')` (NOT `os.tmpdir()`)
 
 **Why this is CRITICAL:**
 - Linux commands on Windows can **CORRUPT FILES**
 - Example: `cat > file.txt << 'EOF'` will write shell code INTO the file
 - Bash redirects (`>`, `<<`) are especially dangerous
+- **`os.tmpdir()` causes race conditions** - temp folders deleted during tests
 
 **If you need to run a command:**
 1. Use the `Read` tool for file operations
 2. Use the `Grep` tool for searching
 3. Use PowerShell syntax if you must use Bash tool
 4. When in doubt: **ASK FIRST**
+
+### 🧪 Test-Verzeichnisse auf Windows (WICHTIG!)
+
+**NIEMALS `os.tmpdir()` in Tests verwenden!**
+
+**Problem:**
+- Windows Temp-Verzeichnisse haben Race Conditions
+- Ordner werden zwischen/während Tests gelöscht
+- Führt zu: "Source database file not found", "disk I/O error"
+
+**Lösung:**
+```typescript
+// ❌ FALSCH - Race Conditions!
+const testDir = path.join(os.tmpdir(), 'test-data');
+
+// ✅ RICHTIG - Stabile Projekt-Verzeichnisse
+const testDir = path.join(process.cwd(), 'tests', 'data');
+```
+
+**Best Practices:**
+- Unique Dateinamen pro Test: `test-${Date.now()}-${Math.random()}.db`
+- Per-test unique Backup/Migrations Directories
+- Erhöhte Wartezeiten für File Handle Releases (300ms - 10000ms)
+- Cleanup mit Retry-Logik (3 Versuche, 100ms Delays)
+- Nur spezifische Test-Dateien löschen, nicht ganze Verzeichnisse
 
 ## 🐛 DEBUGGING PROTOCOL
 
