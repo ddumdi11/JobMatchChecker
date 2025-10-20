@@ -127,6 +127,28 @@ Examples:
 - "Task T005 seems to require changes to protected files - how should I proceed?"
 - "Should I restart the dev server, or will you handle that?"
 
+## 🔚 SESSION-ENDE REGEL
+
+**KRITISCH: Am Ende JEDER Session MUSS das Session-Ende-Protokoll durchgeführt werden!**
+
+**Ich (Claude) MUSS proaktiv fragen wenn ich erkenne:**
+- User will Session beenden ("Feierabend", "bis morgen", "machen wir Schluss")
+- Längere Pause steht bevor
+- Größere Aufgabe abgeschlossen (PR gemerged, Feature komplett)
+
+**Dann MUSS ich fragen:**
+> "Soll ich das SESSION_END_PROTOCOL.md durchgehen bevor wir die Session beenden?"
+
+**Protokoll-Datei:** [SESSION_END_PROTOCOL.md](SESSION_END_PROTOCOL.md)
+
+**Warum wichtig:**
+- CHECKPOINT.md muss aktuell sein (mit richtigem Datum!)
+- Git-Status dokumentieren
+- Keine veralteten Informationen für nächste Session
+- Temporäre Dateien aufräumen
+
+**Falls ich es vergesse:** User kann mich erinnern mit "Session beenden" oder "Führe Session-Ende-Protokoll durch"
+
 ---
 
 **Acknowledge these rules by saying:**
