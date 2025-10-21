@@ -165,15 +165,33 @@
 ---
 
 ## Phase 3.6: State Management
-- [ ] **T011** Create Zustand store for profile state
+- [x] **T011A** Create Zustand store for profile state
+  - **Status**: ✅ COMPLETED (2025-10-21)
   - **File**: `src/renderer/store/profileStore.ts`
   - **Features**:
     - Profile state (name, email, location)
     - Skills state (array, max 500)
     - Preferences state (salary, location, remote range)
     - Unsaved changes tracking
-    - IPC integration for persistence
-  - **Dependencies**: T003 (types), T007 (page), T008-T010 (IPC)
+    - Loading & error states
+    - Remote range validation (min ≤ preferred ≤ max)
+    - Actions for all CRUD operations
+    - DevTools support
+  - **Dependencies**: T003 (types), T008-T010 (IPC)
+
+- [ ] **T011B** Connect all components to Zustand store
+  - **Status**: 🚧 IN PROGRESS (started 2025-10-21)
+  - **Files**:
+    - ✅ `src/renderer/components/ProfileForm.tsx` (COMPLETED)
+    - ⏳ `src/renderer/components/SkillsManager.tsx` (PENDING)
+    - ⏳ `src/renderer/components/PreferencesPanel.tsx` (PENDING)
+    - ⏳ `src/renderer/pages/Profile.tsx` (PENDING)
+  - **Changes**:
+    - Replace direct `window.api` calls with store actions
+    - Use store selectors for state access
+    - Remove local state management (use store instead)
+    - Add initial data loading via store actions
+  - **Dependencies**: T011A, T007 (page components exist)
 
 ---
 
@@ -224,9 +242,21 @@
   - **File**: `src/renderer/pages/Profile.tsx`
   - **Features**:
     - Progress bar showing % completion
-    - Required fields: name, email, at least 1 skill, preferences set
+    - Required fields: first name + last name ONLY (100% if both present, 0% otherwise)
+    - Email, skills, and preferences are optional and do NOT affect completion percentage
     - Visual feedback for missing required fields
   - **Dependencies**: T007, T011
+
+- [ ] **T017** Implement Delete Profile function
+  - **File**: `src/renderer/pages/Profile.tsx`
+  - **Features**:
+    - "Delete Profile" button in settings/profile page
+    - Confirmation dialog with warning: "This will permanently delete all your data"
+    - IPC channel `PROFILE_DELETE` to remove all user data (profile, skills, preferences)
+    - Clear all state from Zustand store after successful deletion
+    - Return UI to initial/empty state
+    - Error handling with retry option
+  - **Dependencies**: T011B (Zustand store integration), T008 (IPC handlers)
 
 ---
 
@@ -234,19 +264,19 @@
 ```txt
 T001 (✅ COMPLETED)
   ↓
-T002, T003 [P]
+T002, T003 [P] (✅ COMPLETED)
   ↓
-T004, T005, T006 [P]
+T004, T005, T006 [P] (✅ COMPLETED)
   ↓
-T007
+T007 (✅ COMPLETED)
   ↓
-T008 → T009 → T010 (sequential - same file)
+T008 → T009 → T010 (sequential - same file) (✅ COMPLETED)
   ↓
-T011
+T011A (✅ COMPLETED) → T011B (🚧 IN PROGRESS)
   ↓
-T012, T013, T014 [P]
+T012, T013, T014 [P] (✅ COMPLETED - already in components)
   ↓
-T015 → T016
+T015 → T016 (✅ COMPLETED - already in components)
 ```
 
 ---
@@ -291,19 +321,20 @@ Task: "Add Material-UI styling and responsive layout"
 
 ## Validation Checklist
 - [x] All 3 components covered (ProfileForm, SkillsManager, PreferencesPanel)
-- [ ] All IPC channels implemented (PROFILE_*, SKILLS_*, PREFERENCES_*) - In Progress (T008-T010)
+- [x] All IPC channels implemented (PROFILE_*, SKILLS_*, PREFERENCES_*) - ✅ COMPLETED (T008-T010)
 - [x] All data model changes covered (3 remote fields, max 500 skills)
 - [x] Parallel tasks truly independent (different files)
 - [x] Each task specifies exact file path
 - [x] No task modifies same file as another [P] task (T008-T010 sequential, T012-T014 sequential)
 - [x] Setup task (T001) completed
 - [x] Database migration included (T002)
-- [x] State management included (T011)
-- [x] Polish and validation included (T012-T016)
+- [x] State management included (T011A - store created, T011B - in progress)
+- [x] Polish and validation included (T012-T016 - already in components)
 
 ---
 
 **Estimated Time**: 15-20 hours total
-**Critical Path**: T001 ✅ → T002/T003 → T004/T005/T006 → T007 → T008→T009→T010 → T011 → T012/T013/T014 → T015→T016
+**Critical Path**: T001 ✅ → T002/T003 ✅ → T004/T005/T006 ✅ → T007 ✅ → T008→T009→T010 ✅ → T011A ✅ → T011B 🚧 → T012/T013/T014 ✅ → T015→T016 ✅
 
-**Status**: 🚧 IN PROGRESS - T001-T007 completed, continue with T008 (IPC handlers)
+**Status**: 🚧 IN PROGRESS - T011B (Connect components to Zustand store)
+**Progress**: 1/4 components connected (ProfileForm ✅), remaining: SkillsManager, PreferencesPanel, Profile.tsx

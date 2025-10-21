@@ -8,14 +8,19 @@ import {
   Alert,
   Snackbar
 } from '@mui/material';
-import { UserProfile } from '../../shared/types';
+import { useProfileStore } from '../store/profileStore';
 
 interface ProfileFormProps {
-  profile?: UserProfile;
-  onSave?: (profile: Partial<UserProfile>) => Promise<void>;
+  // Props are optional - component can work standalone with store
 }
 
-export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => {
+export const ProfileForm: React.FC<ProfileFormProps> = () => {
+  // Use Zustand store instead of props
+  const profile = useProfileStore((state) => state.profile);
+  const updateProfile = useProfileStore((state) => state.updateProfile);
+  const isLoading = useProfileStore((state) => state.isLoadingProfile);
+  const profileError = useProfileStore((state) => state.profileError);
+  const hasUnsavedChanges = useProfileStore((state) => state.hasUnsavedProfileChanges);
   const [formData, setFormData] = useState({
     firstName: profile?.firstName || '',
     lastName: profile?.lastName || '',
@@ -23,8 +28,6 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
     location: profile?.location || ''
   });
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
@@ -71,38 +74,34 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
 
   // Debounced auto-save (2 seconds) - only if dirty, valid, and not already saving
   useEffect(() => {
-    if (!isDirty || !hasChanges() || loading) {
+    if (!isDirty || !hasChanges() || isLoading) {
       return; // Don't save if nothing changed or save in progress
     }
 
     const timer = setTimeout(() => {
-      if (!emailError && onSave && !loading) {
+      if (!emailError && !isLoading) {
         handleAutoSave();
       }
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [formData, emailError, onSave, isDirty, loading]);
+  }, [formData, emailError, isDirty, isLoading]);
 
   const handleAutoSave = async () => {
-    if (loading) return; // Prevent overlapping saves
-    
-    try {
-      setLoading(true);
-      setError(null);
+    if (isLoading) return; // Prevent overlapping saves
 
+    try {
       // Capture snapshot to preserve in-flight edits
       const snapshot = { ...formDataRef.current };
-      await onSave?.(snapshot);
+      await updateProfile(snapshot);
 
       // Update initial data after successful save
       setInitialData(snapshot);
       setIsDirty(false);
       setSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save profile');
-    } finally {
-      setLoading(false);
+      // Error is handled by store, just show error state
+      console.error('Failed to save profile:', err);
     }
   };
 
@@ -127,7 +126,6 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
 
   const handleSnackbarClose = () => {
     setSuccess(false);
-    setError(null);
   };
 
   return (
@@ -136,7 +134,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
         <Typography variant="h6" sx={{ flexGrow: 1 }}>
           Personal Information
         </Typography>
-        {loading && <CircularProgress size={20} />}
+        {isLoading && <CircularProgress size={20} />}
       </Box>
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -189,13 +187,13 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({ profile, onSave }) => 
 
       {/* Error notification */}
       <Snackbar
-        open={!!error}
+        open={!!profileError}
         autoHideDuration={6000}
         onClose={handleSnackbarClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Alert onClose={handleSnackbarClose} severity="error" sx={{ width: '100%' }}>
-          {error}
+          {profileError}
         </Alert>
       </Snackbar>
     </Paper>

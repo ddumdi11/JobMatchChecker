@@ -95,26 +95,41 @@ Als Jobsuchender möchte ich mein Profil mit persönlichen Daten, Skills (bis 50
 ### Edge Cases
 
 - **Invalid Remote Range**: System verhindert Speichern wenn Min > Preferred oder Preferred > Max
+- **Invalid Salary Range**: System verhindert Speichern wenn min_salary > max_salary
 - **Duplicate Skill Names**: Erlaubt - gleicher Skill-Name kann in verschiedenen Kategorien existieren (Clarification #1)
-- **Empty Required Fields**: System verhindert Speichern und hebt fehlende Pflichtfelder hervor
+- **Empty Required Fields**: System verhindert Speichern und hebt fehlende Pflichtfelder (first name, last name) hervor; alle anderen Felder optional
 - **Skill Level Out of Range**: System erzwingt 0-10 Range mit Slider-UI-Constraint
+- **Profile Deletion**: User kann gesamtes Profil permanent löschen; System zeigt Bestätigungsdialog mit Warnung vor Datenverlust
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
-- **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]
-- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]  
-- **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
-- **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
-- **FR-005**: System MUST [behavior, e.g., "log all security events"]
 
-*Example of marking unclear requirements:*
-- **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
-- **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
+- **FR-001**: System MUST auto-save basic profile fields (first name, last name, email, location) after 2 seconds of inactivity; only first name and last name are required fields
+- **FR-002**: System MUST allow users to add, edit, and delete skills with categories and proficiency levels (0-10: 0-2=Beginner, 3-5=Intermediate, 6-8=Advanced, 9-10=Expert)
+- **FR-003**: System MUST enforce maximum limit of 500 skills per user profile
+- **FR-004**: System MUST support 7 predefined skill categories plus unlimited custom categories
+- **FR-005**: System MUST allow users to set job preferences including salary range, location, and remote work percentage
+- **FR-005a**: System MUST validate salary range: min_salary ≤ max_salary, preventing save if invalid
+- **FR-006**: System MUST validate remote work range: acceptable_min ≤ preferred_percentage ≤ acceptable_max
+- **FR-007**: System MUST warn users before data loss when unsaved changes exist in Skills or Preferences sections
+- **FR-008**: System MUST require explicit save action for Skills and Preferences modifications
+- **FR-009**: System MUST validate email format for email field (optional field)
+- **FR-010**: System MUST display profile completion indicator showing percentage based on required fields (first name + last name = 100%)
+- **FR-011**: System MUST provide "Delete Profile" function that permanently removes all user data after confirmation
 
-### Key Entities *(include if feature involves data)*
-- **[Entity 1]**: [What it represents, key attributes without implementation]
-- **[Entity 2]**: [What it represents, relationships to other entities]
+### Non-Functional Requirements
+
+- **NFR-001**: System MUST validate and prevent saving invalid remote work ranges in real-time
+- **NFR-002**: System MUST group and display skills by category for improved readability
+- **NFR-003**: System MUST preserve historical matching results when profile data changes (out of scope for this feature, handled in Feature 002)
+
+### Key Entities
+
+- **UserProfile**: Represents job seeker's personal information (first name, last name, email, phone, location, creation/update timestamps)
+- **Skill**: Represents a competency with name, proficiency level (0-10), category, and optional years of experience
+- **SkillCategory**: Predefined or custom grouping for skills (7 predefined: Programming Languages, Frameworks, Databases, DevOps, Tools, Soft Skills, Domain Knowledge)
+- **UserPreferences**: Job search criteria including salary range (min/max), preferred locations, remote work preference (remote_only, hybrid, on_site, flexible), and remote percentage range (preferred, acceptable_min, acceptable_max)
 
 ---
 
@@ -160,3 +175,11 @@ Als Jobsuchender möchte ich mein Profil mit persönlichen Daten, Skills (bis 50
 6. **Q: Auto-save or Explicit Save?** → A: Hybrid - auto-save basic fields (2s), explicit save for skills/preferences
 
 **Status**: All clarifications resolved. Ready for implementation.
+
+### Session 2025-10-21
+
+1. **Q: Data Retention & Profile Deletion?** → A: Provide "Delete Profile" button that removes all user data permanently
+2. **Q: Profile Completion Criteria?** → A: 100% completion requires only first name + last name (minimal required fields)
+3. **Q: Skill Proficiency Level Semantics?** → A: 0-2=Beginner, 3-5=Intermediate, 6-8=Advanced, 9-10=Expert
+4. **Q: Salary Range Validation?** → A: Validate min ≤ max, prevent saving if invalid
+5. **Q: Required vs Optional Fields?** → A: Only first name + last name required; all other fields (email, phone, location, skills, preferences) optional
