@@ -1,8 +1,8 @@
 
-# Implementation Plan: [FEATURE]
+# Implementation Plan: Profile Management UI
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+**Branch**: `001-profile-management-ui` | **Date**: 2025-10-21 | **Spec**: [spec.md](./spec.md)
+**Input**: Feature specification from `specs/001-profile-management-ui/spec.md`
 
 ## Execution Flow (/plan command scope)
 ```
@@ -31,23 +31,74 @@
 - Phase 3-4: Implementation execution (manual or via tools)
 
 ## Summary
-[Extract from feature spec: primary requirement + technical approach from research]
+
+Create a user profile management UI for a desktop job matching application that allows job seekers to:
+
+- Manage personal information (name, email, location) with auto-save after 2s
+- Add/edit/delete up to 500 skills with proficiency levels (0-10) and categories
+- Set job preferences including salary range and remote work percentage range
+- View profile completion indicator
+- Delete profile with confirmation
+
+Technical approach: Electron desktop app with React UI, Material-UI components, Zustand state management, and SQLite database via Knex migrations. Already partially implemented (T001-T011A complete), this plan focuses on completing the state management integration and ensuring all requirements are met.
 
 ## Technical Context
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+
+**Language/Version**: TypeScript 5.3 / Node.js 18+ (Electron 38.2.1)
+**Primary Dependencies**: React 18.2, Material-UI 5.15, Zustand 4.5, better-sqlite3 12.4, Knex 3.1
+**Storage**: SQLite (embedded, local via better-sqlite3)
+**Testing**: Vitest (unit + integration tests)
+**Target Platform**: Windows/macOS/Linux Desktop (Electron)
+**Project Type**: Electron desktop (main process + renderer process architecture)
+**Performance Goals**: Auto-save debounce 2s, UI response <100ms, max 500 skills per profile
+**Constraints**: Local-only data (no cloud sync), single-user app, offline-capable
+**Scale/Scope**: Single-user desktop application, ~10-15 React components, 4 database tables
 
 ## Constitution Check
+
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+### Constitutional Principles Compliance
+
+**✅ Privacy First**
+
+- All data stored locally in SQLite database (no cloud sync)
+- No external API calls for this feature
+- User data deletion implemented (FR-011)
+
+**✅ Datenintegrität**
+
+- Database migrations via Knex.js (already established in project)
+- Backup mechanism exists (Feature 004 - Database Backup & Restore)
+- Validation rules prevent invalid data (salary range, remote range, skill limits)
+
+**✅ Adaptivität**
+
+- Skill categories extensible (7 predefined + unlimited custom)
+- Skill levels 0-10 with semantic mapping (Beginner/Intermediate/Advanced/Expert)
+- Profile fields mostly optional (only first name + last name required)
+
+**✅ Transparenz**
+
+- Clear validation messages for users
+- Profile completion indicator shows progress
+- Unsaved changes warnings prevent data loss
+
+**✅ Iterative Entwicklung**
+
+- Feature builds on existing infrastructure (T001-T011A already complete)
+- Incremental implementation (components → integration → polish)
+- Backward compatible with existing database schema
+
+**✅ Tech Constraints**
+
+- Uses established stack: Electron + React + Material-UI + SQLite
+- Follows existing patterns (Knex migrations, better-sqlite3)
+- No new runtime dependencies introduced
+
+### Gate Result: **PASS** ✅
+
+No constitutional violations detected. Feature aligns with all core principles.
 
 ## Project Structure
 
@@ -63,124 +114,115 @@ specs/[###-feature]/
 ```
 
 ### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
+
 ```
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
 src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+├── main/                      # Electron main process (Node.js backend)
+│   ├── database/
+│   │   ├── migrations/        # Knex migration files
+│   │   └── db.ts             # Database connection & helpers
+│   ├── ipc/
+│   │   └── handlers.ts       # IPC channel handlers
+│   └── services/             # Backend business logic
+│
+├── renderer/                  # Electron renderer process (React frontend)
+│   ├── components/           # React components
+│   │   ├── ProfileForm.tsx
+│   │   ├── SkillsManager.tsx
+│   │   └── PreferencesPanel.tsx
+│   ├── pages/
+│   │   └── Profile.tsx       # Main profile page
+│   ├── store/
+│   │   └── profileStore.ts   # Zustand state management
+│   └── App.tsx
+│
+├── shared/                    # Shared code between main & renderer
+│   ├── constants.ts          # IPC channel names, constants
+│   └── types.ts              # TypeScript type definitions
+│
+└── types/                    # Additional type definitions
 
 tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+├── integration/              # End-to-end integration tests
+└── unit/                     # Unit tests for services & components
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure Decision**: Electron application with separate main (Node.js) and renderer (React) processes. Profile Management UI components live in `src/renderer/components/` and `src/renderer/pages/`. State management via Zustand store in `src/renderer/store/`. Database access via `src/main/database/` with IPC bridge in `src/main/ipc/handlers.ts`.
 
 ## Phase 0: Outline & Research
-1. **Extract unknowns from Technical Context** above:
-   - For each NEEDS CLARIFICATION → research task
-   - For each dependency → best practices task
-   - For each integration → patterns task
 
-2. **Generate and dispatch research agents**:
-   ```
-   For each unknown in Technical Context:
-     Task: "Research {unknown} for {feature context}"
-   For each technology choice:
-     Task: "Find best practices for {tech} in {domain}"
-   ```
+**Status**: ✅ **SKIPPED** - No unknowns detected
 
-3. **Consolidate findings** in `research.md` using format:
-   - Decision: [what was chosen]
-   - Rationale: [why chosen]
-   - Alternatives considered: [what else evaluated]
+**Analysis**:
 
-**Output**: research.md with all NEEDS CLARIFICATION resolved
+- ✅ All technology choices already established (TypeScript, React, Material-UI, Zustand, SQLite)
+- ✅ Project structure already exists and is consistent
+- ✅ Database migration patterns already in use (Knex.js)
+- ✅ IPC communication patterns already established
+- ✅ Testing framework already configured (Vitest)
+
+**Rationale for skipping**:
+
+This feature builds on existing, proven infrastructure (T001-T011A already completed). The technical stack, patterns, and architecture are well-established. No research or technology selection is needed - this is purely an incremental feature addition to an existing codebase.
+
+**Output**: No research.md file needed (no NEEDS CLARIFICATION markers present)
 
 ## Phase 1: Design & Contracts
-*Prerequisites: research.md complete*
 
-1. **Extract entities from feature spec** → `data-model.md`:
-   - Entity name, fields, relationships
-   - Validation rules from requirements
-   - State transitions if applicable
+*Prerequisites: Phase 0 complete (skipped)*
 
-2. **Generate API contracts** from functional requirements:
-   - For each user action → endpoint
-   - Use standard REST/GraphQL patterns
-   - Output OpenAPI/GraphQL schema to `/contracts/`
+**Status**: ✅ **COMPLETE**
 
-3. **Generate contract tests** from contracts:
-   - One test file per endpoint
-   - Assert request/response schemas
-   - Tests must fail (no implementation yet)
+### Completed Deliverables
 
-4. **Extract test scenarios** from user stories:
-   - Each story → integration test scenario
-   - Quickstart test = story validation steps
+1. ✅ **data-model.md** - Entity definitions and validation rules
+   - 4 entities: UserProfile, Skill, SkillCategory, UserPreferences
+   - Validation rules from FR-001 through FR-011
+   - Relationships and constraints defined
 
-5. **Update agent file incrementally** (O(1) operation):
-   - Run `.specify/scripts/powershell/update-agent-context.ps1 -AgentType claude`
-     **IMPORTANT**: Execute it exactly as specified above. Do not add or remove any arguments.
-   - If exists: Add only NEW tech from current plan
-   - Preserve manual additions between markers
-   - Update recent changes (keep last 3)
-   - Keep under 150 lines for token efficiency
-   - Output to repository root
+2. ✅ **contracts/ipc-channels.md** - IPC communication contracts
+   - 9 IPC channels (PROFILE_*, SKILLS_*, PREFERENCES_*)
+   - TypeScript schemas for request/response
+   - Validation rules and error cases
 
-**Output**: data-model.md, /contracts/*, failing tests, quickstart.md, agent-specific file
+3. ✅ **quickstart.md** - Manual validation scenarios
+   - 10 manual test scenarios from acceptance criteria
+   - Integration test flow
+   - Performance validation
+
+4. ✅ **CLAUDE.md updated** - Agent context
+   - TypeScript 5.3 / Electron 38.2.1
+   - React 18.2, Material-UI 5.15, Zustand 4.5
+   - Feature 001 context integrated
+
+**Output**: data-model.md ✅, contracts/ipc-channels.md ✅, quickstart.md ✅, CLAUDE.md ✅
 
 ## Phase 2: Task Planning Approach
 *This section describes what the /tasks command will do - DO NOT execute during /plan*
 
-**Task Generation Strategy**:
-- Load `.specify/templates/tasks-template.md` as base
-- Generate tasks from Phase 1 design docs (contracts, data model, quickstart)
-- Each contract → contract test task [P]
-- Each entity → model creation task [P] 
-- Each user story → integration test task
-- Implementation tasks to make tests pass
+**Status**: ✅ **ALREADY COMPLETE** (tasks.md pre-exists)
 
-**Ordering Strategy**:
-- TDD order: Tests before implementation 
-- Dependency order: Models before services before UI
-- Mark [P] for parallel execution (independent files)
+**Current State**: tasks.md already exists with T001-T016 defined and partially implemented:
+- T001-T010: Database & IPC infrastructure (COMPLETE)
+- T011A: Zustand store creation (COMPLETE)
+- T011B: Component integration (IN PROGRESS - 1/4 done)
+- T012-T016: UI components (COMPLETE)
 
-**Estimated Output**: 25-30 numbered, ordered tasks in tasks.md
+**Task Generation Strategy** (if /tasks were to run):
+- Validate existing tasks against Phase 1 design docs (contracts/ipc-channels.md, data-model.md, quickstart.md)
+- Ensure all 9 IPC channels from contracts have corresponding tests
+- Verify all 4 entities from data-model.md have validation coverage
+- Map quickstart.md scenarios to integration tests
+- Add missing test tasks if gaps found
 
-**IMPORTANT**: This phase is executed by the /tasks command, NOT by /plan
+**Ordering Strategy** (already applied in existing tasks.md):
+- ✅ TDD order: Tests before implementation
+- ✅ Dependency order: Models → Services → IPC → Store → UI
+- ✅ Parallel markers [P] for independent file operations
+
+**Output**: Existing tasks.md (16 tasks) aligns with Phase 1 design
+
+**IMPORTANT**: This phase is executed by the /tasks command, NOT by /plan. Since tasks.md already exists and is well-structured, /tasks would perform validation rather than generation.
 
 ## Phase 3+: Future Implementation
 *These phases are beyond the scope of the /plan command*
@@ -202,18 +244,18 @@ directories captured above]
 *This checklist is updated during execution flow*
 
 **Phase Status**:
-- [ ] Phase 0: Research complete (/plan command)
-- [ ] Phase 1: Design complete (/plan command)
-- [ ] Phase 2: Task planning complete (/plan command - describe approach only)
-- [ ] Phase 3: Tasks generated (/tasks command)
-- [ ] Phase 4: Implementation complete
+- [x] Phase 0: Research complete (/plan command) - SKIPPED (no unknowns)
+- [x] Phase 1: Design complete (/plan command) - COMPLETE (2025-10-21)
+- [x] Phase 2: Task planning complete (/plan command - describe approach only) - COMPLETE (tasks.md pre-exists)
+- [x] Phase 3: Tasks generated (/tasks command) - COMPLETE (tasks.md T001-T016 exist)
+- [ ] Phase 4: Implementation complete - IN PROGRESS (T011B active)
 - [ ] Phase 5: Validation passed
 
 **Gate Status**:
-- [ ] Initial Constitution Check: PASS
-- [ ] Post-Design Constitution Check: PASS
-- [ ] All NEEDS CLARIFICATION resolved
-- [ ] Complexity deviations documented
+- [x] Initial Constitution Check: PASS ✅
+- [x] Post-Design Constitution Check: PASS ✅
+- [x] All NEEDS CLARIFICATION resolved (/clarify 2025-10-21)
+- [x] Complexity deviations documented (none - table empty)
 
 ---
 *Based on Constitution v2.1.1 - See `/memory/constitution.md`*
