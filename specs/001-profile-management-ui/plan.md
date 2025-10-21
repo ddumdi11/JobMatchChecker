@@ -181,7 +181,7 @@ This feature builds on existing, proven infrastructure (T001-T011A already compl
    - Relationships and constraints defined
 
 2. ✅ **contracts/ipc-channels.md** - IPC communication contracts
-   - 8 IPC channels (PROFILE_*, SKILLS_*, PREFERENCES_*)
+   - 9 IPC channels (PROFILE_*, SKILLS_*, PREFERENCES_*)
    - TypeScript schemas for request/response
    - Validation rules and error cases
 

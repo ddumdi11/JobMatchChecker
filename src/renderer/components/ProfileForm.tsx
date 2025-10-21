@@ -10,17 +10,14 @@ import {
 } from '@mui/material';
 import { useProfileStore } from '../store/profileStore';
 
-interface ProfileFormProps {
-  // Props are optional - component can work standalone with store
-}
-
-export const ProfileForm: React.FC<ProfileFormProps> = () => {
+export const ProfileForm: React.FC = () => {
   // Use Zustand store instead of props
   const profile = useProfileStore((state) => state.profile);
   const updateProfile = useProfileStore((state) => state.updateProfile);
   const isLoading = useProfileStore((state) => state.isLoadingProfile);
   const profileError = useProfileStore((state) => state.profileError);
   const hasUnsavedChanges = useProfileStore((state) => state.hasUnsavedProfileChanges);
+  const resetErrors = useProfileStore((state) => state.resetErrors);
   const [formData, setFormData] = useState({
     firstName: profile?.firstName || '',
     lastName: profile?.lastName || '',
@@ -126,6 +123,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = () => {
 
   const handleSnackbarClose = () => {
     setSuccess(false);
+    resetErrors(); // Clear profileError so error snackbar closes properly
   };
 
   return (

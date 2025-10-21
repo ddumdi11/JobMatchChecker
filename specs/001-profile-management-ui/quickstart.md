@@ -267,7 +267,7 @@
 
 ## Error Cases to Test
 
-1. **Empty required fields**: Try to save profile with only first name → should fail
+1. **Empty required fields**: Edit profile with only first name (auto-save should succeed as an incomplete draft at 0% completion; profile completion indicator should remain at 0% until both first and last name are provided)
 2. **Invalid email format**: Enter "notanemail" → validation error
 3. **Out of range skill level**: Try to set level to 11 (UI should prevent via slider)
 4. **Concurrent edits**: Edit profile in two tabs simultaneously (not supported, but shouldn't corrupt data)
