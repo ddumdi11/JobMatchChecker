@@ -210,7 +210,7 @@ This feature builds on existing, proven infrastructure (T001-T011A already compl
 
 **Task Generation Strategy** (if /tasks were to run):
 - Validate existing tasks against Phase 1 design docs (contracts/ipc-channels.md, data-model.md, quickstart.md)
-- Ensure all 8 IPC channels from contracts have corresponding tests
+- Ensure all 9 IPC channels from contracts have corresponding tests
 - Verify all 4 entities from data-model.md have validation coverage
 - Map quickstart.md scenarios to integration tests
 - Add missing test tasks if gaps found
