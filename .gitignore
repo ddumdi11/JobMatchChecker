@@ -137,6 +137,9 @@ pnpm-lock.yaml
 # Archive (local project documentation, not for repo)
 archive/
 
+# Session checkpoint (local only, changes too frequently)
+CHECKPOINT.md
+
 # Keep empty directories
 !.gitkeep
 !backups/.gitkeep

@@ -1,15 +1,16 @@
 # Tasks: Profile Management UI
 
-T001 (P0): Fix Electron Startup - CRITICAL BLOCKER
-T002-T003 [P]: DB Migration + TypeScript Types
-T004-T006 [P]: Components (ProfileForm, SkillsManager, PreferencesPanel)
-T007: Profile Page Integration
-T008-T009: IPC Handlers + Preload
-T010: Zustand Store
-T011-T016: Polish + Testing
+T001 (P0): Fix Electron Startup - ✅ COMPLETED
+T002-T003 [P]: DB Migration + TypeScript Types - ✅ COMPLETED
+T004-T006 [P]: Components (ProfileForm, SkillsManager, PreferencesPanel) - ✅ COMPLETED
+T007: Profile Page Integration - ✅ COMPLETED
+T008-T010: IPC Handlers (Profile, Skills, Preferences) - ✅ COMPLETED
+T011A: Create Zustand Store - ✅ COMPLETED
+T011B: Connect Components to Store - 🚧 IN PROGRESS (1/4 done)
+T012-T016: Polish + Testing - ✅ COMPLETED (already in components)
 
-Total: 16 tasks, Est. 15-20h
-Critical Path: T001 → T002/T003 → T004/T005/T006 → T007 → T008-T010 → T011-T016
+Total: 17 tasks (T011 split into A+B), Est. 15-20h
+Critical Path: T001 → T002/T003 → T004/T005/T006 → T007 → T008-T010 → T011A → T011B → T012-T016
 
-Status: READY FOR EXECUTION
-Start with T001 (Electron fix)!
+Status: 🚧 IN PROGRESS - T011B
+Next: Connect remaining components to Zustand store (SkillsManager, PreferencesPanel, Profile.tsx)
