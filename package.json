@@ -7,6 +7,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
     "dev": "electron-vite dev",
     "dev:renderer": "vite",
     "dev:electron": "node electron-start.js",
