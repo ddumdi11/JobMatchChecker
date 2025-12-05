@@ -19,7 +19,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogContentText,
-  DialogActions
+  DialogActions,
+  Snackbar
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -52,6 +53,8 @@ export default function JobDetail() {
 
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletionError, setDeletionError] = useState<string | null>(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   // Fetch job on mount
   useEffect(() => {
@@ -62,6 +65,7 @@ export default function JobDetail() {
 
   // Handle delete - open dialog
   const handleDeleteClick = () => {
+    setDeletionError(null); // Clear any previous errors
     setDeleteDialogOpen(true);
   };
 
@@ -75,13 +79,22 @@ export default function JobDetail() {
       navigate('/jobs');
     } catch (err) {
       console.error('Failed to delete job:', err);
-      setDeleteDialogOpen(false);
+      // Keep dialog open and show error to user
+      const errorMessage = err instanceof Error ? err.message : 'Fehler beim Löschen des Jobs';
+      setDeletionError(errorMessage);
+      setSnackbarOpen(true);
     }
   };
 
   // Handle delete cancel
   const handleDeleteCancel = () => {
     setDeleteDialogOpen(false);
+    setDeletionError(null); // Clear error when canceling
+  };
+
+  // Handle snackbar close
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false);
   };
 
   // Handle edit
@@ -471,6 +484,11 @@ export default function JobDetail() {
           <DialogContentText id="delete-dialog-description">
             Möchten Sie diesen Job wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
           </DialogContentText>
+          {deletionError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {deletionError}
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCancel} color="primary">
@@ -481,6 +499,18 @@ export default function JobDetail() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Error Snackbar */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity="error" sx={{ width: '100%' }}>
+          {deletionError || 'Ein Fehler ist aufgetreten'}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }
