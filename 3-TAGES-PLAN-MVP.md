@@ -828,9 +828,77 @@ function useDebounce<T>(value: T, delay: number): T {
 
 **Hauptziel:** AI-Matching funktionsfähig + App-Polish
 
-## Block 1: Matching-Feature (4h)
+---
 
-### Task 3.1: Matching-Service erstellen (45 Min)
+## ⚠️ WICHTIG: GIT WORKFLOW AB JETZT
+
+**🚨 NIEMALS mehr direkt auf `main` pushen! 🚨**
+
+**Korrekt Workflow ab Montag:**
+1. Feature Branch erstellen: `git checkout -b feature/name`
+2. Änderungen committen
+3. Branch pushen: `git push origin feature/name`
+4. Pull Request auf GitHub erstellen
+5. Code Rabbit Review abwarten
+6. PR mergen nach Approval
+
+**Hinweis:** Sonntag Block 1 wurde ausnahmsweise direkt auf `main` gepusht (keine Code Rabbit Review). Dies war ein Fehler und darf NICHT wiederholt werden!
+
+---
+
+## ✅ Block 1: Matching-Feature + First-Run Dialog (ERLEDIGT)
+
+**Status:** Komplett implementiert und getestet ✅
+**Zeit:** ~6 Stunden (inkl. E2E Testing & Bug Fixes)
+**Commits:**
+
+- `feat: Implement Sunday Block 1 - Matching Feature & First-Run Dialog` (1d2578f)
+- `Fix: E2E testing bug fixes - Profile, Jobs, Sorting, and Routing` (43195c9)
+
+**Implementierte Features:**
+
+- ✅ Backend Matching Service (`matchingService.ts`)
+  - Claude API Integration (Anthropic SDK)
+  - Job-Profil-Matching mit detaillierter Gap-Analyse
+  - Persistierung in `matching_results` Tabelle
+  - Matching History Support
+
+- ✅ Frontend Matching UI in JobDetail
+  - Matching-Button & "Erneut matchen" Funktionalität
+  - Score-Badge mit Farbcodierung (rot/orange/grün)
+  - Detaillierte Skill-Gap-Tabelle
+  - Experience-Gaps Anzeige
+  - AI-Empfehlungen & Reasoning (collapsible)
+
+- ✅ First-Run Dialog mit Guided Setup
+  - Automatische Erkennung: Kein Profil vorhanden
+  - 3-Step Setup: Profil → Skills → API-Key
+  - Blockiert App-Nutzung bis Setup komplett
+
+**E2E Testing & Bug Fixes (8 kritische Bugs behoben):**
+
+1. Profile Loading Bug - Loading blockierte unnötig
+2. Danger Zone Placement - Erschien auf allen Tabs
+3. Skills Delete Button - Immer disabled
+4. JobList Sorting - Funktionierte nicht
+5. Backend Sort Parameters - Fehlende Unterstützung
+6. JobStore fetchJobs - Parameter-Mismatch
+7. Job Edit Route - 404 Fehler
+8. JobAdd State Reset - Form behielt Daten
+
+**Testing Coverage:**
+
+- ✅ Dashboard Navigation
+- ✅ Profile CRUD (Personal Info, Skills, Preferences)
+- ✅ Job List (Sortierung, Filterung)
+- ✅ Job Add mit AI Extraction
+- ✅ Job Edit Funktionalität
+- ✅ Job Details mit Matching
+- ✅ Settings API-Key Management
+
+---
+
+### Task 3.1: Matching-Service erstellen ✅ ERLEDIGT
 
 **Datei:** [src/main/services/matchingService.ts](src/main/services/matchingService.ts) **(NEU)**
 
@@ -1398,9 +1466,33 @@ useEffect(() => {
 
 ---
 
-## Block 2: Settings & API-Key (1h 30 Min)
+## 🔄 Block 2: UI-Verbesserungen (verschoben auf Montag)
 
-### Task 3.7: Settings-Page - API-Key-Input (45 Min)
+**Status:** Verschoben auf Montag (Task 3.9)
+**Grund:** Block 1 inkl. E2E Testing & Bug Fixes dauerte länger als geplant
+
+**Geplante Tasks für Montag:**
+
+- Dashboard Stats & Charts
+- JobList erweiterte Filterung
+- Animationen & Transitions
+- Responsive Design Optimierungen
+
+**⚠️ WICHTIG: Als Pull Request umsetzen!**
+
+```bash
+# Montag starten mit:
+git checkout -b feature/ui-improvements
+# ... Änderungen machen ...
+git push origin feature/ui-improvements
+# PR erstellen, Code Rabbit reviewt, dann mergen
+```
+
+---
+
+## ~~Block 2: Settings & API-Key~~ ✅ ERLEDIGT (Teil von Block 1)
+
+### Task 3.7: Settings-Page - API-Key-Input ✅ ERLEDIGT
 
 **Datei:** [src/renderer/pages/Settings.tsx](src/renderer/pages/Settings.tsx)
 
