@@ -199,6 +199,9 @@ export default function JobDetail() {
     return colors[category] || 'default';
   };
 
+  // Get the matching result to display (current or latest from history)
+  const displayedMatching = currentMatching || (matchingHistory.length > 0 ? matchingHistory[0] : null);
+
   // Get status display
   const getStatusInfo = (status: string) => {
     const statusMap: Record<string, { label: string; color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' }> = {
@@ -572,7 +575,7 @@ export default function JobDetail() {
                 {isMatching ? 'Matching läuft...' : 'Job matchen'}
               </Button>
 
-              {currentMatching && (
+              {displayedMatching && (
                 <Button
                   variant="outlined"
                   onClick={handleReMatch}
@@ -590,7 +593,7 @@ export default function JobDetail() {
             )}
 
             {/* Matching Result */}
-            {currentMatching && (
+            {displayedMatching && (
               <Paper sx={{ mt: 3, p: 3 }}>
                 <Typography variant="h5" gutterBottom>
                   Matching-Ergebnis
@@ -606,18 +609,18 @@ export default function JobDetail() {
                       width: 120,
                       height: 120,
                       borderRadius: '50%',
-                      bgcolor: getScoreColor(currentMatching.matchScore),
+                      bgcolor: getScoreColor(displayedMatching.matchScore),
                       color: 'white',
                       fontSize: '2.5rem',
                       fontWeight: 'bold'
                     }}
                   >
-                    {currentMatching.matchScore}%
+                    {displayedMatching.matchScore}%
                   </Box>
 
                   <Chip
-                    label={getCategoryLabel(currentMatching.matchCategory)}
-                    color={getCategoryColor(currentMatching.matchCategory)}
+                    label={getCategoryLabel(displayedMatching.matchCategory)}
+                    color={getCategoryColor(displayedMatching.matchCategory)}
                     size="large"
                     sx={{ mt: 1 }}
                   />
@@ -629,7 +632,7 @@ export default function JobDetail() {
                     ✓ Stärken
                   </Typography>
                   <List>
-                    {currentMatching.strengths.map((strength, idx) => (
+                    {displayedMatching.strengths.map((strength, idx) => (
                       <ListItem key={idx}>
                         <ListItemIcon><CheckCircleIcon color="success" /></ListItemIcon>
                         <ListItemText primary={strength} />
@@ -644,7 +647,7 @@ export default function JobDetail() {
                     ⚠ Skill-Lücken
                   </Typography>
 
-                  {currentMatching.gaps.missingSkills.length === 0 ? (
+                  {displayedMatching.gaps.missingSkills.length === 0 ? (
                     <Typography color="text.secondary">Keine Skill-Lücken identifiziert</Typography>
                   ) : (
                     <TableContainer>
@@ -658,7 +661,7 @@ export default function JobDetail() {
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {currentMatching.gaps.missingSkills.map((gap, idx) => (
+                          {displayedMatching.gaps.missingSkills.map((gap, idx) => (
                             <TableRow key={idx}>
                               <TableCell>{gap.skill}</TableCell>
                               <TableCell align="center">{gap.requiredLevel}/10</TableCell>
@@ -677,11 +680,11 @@ export default function JobDetail() {
                     </TableContainer>
                   )}
 
-                  {currentMatching.gaps.experienceGaps.length > 0 && (
+                  {displayedMatching.gaps.experienceGaps.length > 0 && (
                     <Box sx={{ mt: 2 }}>
                       <Typography variant="subtitle2" gutterBottom>Erfahrungs-Lücken:</Typography>
                       <List dense>
-                        {currentMatching.gaps.experienceGaps.map((gap, idx) => (
+                        {displayedMatching.gaps.experienceGaps.map((gap, idx) => (
                           <ListItem key={idx}>
                             <ListItemText
                               primary={gap.area}
@@ -700,7 +703,7 @@ export default function JobDetail() {
                     💡 Empfehlungen
                   </Typography>
                   <List>
-                    {currentMatching.recommendations.map((rec, idx) => (
+                    {displayedMatching.recommendations.map((rec, idx) => (
                       <ListItem key={idx}>
                         <ListItemIcon><LightbulbIcon color="primary" /></ListItemIcon>
                         <ListItemText primary={rec} />
@@ -715,7 +718,7 @@ export default function JobDetail() {
                     <Typography>AI-Begründung anzeigen</Typography>
                   </AccordionSummary>
                   <AccordionDetails>
-                    <Typography>{currentMatching.reasoning}</Typography>
+                    <Typography>{displayedMatching.reasoning}</Typography>
                   </AccordionDetails>
                 </Accordion>
               </Paper>

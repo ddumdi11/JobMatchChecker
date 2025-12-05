@@ -114,13 +114,18 @@ function Profile() {
   const isLoadingSkills = useProfileStore(state => state.isLoadingSkills);
   const isLoadingPreferences = useProfileStore(state => state.isLoadingPreferences);
 
-  const loading = isLoadingProfile || isLoadingSkills || isLoadingPreferences;
+  // Only show loading if we're still loading the profile (most critical data)
+  // Skills and preferences can be empty, so we don't block on them
+  const loading = isLoadingProfile;
 
   // Load profile data on component mount
   useEffect(() => {
-    loadProfile();
-    loadSkills();
-    loadPreferences();
+    const loadData = async () => {
+      await loadProfile();
+      await loadSkills();
+      await loadPreferences();
+    };
+    loadData();
   }, [loadProfile, loadSkills, loadPreferences]);
 
   // Calculate profile completion percentage
@@ -225,6 +230,26 @@ function Profile() {
             <Box sx={{ p: 3 }}>
               <TabPanel value={activeTab} index={0}>
                 <ProfileForm />
+
+                {/* Delete Profile Section - Only in Personal Info tab */}
+                {profile && (
+                  <Paper sx={{ p: 3, mt: 3, backgroundColor: 'error.lighter' }}>
+                    <Typography variant="h6" gutterBottom color="error.main">
+                      Danger Zone
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" paragraph>
+                      Once you delete your profile, all data including skills and preferences will be permanently removed. This action cannot be undone.
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={handleDeleteClick}
+                    >
+                      Delete Profile
+                    </Button>
+                  </Paper>
+                )}
               </TabPanel>
 
               <TabPanel value={activeTab} index={1}>
@@ -235,26 +260,6 @@ function Profile() {
                 <PreferencesPanel />
               </TabPanel>
             </Box>
-          </Paper>
-        )}
-
-        {/* Delete Profile Section */}
-        {!loading && profile && (
-          <Paper sx={{ p: 3, mt: 3, backgroundColor: 'error.lighter' }}>
-            <Typography variant="h6" gutterBottom color="error.main">
-              Danger Zone
-            </Typography>
-            <Typography variant="body2" color="text.secondary" paragraph>
-              Once you delete your profile, all data including skills and preferences will be permanently removed. This action cannot be undone.
-            </Typography>
-            <Button
-              variant="outlined"
-              color="error"
-              startIcon={<DeleteIcon />}
-              onClick={handleDeleteClick}
-            >
-              Delete Profile
-            </Button>
           </Paper>
         )}
 

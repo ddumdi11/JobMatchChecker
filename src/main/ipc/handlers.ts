@@ -391,7 +391,13 @@ export function registerIpcHandlers() {
           skill.id
         );
 
-        return { id: skill.id, ...skill };
+        return {
+          id: skill.id,
+          name: skill.name,
+          category: skill.category,
+          level: skill.level,
+          yearsOfExperience: skill.yearsOfExperience
+        };
       } else {
         // Check 500-item limit before inserting
         const countStmt = db.prepare('SELECT COUNT(*) as count FROM skills');
@@ -413,7 +419,13 @@ export function registerIpcHandlers() {
           skill.yearsOfExperience ?? null
         );
 
-        return { id: result.lastInsertRowid, ...skill };
+        return {
+          id: result.lastInsertRowid,
+          name: skill.name,
+          category: skill.category,
+          level: skill.level,
+          yearsOfExperience: skill.yearsOfExperience
+        };
       }
     } catch (error) {
       log.error('Error upserting skill:', error);

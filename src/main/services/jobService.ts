@@ -308,20 +308,27 @@ export async function getJobs(
     : '';
 
   // Build ORDER BY clause
-  const sortBy = sort?.sortBy || 'postedDate';
+  // Support both 'field'/'direction' (from frontend) and 'sortBy'/'sortOrder' (legacy)
+  const sortBy = (sort as any)?.field || sort?.sortBy || 'created_at';
 
-  // Normalize and whitelist sortOrder
-  const rawSortOrder = (sort?.sortOrder || 'desc').toString().trim().toLowerCase();
+  // Normalize and whitelist sortOrder/direction
+  const rawSortOrder = ((sort as any)?.direction || sort?.sortOrder || 'desc').toString().trim().toLowerCase();
   const sortOrder = rawSortOrder === 'asc' ? 'ASC' : 'DESC';
 
   const columnMap: Record<string, string> = {
-    postedDate: 'jo.posted_date',
+    title: 'jo.title',
     company: 'jo.company',
+    location: 'jo.location',
     status: 'jo.status',
+    match_score: 'jo.match_score',
+    created_at: 'jo.created_at',
+    posted_date: 'jo.posted_date',
+    // Legacy field names
+    postedDate: 'jo.posted_date',
     matchScore: 'jo.match_score'
   };
 
-  const orderByColumn = columnMap[sortBy] || 'jo.posted_date';
+  const orderByColumn = columnMap[sortBy] || 'jo.created_at';
   const orderByClause = `ORDER BY ${orderByColumn} ${sortOrder}`;
 
   // Pagination

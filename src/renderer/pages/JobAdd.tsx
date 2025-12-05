@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Typography,
@@ -17,7 +17,7 @@ import {
   Save as SaveIcon,
   Clear as ClearIcon
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useJobStore } from '../store/jobStore';
 
 /**
@@ -29,13 +29,22 @@ import { useJobStore } from '../store/jobStore';
  * - AI extraction via Claude
  * - Manual form editing
  * - Save to database
+ * - Edit existing jobs
  */
 export default function JobAdd() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams<{ id: string }>();
+
+  // Determine if we're in edit mode
+  const isEditMode = !!id;
 
   // Store hooks
   const extractJobFromText = useJobStore(state => state.extractJobFromText);
   const createJob = useJobStore(state => state.createJob);
+  const updateJob = useJobStore(state => state.updateJob);
+  const getJobById = useJobStore(state => state.getJobById);
+  const currentJob = useJobStore(state => state.currentJob);
   const extractionResult = useJobStore(state => state.extractionResult);
   const isExtracting = useJobStore(state => state.isExtracting);
   const isLoading = useJobStore(state => state.isLoading);
@@ -60,6 +69,53 @@ export default function JobAdd() {
     source_url: '',
     status: 'new' as const
   });
+
+  // Load job data in edit mode, or reset form in add mode
+  useEffect(() => {
+    if (isEditMode && id) {
+      // Edit mode: Load existing job
+      const jobId = parseInt(id, 10);
+      getJobById(jobId);
+    } else {
+      // Add mode: Reset form
+      setJobText('');
+      setShowForm(false);
+      setFormData({
+        title: '',
+        company: '',
+        location: '',
+        description: '',
+        requirements: '',
+        salary_min: undefined,
+        salary_max: undefined,
+        remote_percentage: undefined,
+        source: '',
+        source_url: '',
+        status: 'new'
+      });
+      clearExtractionResult();
+    }
+  }, [location.pathname, isEditMode, id, getJobById, clearExtractionResult]);
+
+  // Populate form when job is loaded (edit mode)
+  useEffect(() => {
+    if (isEditMode && currentJob) {
+      setShowForm(true);
+      setFormData({
+        title: currentJob.title || '',
+        company: currentJob.company || '',
+        location: currentJob.location || '',
+        description: currentJob.description || (currentJob as any).fullText || '',
+        requirements: currentJob.requirements || '',
+        salary_min: currentJob.salary_min,
+        salary_max: currentJob.salary_max,
+        remote_percentage: currentJob.remote_percentage,
+        source: currentJob.source || '',
+        source_url: currentJob.source_url || (currentJob as any).url || '',
+        status: (currentJob.status || 'new') as 'new'
+      });
+    }
+  }, [isEditMode, currentJob]);
 
   // Handle paste from clipboard
   const handlePaste = async () => {
@@ -148,13 +204,13 @@ export default function JobAdd() {
         title: fields.title || '',
         company: fields.company || '',
         location: fields.location || '',
-        description: fields.fullText || '',
+        description: (fields as any).fullText || '',
         requirements: '',
         salary_min: salaryMin,
         salary_max: salaryMax,
         remote_percentage: remotePercentage,
         source: '',
-        source_url: fields.url || '',
+        source_url: (fields as any).url || '',
         status: 'new'
       });
       setShowForm(true);
@@ -187,7 +243,13 @@ export default function JobAdd() {
     }
 
     try {
-      await createJob(formData);
+      if (isEditMode && id) {
+        // Update existing job
+        await updateJob(parseInt(id, 10), formData);
+      } else {
+        // Create new job
+        await createJob(formData);
+      }
       // Navigate to jobs list on success
       navigate('/jobs');
     } catch (err) {
@@ -218,11 +280,11 @@ export default function JobAdd() {
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Typography variant="h4" component="h1" gutterBottom>
-        Neuen Job hinzufügen
+        {isEditMode ? 'Job bearbeiten' : 'Neuen Job hinzufügen'}
       </Typography>
 
-      {/* Step 1: Paste Job Text */}
-      {!showForm && (
+      {/* Step 1: Paste Job Text (only in add mode) */}
+      {!showForm && !isEditMode && (
         <Paper sx={{ p: 3, mb: 3 }}>
           <Box sx={{ mb: 2 }}>
             <Typography variant="h6" gutterBottom>

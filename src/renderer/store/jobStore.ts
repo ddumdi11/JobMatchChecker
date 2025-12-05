@@ -148,11 +148,13 @@ export const useJobStore = create<JobState>()(
           const currentSort = sort || get().sortConfig;
           const limit = get().pagination.limit;
 
-          const result = await window.api.getJobs({
+          // IMPORTANT: window.api.getJobs expects THREE separate parameters, not an object!
+          // preload.ts: getJobs: (filters?: any, sort?: any, pagination?: any)
+          const result = await window.api.getJobs(
             filters,
-            sort: currentSort,
-            pagination: { page, limit }
-          });
+            currentSort,
+            { page, limit }
+          );
 
           set({
             jobs: result.jobs,

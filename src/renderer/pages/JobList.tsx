@@ -103,6 +103,13 @@ export default function JobList() {
     setSortField(field);
     setSortDirection(newDirection);
     setSortConfig({ field: field as any, direction: newDirection as any });
+
+    // Apply sort immediately
+    const filters: any = {};
+    if (statusFilter !== 'all') {
+      filters.status = statusFilter;
+    }
+    fetchJobs(filters, { field: field as any, direction: newDirection as any });
   };
 
   // Handle page change

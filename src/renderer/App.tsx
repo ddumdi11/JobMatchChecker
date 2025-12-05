@@ -57,6 +57,10 @@ const router = createHashRouter([
         element: <JobDetail />,
       },
       {
+        path: 'jobs/:id/edit',
+        element: <JobAdd />,
+      },
+      {
         path: 'settings',
         element: <Settings />,
       },
