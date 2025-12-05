@@ -296,6 +296,13 @@ export default function JobList() {
                         {sortField === 'status' && <SortIcon fontSize="small" />}
                       </Box>
                     </TableCell>
+                    <TableCell align="center">
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                           onClick={() => handleSortChange('matchScore')}>
+                        Match
+                        {sortField === 'matchScore' && <SortIcon fontSize="small" />}
+                      </Box>
+                    </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
                            onClick={() => handleSortChange('postedDate')}>
@@ -329,6 +336,30 @@ export default function JobList() {
                           color={getStatusColor(job.status)}
                           size="small"
                         />
+                      </TableCell>
+                      <TableCell align="center">
+                        {job.matchScore !== null && job.matchScore !== undefined ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
+                            <Typography
+                              variant="body2"
+                              fontWeight="bold"
+                              sx={{
+                                color: job.matchScore >= 80 ? 'success.main' :
+                                       job.matchScore >= 60 ? 'primary.main' :
+                                       job.matchScore >= 40 ? 'warning.main' : 'error.main'
+                              }}
+                            >
+                              {Math.round(job.matchScore)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              %
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            -
+                          </Typography>
+                        )}
                       </TableCell>
                       <TableCell>{formatDate(job.postedDate)}</TableCell>
                       <TableCell align="right" onClick={(e) => e.stopPropagation()}>

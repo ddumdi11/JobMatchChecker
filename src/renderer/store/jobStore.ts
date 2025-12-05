@@ -20,8 +20,12 @@ export interface JobOffer {
   source_url?: string;
   status?: 'new' | 'reviewing' | 'applied' | 'rejected' | 'offer' | 'accepted';
   match_score?: number;
+  matchScore?: number; // API returns camelCase
   created_at?: Date;
   updated_at?: Date;
+  postedDate?: Date;
+  salaryRange?: string;
+  remoteOption?: string;
 }
 
 export interface JobFilters {
@@ -33,7 +37,7 @@ export interface JobFilters {
 }
 
 export interface JobSortConfig {
-  field: 'created_at' | 'title' | 'company' | 'match_score' | 'salary_min';
+  field: 'created_at' | 'title' | 'company' | 'match_score' | 'matchScore' | 'salary_min' | 'status' | 'postedDate';
   direction: 'asc' | 'desc';
 }
 
