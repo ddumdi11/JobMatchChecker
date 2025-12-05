@@ -17,8 +17,13 @@ interface Window {
     deleteSkill: (id: number) => Promise<void>;
     getPreferences: () => Promise<any>;
     updatePreferences: (data: any) => Promise<any>;
-    runMatch: (jobId: number, profileId: number) => Promise<any>;
-    getMatchResults: (jobId: number) => Promise<any>;
+    // Matching operations
+    matchJob: (jobId: number) => Promise<any>;
+    getMatchingHistory: (jobId: number) => Promise<any[]>;
+    // API Key management
+    saveApiKey: (apiKey: string) => Promise<any>;
+    getApiKey: () => Promise<string | null>;
+    verifyApiKey: (apiKey: string) => Promise<{ success: boolean; error?: string }>;
     parseLatexCV: (content: string) => Promise<any>;
     parseJobText: (text: string) => Promise<any>;
     parsePDF: (filePath: string) => Promise<any>;

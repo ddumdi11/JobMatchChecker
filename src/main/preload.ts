@@ -32,8 +32,13 @@ contextBridge.exposeInMainWorld('api', {
   updatePreferences: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.PREFERENCES_UPDATE, data),
 
   // Matching operations
-  runMatch: (jobId: number, profileId: number) => ipcRenderer.invoke(IPC_CHANNELS.MATCH_RUN, jobId, profileId),
-  getMatchResults: (jobId: number) => ipcRenderer.invoke(IPC_CHANNELS.MATCH_GET_RESULTS, jobId),
+  matchJob: (jobId: number) => ipcRenderer.invoke('matchJob', jobId),
+  getMatchingHistory: (jobId: number) => ipcRenderer.invoke('getMatchingHistory', jobId),
+
+  // API Key management
+  saveApiKey: (apiKey: string) => ipcRenderer.invoke('saveApiKey', apiKey),
+  getApiKey: () => ipcRenderer.invoke('getApiKey'),
+  verifyApiKey: (apiKey: string) => ipcRenderer.invoke('verifyApiKey', apiKey),
 
   // Parser operations
   parseLatexCV: (content: string) => ipcRenderer.invoke(IPC_CHANNELS.PARSE_LATEX_CV, content),
@@ -72,8 +77,11 @@ declare global {
       deleteSkill: (id: number) => Promise<void>;
       getPreferences: () => Promise<any>;
       updatePreferences: (data: any) => Promise<any>;
-      runMatch: (jobId: number, profileId: number) => Promise<any>;
-      getMatchResults: (jobId: number) => Promise<any>;
+      matchJob: (jobId: number) => Promise<any>;
+      getMatchingHistory: (jobId: number) => Promise<any[]>;
+      saveApiKey: (apiKey: string) => Promise<any>;
+      getApiKey: () => Promise<string | null>;
+      verifyApiKey: (apiKey: string) => Promise<{ success: boolean; error?: string }>;
       parseLatexCV: (content: string) => Promise<any>;
       parseJobText: (text: string) => Promise<any>;
       parsePDF: (filePath: string) => Promise<any>;

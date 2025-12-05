@@ -20,7 +20,20 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Snackbar
+  Snackbar,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -32,7 +45,12 @@ import {
   AttachMoney as SalaryIcon,
   Home as RemoteIcon,
   Link as LinkIcon,
-  Description as DescriptionIcon
+  Description as DescriptionIcon,
+  AutoAwesome as AutoAwesomeIcon,
+  Refresh as RefreshIcon,
+  CheckCircle as CheckCircleIcon,
+  Lightbulb as LightbulbIcon,
+  ExpandMore as ExpandMoreIcon
 } from '@mui/icons-material';
 import { useJobStore } from '../store/jobStore';
 
@@ -51,17 +69,57 @@ export default function JobDetail() {
   const isLoading = useJobStore(state => state.isLoading);
   const error = useJobStore(state => state.error);
 
+  // Matching state
+  const matchJob = useJobStore(state => state.matchJob);
+  const currentMatching = useJobStore(state => state.currentMatching);
+  const matchingHistory = useJobStore(state => state.matchingHistory);
+  const getMatchingHistory = useJobStore(state => state.getMatchingHistory);
+  const isMatching = useJobStore(state => state.isMatching);
+  const matchingError = useJobStore(state => state.matchingError);
+
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletionError, setDeletionError] = useState<string | null>(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [matchSnackbarOpen, setMatchSnackbarOpen] = useState(false);
 
   // Fetch job on mount
   useEffect(() => {
     if (id) {
-      getJobById(parseInt(id, 10));
+      const jobId = parseInt(id, 10);
+      getJobById(jobId);
+      getMatchingHistory(jobId);
     }
-  }, [id, getJobById]);
+  }, [id, getJobById, getMatchingHistory]);
+
+  // Handle match
+  const handleMatch = async () => {
+    if (!currentJob?.id) return;
+
+    // Check if API key is configured
+    const apiKey = await window.api.getApiKey();
+    if (!apiKey) {
+      if (window.confirm('Kein API-Key hinterlegt. Zu Einstellungen?')) {
+        navigate('/settings');
+      }
+      return;
+    }
+
+    try {
+      await matchJob(currentJob.id);
+      setMatchSnackbarOpen(true);
+    } catch (error) {
+      console.error('Match failed:', error);
+      // Error is already in store, will be displayed
+    }
+  };
+
+  // Handle re-match
+  const handleReMatch = () => {
+    if (window.confirm('Erneutes Matching kostet zusätzliche API-Tokens. Fortfahren?')) {
+      handleMatch();
+    }
+  };
 
   // Handle delete - open dialog
   const handleDeleteClick = () => {
@@ -112,6 +170,33 @@ export default function JobDetail() {
       month: '2-digit',
       year: 'numeric'
     });
+  };
+
+  // Helper functions for matching UI
+  const getScoreColor = (score: number): string => {
+    if (score >= 70) return '#4caf50'; // green
+    if (score >= 40) return '#ff9800'; // orange
+    return '#f44336'; // red
+  };
+
+  const getCategoryLabel = (category: string): string => {
+    const labels: Record<string, string> = {
+      perfect: 'Perfekter Match',
+      good: 'Guter Fit',
+      needs_work: 'Lücken schließbar',
+      poor: 'Schwacher Match'
+    };
+    return labels[category] || category;
+  };
+
+  const getCategoryColor = (category: string): 'success' | 'warning' | 'error' | 'default' => {
+    const colors: Record<string, 'success' | 'warning' | 'error'> = {
+      perfect: 'success',
+      good: 'success',
+      needs_work: 'warning',
+      poor: 'error'
+    };
+    return colors[category] || 'default';
   };
 
   // Get status display
@@ -467,6 +552,187 @@ export default function JobDetail() {
               </Button>
             </Stack>
           </Paper>
+
+          {/* Matching Section */}
+          <Box sx={{ mt: 4 }}>
+            <Typography variant="h5" gutterBottom>
+              Job Matching
+            </Typography>
+
+            {/* Match Button */}
+            <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+              <Button
+                variant="contained"
+                color="primary"
+                size="large"
+                onClick={handleMatch}
+                disabled={isMatching}
+                startIcon={isMatching ? <CircularProgress size={20} /> : <AutoAwesomeIcon />}
+              >
+                {isMatching ? 'Matching läuft...' : 'Job matchen'}
+              </Button>
+
+              {currentMatching && (
+                <Button
+                  variant="outlined"
+                  onClick={handleReMatch}
+                  startIcon={<RefreshIcon />}
+                >
+                  Erneut matchen
+                </Button>
+              )}
+            </Box>
+
+            {matchingError && (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                {matchingError}
+              </Alert>
+            )}
+
+            {/* Matching Result */}
+            {currentMatching && (
+              <Paper sx={{ mt: 3, p: 3 }}>
+                <Typography variant="h5" gutterBottom>
+                  Matching-Ergebnis
+                </Typography>
+
+                {/* Score Badge */}
+                <Box sx={{ textAlign: 'center', my: 3 }}>
+                  <Box
+                    sx={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 120,
+                      height: 120,
+                      borderRadius: '50%',
+                      bgcolor: getScoreColor(currentMatching.matchScore),
+                      color: 'white',
+                      fontSize: '2.5rem',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {currentMatching.matchScore}%
+                  </Box>
+
+                  <Chip
+                    label={getCategoryLabel(currentMatching.matchCategory)}
+                    color={getCategoryColor(currentMatching.matchCategory)}
+                    size="large"
+                    sx={{ mt: 1 }}
+                  />
+                </Box>
+
+                {/* Strengths */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    ✓ Stärken
+                  </Typography>
+                  <List>
+                    {currentMatching.strengths.map((strength, idx) => (
+                      <ListItem key={idx}>
+                        <ListItemIcon><CheckCircleIcon color="success" /></ListItemIcon>
+                        <ListItemText primary={strength} />
+                      </ListItem>
+                    ))}
+                  </List>
+                </Box>
+
+                {/* Gaps */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    ⚠ Skill-Lücken
+                  </Typography>
+
+                  {currentMatching.gaps.missingSkills.length === 0 ? (
+                    <Typography color="text.secondary">Keine Skill-Lücken identifiziert</Typography>
+                  ) : (
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Skill</TableCell>
+                            <TableCell align="center">Benötigt</TableCell>
+                            <TableCell align="center">Du hast</TableCell>
+                            <TableCell align="center">Lücke</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {currentMatching.gaps.missingSkills.map((gap, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell>{gap.skill}</TableCell>
+                              <TableCell align="center">{gap.requiredLevel}/10</TableCell>
+                              <TableCell align="center">{gap.currentLevel}/10</TableCell>
+                              <TableCell align="center">
+                                <Chip
+                                  label={`${gap.gap} Levels`}
+                                  color={gap.gap > 5 ? 'error' : 'warning'}
+                                  size="small"
+                                />
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  )}
+
+                  {currentMatching.gaps.experienceGaps.length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="subtitle2" gutterBottom>Erfahrungs-Lücken:</Typography>
+                      <List dense>
+                        {currentMatching.gaps.experienceGaps.map((gap, idx) => (
+                          <ListItem key={idx}>
+                            <ListItemText
+                              primary={gap.area}
+                              secondary={`Benötigt: ${gap.requiredYears} Jahre, Du hast: ${gap.actualYears} Jahre`}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Box>
+                  )}
+                </Box>
+
+                {/* Recommendations */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    💡 Empfehlungen
+                  </Typography>
+                  <List>
+                    {currentMatching.recommendations.map((rec, idx) => (
+                      <ListItem key={idx}>
+                        <ListItemIcon><LightbulbIcon color="primary" /></ListItemIcon>
+                        <ListItemText primary={rec} />
+                      </ListItem>
+                    ))}
+                  </List>
+                </Box>
+
+                {/* AI Reasoning (Collapsible) */}
+                <Accordion>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Typography>AI-Begründung anzeigen</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Typography>{currentMatching.reasoning}</Typography>
+                  </AccordionDetails>
+                </Accordion>
+              </Paper>
+            )}
+
+            {/* Matching Success Snackbar */}
+            <Snackbar
+              open={matchSnackbarOpen}
+              autoHideDuration={6000}
+              onClose={() => setMatchSnackbarOpen(false)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+              <Alert onClose={() => setMatchSnackbarOpen(false)} severity="success" sx={{ width: '100%' }}>
+                Matching erfolgreich abgeschlossen!
+              </Alert>
+            </Snackbar>
+          </Box>
         </Grid>
       </Grid>
 

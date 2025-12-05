@@ -51,6 +51,27 @@ export interface AIExtractionResult {
   error?: string;
 }
 
+export interface MatchingResult {
+  matchScore: number;
+  matchCategory: 'perfect' | 'good' | 'needs_work' | 'poor';
+  strengths: string[];
+  gaps: {
+    missingSkills: Array<{
+      skill: string;
+      requiredLevel: number;
+      currentLevel: number;
+      gap: number;
+    }>;
+    experienceGaps: Array<{
+      area: string;
+      requiredYears: number;
+      actualYears: number;
+    }>;
+  };
+  recommendations: string[];
+  reasoning: string;
+}
+
 interface JobState {
   // Data
   jobs: JobOffer[];
@@ -67,6 +88,12 @@ interface JobState {
   error: string | null;
   extractionResult: AIExtractionResult | null;
 
+  // Matching State
+  currentMatching: MatchingResult | null;
+  matchingHistory: any[];
+  isMatching: boolean;
+  matchingError: string | null;
+
   // Actions - CRUD
   fetchJobs: (filters?: JobFilters, sort?: JobSortConfig, page?: number) => Promise<void>;
   getJobById: (id: number) => Promise<void>;
@@ -77,6 +104,11 @@ interface JobState {
   // Actions - AI Extraction
   extractJobFromText: (text: string) => Promise<void>;
   clearExtractionResult: () => void;
+
+  // Actions - Matching
+  matchJob: (jobId: number) => Promise<MatchingResult>;
+  getMatchingHistory: (jobId: number) => Promise<void>;
+  clearMatchingResult: () => void;
 
   // Actions - Filters
   setFilters: (filters: JobFilters) => void;
@@ -102,6 +134,12 @@ export const useJobStore = create<JobState>()(
       isExtracting: false,
       error: null,
       extractionResult: null,
+
+      // Matching State
+      currentMatching: null,
+      matchingHistory: [],
+      isMatching: false,
+      matchingError: null,
 
       // CRUD Actions
       fetchJobs: async (filters = {}, sort, page = 1) => {
@@ -284,6 +322,55 @@ export const useJobStore = create<JobState>()(
 
       clearExtractionResult: () => {
         set({ extractionResult: null });
+      },
+
+      // Matching Actions
+      matchJob: async (jobId: number) => {
+        set({ isMatching: true, matchingError: null });
+        try {
+          const result = await window.api.matchJob(jobId);
+
+          if (result.success) {
+            set({
+              currentMatching: result.data,
+              isMatching: false
+            });
+
+            // Also update the job's match_score in current job if it's loaded
+            const currentJob = get().currentJob;
+            if (currentJob && currentJob.id === jobId) {
+              set({
+                currentJob: {
+                  ...currentJob,
+                  matchScore: result.data.matchScore
+                }
+              });
+            }
+
+            return result.data;
+          } else {
+            throw new Error('Matching failed');
+          }
+        } catch (error: any) {
+          set({
+            matchingError: error.message || 'Failed to match job',
+            isMatching: false
+          });
+          throw error;
+        }
+      },
+
+      getMatchingHistory: async (jobId: number) => {
+        try {
+          const history = await window.api.getMatchingHistory(jobId);
+          set({ matchingHistory: history });
+        } catch (error: any) {
+          console.error('Failed to load matching history:', error);
+        }
+      },
+
+      clearMatchingResult: () => {
+        set({ currentMatching: null, matchingError: null });
       },
 
       // Filters

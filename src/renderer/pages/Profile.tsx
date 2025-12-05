@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Typography,
@@ -107,11 +107,21 @@ function Profile() {
   const skills = useProfileStore(state => state.skills);
   const preferences = useProfileStore(state => state.preferences);
   const deleteProfile = useProfileStore(state => state.deleteProfile);
+  const loadProfile = useProfileStore(state => state.loadProfile);
+  const loadSkills = useProfileStore(state => state.loadSkills);
+  const loadPreferences = useProfileStore(state => state.loadPreferences);
   const isLoadingProfile = useProfileStore(state => state.isLoadingProfile);
   const isLoadingSkills = useProfileStore(state => state.isLoadingSkills);
   const isLoadingPreferences = useProfileStore(state => state.isLoadingPreferences);
 
   const loading = isLoadingProfile || isLoadingSkills || isLoadingPreferences;
+
+  // Load profile data on component mount
+  useEffect(() => {
+    loadProfile();
+    loadSkills();
+    loadPreferences();
+  }, [loadProfile, loadSkills, loadPreferences]);
 
   // Calculate profile completion percentage
   const calculateCompletion = (): number => {

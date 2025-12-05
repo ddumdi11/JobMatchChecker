@@ -1,10 +1,15 @@
 import { ipcMain } from 'electron';
 import * as log from 'electron-log';
+import Store from 'electron-store';
+import Anthropic from '@anthropic-ai/sdk';
 import { IPC_CHANNELS } from '../../shared/constants';
 import { getDatabase } from '../database/db';
 import { backupDatabase, restoreDatabase, runMigrations } from '../database/db';
 import * as jobService from '../services/jobService';
 import * as aiExtractionService from '../services/aiExtractionService';
+import * as matchingService from '../services/matchingService';
+
+const store = new Store();
 
 /**
  * Register all IPC handlers
@@ -207,33 +212,71 @@ export function registerIpcHandlers() {
     }
   });
 
-  // Matching operations (placeholder - will implement AI service later)
-  ipcMain.handle(IPC_CHANNELS.MATCH_RUN, async (_, jobId, profileId) => {
+  // Matching operations
+  ipcMain.handle('matchJob', async (_, jobId: number) => {
     try {
-      log.info(`Running match for job ${jobId} and profile ${profileId}`);
-      // TODO: Implement AI matching service
-      return { jobId, profileId, message: 'Matching service not yet implemented' };
-    } catch (error) {
-      log.error('Error running match:', error);
+      // Get API key from electron-store
+      const apiKey = store.get('anthropic_api_key') as string;
+
+      if (!apiKey) {
+        throw new Error('Anthropic API-Key nicht konfiguriert. Bitte in Einstellungen hinterlegen.');
+      }
+
+      const result = await matchingService.matchJob(jobId, apiKey);
+      return { success: true, data: result };
+    } catch (error: any) {
+      log.error('Error in matchJob:', error);
       throw error;
     }
   });
 
-  ipcMain.handle(IPC_CHANNELS.MATCH_GET_RESULTS, async (_, jobId) => {
+  // Get matching history for a job
+  ipcMain.handle('getMatchingHistory', async (_, jobId: number) => {
     try {
-      const stmt = db.prepare(`
-        SELECT mr.*, mp.name as prompt_name, mp.version as prompt_version
-        FROM matching_results mr
-        LEFT JOIN matching_prompts mp ON mr.prompt_id = mp.id
-        WHERE mr.job_id = ?
-        ORDER BY mr.created_at DESC
-        LIMIT 1
-      `);
-
-      return stmt.get(jobId);
-    } catch (error) {
-      log.error('Error getting match results:', error);
+      return matchingService.getMatchingHistory(jobId);
+    } catch (error: any) {
+      log.error('Error getting matching history:', error);
       throw error;
+    }
+  });
+
+  // API Key management
+  ipcMain.handle('saveApiKey', async (_, apiKey: string) => {
+    try {
+      store.set('anthropic_api_key', apiKey);
+      log.info('API key saved successfully');
+      return { success: true };
+    } catch (error: any) {
+      log.error('Error saving API key:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('getApiKey', async () => {
+    try {
+      return store.get('anthropic_api_key', null);
+    } catch (error: any) {
+      log.error('Error getting API key:', error);
+      return null;
+    }
+  });
+
+  ipcMain.handle('verifyApiKey', async (_, apiKey: string) => {
+    try {
+      const client = new Anthropic({ apiKey });
+
+      // Mini-Test-Call to verify API key
+      await client.messages.create({
+        model: 'claude-sonnet-4-5-20250929',
+        max_tokens: 10,
+        messages: [{ role: 'user', content: 'Hi' }]
+      });
+
+      log.info('API key verified successfully');
+      return { success: true };
+    } catch (error: any) {
+      log.error('Error verifying API key:', error);
+      return { success: false, error: error.message };
     }
   });
 
