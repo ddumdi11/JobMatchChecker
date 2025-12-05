@@ -7,13 +7,21 @@ import {
   Tab,
   Box,
   LinearProgress,
-  Alert
+  Alert,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions
 } from '@mui/material';
 import {
   Person as PersonIcon,
   Psychology as SkillsIcon,
-  Tune as PreferencesIcon
+  Tune as PreferencesIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { ProfileForm } from '../components/ProfileForm';
 import { SkillsManager } from '../components/SkillsManager';
 import { PreferencesPanel } from '../components/PreferencesPanel';
@@ -90,12 +98,15 @@ class ErrorBoundary extends React.Component<
  * Renders the user Profile page with profile completion indicator and tabbed sections.
  */
 function Profile() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // Get state from store for profile completion calculation
   const profile = useProfileStore(state => state.profile);
   const skills = useProfileStore(state => state.skills);
   const preferences = useProfileStore(state => state.preferences);
+  const deleteProfile = useProfileStore(state => state.deleteProfile);
   const isLoadingProfile = useProfileStore(state => state.isLoadingProfile);
   const isLoadingSkills = useProfileStore(state => state.isLoadingSkills);
   const isLoadingPreferences = useProfileStore(state => state.isLoadingPreferences);
@@ -120,6 +131,25 @@ function Profile() {
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
+  };
+
+  const handleDeleteClick = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      await deleteProfile();
+      setDeleteDialogOpen(false);
+      navigate('/');
+    } catch (error) {
+      console.error('Failed to delete profile:', error);
+      // Error is already set in store, will be displayed
+    }
   };
 
   return (
@@ -198,6 +228,26 @@ function Profile() {
           </Paper>
         )}
 
+        {/* Delete Profile Section */}
+        {!loading && profile && (
+          <Paper sx={{ p: 3, mt: 3, backgroundColor: 'error.lighter' }}>
+            <Typography variant="h6" gutterBottom color="error.main">
+              Danger Zone
+            </Typography>
+            <Typography variant="body2" color="text.secondary" paragraph>
+              Once you delete your profile, all data including skills and preferences will be permanently removed. This action cannot be undone.
+            </Typography>
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={handleDeleteClick}
+            >
+              Delete Profile
+            </Button>
+          </Paper>
+        )}
+
         {/* Global info */}
         {!loading && (
           <Alert severity="info" sx={{ mt: 3 }}>
@@ -207,6 +257,37 @@ function Profile() {
             </Typography>
           </Alert>
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog
+          open={deleteDialogOpen}
+          onClose={handleDeleteCancel}
+          aria-labelledby="delete-dialog-title"
+          aria-describedby="delete-dialog-description"
+        >
+          <DialogTitle id="delete-dialog-title">
+            Delete Profile?
+          </DialogTitle>
+          <DialogContent>
+            <DialogContentText id="delete-dialog-description">
+              Are you sure you want to delete your entire profile? This will permanently remove:
+              <ul>
+                <li>Your personal information</li>
+                <li>All skills ({skills.length} total)</li>
+                <li>All preferences</li>
+              </ul>
+              This action cannot be undone.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDeleteCancel} color="primary">
+              Cancel
+            </Button>
+            <Button onClick={handleDeleteConfirm} color="error" variant="contained" autoFocus>
+              Delete Permanently
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Container>
     </ErrorBoundary>
   );

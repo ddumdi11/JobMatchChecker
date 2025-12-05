@@ -57,6 +57,7 @@ interface ProfileState {
   // Actions - Profile
   loadProfile: () => Promise<void>;
   updateProfile: (profile: Partial<Profile>) => Promise<void>;
+  deleteProfile: () => Promise<void>;
   setProfile: (profile: Profile) => void;
   markProfileAsSaved: () => void;
 
@@ -164,6 +165,30 @@ export const useProfileStore = create<ProfileState>()(
 
       markProfileAsSaved: () => {
         set({ hasUnsavedProfileChanges: false });
+      },
+
+      deleteProfile: async () => {
+        set({ isLoadingProfile: true, profileError: null });
+        try {
+          await window.api.deleteProfile();
+
+          // Clear all profile data from store
+          set({
+            profile: null,
+            skills: [],
+            preferences: null,
+            hasUnsavedProfileChanges: false,
+            hasUnsavedSkillsChanges: false,
+            hasUnsavedPreferencesChanges: false,
+            isLoadingProfile: false
+          });
+        } catch (error: any) {
+          set({
+            profileError: error.message || 'Failed to delete profile',
+            isLoadingProfile: false
+          });
+          throw error;
+        }
       },
 
       // Skills actions

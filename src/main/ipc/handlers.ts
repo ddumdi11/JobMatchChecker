@@ -192,6 +192,21 @@ export function registerIpcHandlers() {
     }
   });
 
+  ipcMain.handle(IPC_CHANNELS.PROFILE_DELETE, async () => {
+    try {
+      // Delete all profile-related data
+      // Note: Skills and preferences are linked with CASCADE DELETE in schema
+      const stmt = db.prepare('DELETE FROM user_profile WHERE id = 1');
+      stmt.run();
+
+      log.info('Profile deleted successfully');
+      return { success: true };
+    } catch (error) {
+      log.error('Error deleting profile:', error);
+      throw error;
+    }
+  });
+
   // Matching operations (placeholder - will implement AI service later)
   ipcMain.handle(IPC_CHANNELS.MATCH_RUN, async (_, jobId, profileId) => {
     try {
