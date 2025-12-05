@@ -344,7 +344,7 @@ export default function JobList() {
                       key={job.id}
                       hover
                       sx={{ cursor: 'pointer' }}
-                      onClick={() => handleView(job.id!)}
+                      onClick={() => job.id && handleView(job.id)}
                     >
                       <TableCell>
                         <Typography variant="body2" fontWeight="medium">
@@ -391,7 +391,7 @@ export default function JobList() {
                         <Stack direction="row" spacing={1} justifyContent="flex-end">
                           <IconButton
                             size="small"
-                            onClick={() => handleEdit(job.id!)}
+                            onClick={() => job.id && handleEdit(job.id)}
                             color="primary"
                           >
                             <EditIcon fontSize="small" />
