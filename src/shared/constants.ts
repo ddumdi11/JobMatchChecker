@@ -48,6 +48,7 @@ export const IPC_CHANNELS = {
   // Profile operations
   PROFILE_CREATE: 'profile:create',
   PROFILE_UPDATE: 'profile:update',
+  PROFILE_DELETE: 'profile:delete',
   PROFILE_GET: 'profile:get',
 
   // Skills operations

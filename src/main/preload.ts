@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('api', {
   // Profile operations
   createProfile: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_CREATE, data),
   updateProfile: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_UPDATE, data),
+  deleteProfile: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_DELETE),
   getProfile: () => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_GET),
 
   // Skills operations
@@ -64,6 +65,7 @@ declare global {
       extractJobFields: (text: string) => Promise<any>;
       createProfile: (data: any) => Promise<any>;
       updateProfile: (data: any) => Promise<any>;
+      deleteProfile: () => Promise<void>;
       getProfile: () => Promise<any>;
       getAllSkills: () => Promise<any[]>;
       upsertSkill: (skill: any) => Promise<any>;
