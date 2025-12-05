@@ -18,7 +18,7 @@ import * as fs from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import * as path from 'node:path';
 import { BackupVerifier } from './BackupVerifier';
-import { hasSufficientDiskSpace } from '../utils/diskSpace';
+// import { hasSufficientDiskSpace } from '../utils/diskSpace'; // TODO: Re-enable when disk space check is implemented
 import { closeDatabase } from '../database/db';
 import type { BackupMetadata, BackupType, BackupErrorCode } from '../../types/backup';
 

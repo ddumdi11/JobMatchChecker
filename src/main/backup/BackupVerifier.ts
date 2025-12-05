@@ -15,7 +15,7 @@
 import Database from 'better-sqlite3';
 import * as fs from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
-import * as path from 'node:path';
+// import * as path from 'node:path'; // TODO: Add path utilities if needed
 import type { BackupErrorCode } from '../../types/backup';
 
 /**

@@ -1,5 +1,5 @@
 import React from 'react';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createHashRouter, RouterProvider } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 
@@ -24,8 +24,9 @@ const theme = createTheme({
   },
 });
 
-// Create router with Data Router API (required for useBlocker)
-const router = createBrowserRouter([
+// Create Hash Router with Data Router API (required for useBlocker)
+// Uses HashRouter for Electron compatibility (file:// protocol)
+const router = createHashRouter([
   {
     path: '/',
     element: <Layout />,
