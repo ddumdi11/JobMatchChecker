@@ -46,12 +46,12 @@ const router = createHashRouter([
         element: <JobList />,
       },
       {
-        path: 'jobs/:id',
-        element: <JobDetail />,
-      },
-      {
         path: 'jobs/add',
         element: <JobAdd />,
+      },
+      {
+        path: 'jobs/:id',
+        element: <JobDetail />,
       },
       {
         path: 'settings',

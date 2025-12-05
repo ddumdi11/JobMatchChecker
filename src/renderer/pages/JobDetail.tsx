@@ -87,10 +87,11 @@ export default function JobDetail() {
   const getStatusInfo = (status: string) => {
     const statusMap: Record<string, { label: string; color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' }> = {
       'new': { label: 'Neu', color: 'info' },
-      'interesting': { label: 'Interessant', color: 'primary' },
+      'reviewing': { label: 'In Prüfung', color: 'primary' },
       'applied': { label: 'Beworben', color: 'warning' },
       'rejected': { label: 'Abgelehnt', color: 'error' },
-      'archived': { label: 'Archiviert', color: 'default' }
+      'offer': { label: 'Angebot', color: 'success' },
+      'accepted': { label: 'Angenommen', color: 'success' }
     };
     return statusMap[status] || { label: status, color: 'default' };
   };

@@ -283,7 +283,7 @@ function Profile() {
             <Button onClick={handleDeleteCancel} color="primary">
               Cancel
             </Button>
-            <Button onClick={handleDeleteConfirm} color="error" variant="contained" autoFocus>
+            <Button onClick={handleDeleteConfirm} color="error" variant="contained">
               Delete Permanently
             </Button>
           </DialogActions>
