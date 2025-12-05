@@ -26,10 +26,10 @@ import {
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
-  Edit as EditIcon,
-  Save as SaveIcon
+  Edit as EditIcon
 } from '@mui/icons-material';
-import { HardSkill, SkillLevel, MAX_SKILLS_PER_PROFILE } from '../../shared/types';
+import { SkillLevel, MAX_SKILLS_PER_PROFILE } from '../../shared/types';
+import { useProfileStore, Skill } from '../store/profileStore';
 
 const PREDEFINED_CATEGORIES = [
   'Programming Languages',
@@ -41,18 +41,19 @@ const PREDEFINED_CATEGORIES = [
   'Domain Knowledge'
 ];
 
-interface SkillsManagerProps {
-  skills?: HardSkill[];
-  onSave?: (skills: HardSkill[]) => Promise<void>;
-}
+export const SkillsManager: React.FC = () => {
+  // Store hooks
+  const skills = useProfileStore(state => state.skills);
+  const isLoading = useProfileStore(state => state.isLoadingSkills);
+  const error = useProfileStore(state => state.skillsError);
+  const addSkill = useProfileStore(state => state.addSkill);
+  const updateSkill = useProfileStore(state => state.updateSkill);
+  const deleteSkill = useProfileStore(state => state.deleteSkill);
+  const loadSkills = useProfileStore(state => state.loadSkills);
 
-export const SkillsManager: React.FC<SkillsManagerProps> = ({ skills = [], onSave }) => {
-  const [localSkills, setLocalSkills] = useState<HardSkill[]>(skills);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  // Local UI state
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingSkill, setEditingSkill] = useState<HardSkill | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
   const [success, setSuccess] = useState(false);
 
   // Form state for new/edit skill
@@ -64,33 +65,12 @@ export const SkillsManager: React.FC<SkillsManagerProps> = ({ skills = [], onSav
     yearsOfExperience: undefined as number | undefined
   });
 
-  // Sync incoming skills prop to localSkills (only when no unsaved changes)
+  // Load skills on mount
   useEffect(() => {
-    if (!hasUnsavedChanges && !editingSkill) {
-      setLocalSkills(skills);
-    }
-  }, [skills, hasUnsavedChanges, editingSkill]);
+    loadSkills();
+  }, [loadSkills]);
 
-  // Track unsaved changes
-  useEffect(() => {
-    const changed = JSON.stringify(localSkills) !== JSON.stringify(skills);
-    setHasUnsavedChanges(changed);
-  }, [localSkills, skills]);
-
-  // Warn before leaving with unsaved changes
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasUnsavedChanges]);
-
-  const handleOpenDialog = (skill?: HardSkill) => {
+  const handleOpenDialog = (skill?: Skill) => {
     if (skill) {
       setEditingSkill(skill);
       const isCustomCategory = !PREDEFINED_CATEGORIES.includes(skill.category);
@@ -119,67 +99,58 @@ export const SkillsManager: React.FC<SkillsManagerProps> = ({ skills = [], onSav
     setEditingSkill(null);
   };
 
-  const handleAddOrUpdateSkill = () => {
+  const handleAddOrUpdateSkill = async () => {
     // Validate max skills
-    if (!editingSkill && localSkills.length >= MAX_SKILLS_PER_PROFILE) {
-      setError(`Maximum ${MAX_SKILLS_PER_PROFILE} skills allowed`);
-      return;
+    if (!editingSkill && skills.length >= MAX_SKILLS_PER_PROFILE) {
+      return; // Error is handled by store
     }
 
     const category = skillForm.category === 'Custom'
       ? skillForm.customCategory
       : skillForm.category;
 
-    const newSkill: HardSkill = {
-      id: editingSkill?.id || Date.now(), // Temporary ID for UI, DB will assign real ID
+    const newSkill: Skill = {
+      id: editingSkill?.id,
       name: skillForm.name,
       category,
       level: skillForm.level,
       yearsOfExperience: skillForm.yearsOfExperience
     };
 
-    if (editingSkill) {
-      setLocalSkills(prev => prev.map(s => s.id === editingSkill.id ? newSkill : s));
-    } else {
-      setLocalSkills(prev => [...prev, newSkill]);
-    }
-
-    handleCloseDialog();
-  };
-
-  const handleDeleteSkill = (id: number) => {
-    setLocalSkills(prev => prev.filter(s => s.id !== id));
-  };
-
-  const handleSave = async () => {
     try {
-      setLoading(true);
-      setError(null);
-
-      await onSave?.(localSkills);
-
+      if (editingSkill && editingSkill.id) {
+        await updateSkill({ ...newSkill, id: editingSkill.id });
+      } else {
+        await addSkill(newSkill);
+      }
       setSuccess(true);
-      setHasUnsavedChanges(false);
+      handleCloseDialog();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save skills');
-    } finally {
-      setLoading(false);
+      // Error is handled by store
+    }
+  };
+
+  const handleDeleteSkill = async (id: number) => {
+    try {
+      await deleteSkill(id);
+      setSuccess(true);
+    } catch (err) {
+      // Error is handled by store
     }
   };
 
   const handleSnackbarClose = () => {
     setSuccess(false);
-    setError(null);
   };
 
   // Group skills by category
-  const groupedSkills = localSkills.reduce((acc, skill) => {
+  const groupedSkills = skills.reduce((acc, skill) => {
     if (!acc[skill.category]) {
       acc[skill.category] = [];
     }
     acc[skill.category].push(skill);
     return acc;
-  }, {} as Record<string, HardSkill[]>);
+  }, {} as Record<string, Skill[]>);
 
   return (
     <Paper elevation={2} sx={{ p: 3 }}>
@@ -188,17 +159,24 @@ export const SkillsManager: React.FC<SkillsManagerProps> = ({ skills = [], onSav
           Skills & Competencies
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
-          {localSkills.length} / {MAX_SKILLS_PER_PROFILE}
+          {skills.length} / {MAX_SKILLS_PER_PROFILE}
         </Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => handleOpenDialog()}
-          disabled={localSkills.length >= MAX_SKILLS_PER_PROFILE}
+          disabled={skills.length >= MAX_SKILLS_PER_PROFILE || isLoading}
         >
           Add Skill
         </Button>
       </Box>
+
+      {/* Error display */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => useProfileStore.setState({ skillsError: null })}>
+          {error}
+        </Alert>
+      )}
 
       {/* Grouped skills display */}
       {Object.keys(groupedSkills).length === 0 ? (
@@ -227,7 +205,11 @@ export const SkillsManager: React.FC<SkillsManagerProps> = ({ skills = [], onSav
                     <IconButton edge="end" onClick={() => handleOpenDialog(skill)} sx={{ mr: 1 }}>
                       <EditIcon />
                     </IconButton>
-                    <IconButton edge="end" onClick={() => handleDeleteSkill(skill.id)}>
+                    <IconButton
+                      edge="end"
+                      onClick={() => skill.id && handleDeleteSkill(skill.id)}
+                      disabled={!skill.id}
+                    >
                       <DeleteIcon />
                     </IconButton>
                   </ListItemSecondaryAction>
@@ -236,25 +218,6 @@ export const SkillsManager: React.FC<SkillsManagerProps> = ({ skills = [], onSav
             </List>
           </Box>
         ))
-      )}
-
-      {/* Save button */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<SaveIcon />}
-          onClick={handleSave}
-          disabled={!hasUnsavedChanges || loading}
-        >
-          {loading ? 'Saving...' : 'Save Changes'}
-        </Button>
-      </Box>
-
-      {hasUnsavedChanges && (
-        <Alert severity="warning" sx={{ mt: 2 }}>
-          You have unsaved changes. Click "Save Changes" to persist your updates.
-        </Alert>
       )}
 
       {/* Add/Edit Dialog */}
@@ -325,7 +288,7 @@ export const SkillsManager: React.FC<SkillsManagerProps> = ({ skills = [], onSav
           <Button
             onClick={handleAddOrUpdateSkill}
             variant="contained"
-            disabled={!skillForm.name || (skillForm.category === 'Custom' && !skillForm.customCategory)}
+            disabled={!skillForm.name || (skillForm.category === 'Custom' && !skillForm.customCategory) || isLoading}
           >
             {editingSkill ? 'Update' : 'Add'}
           </Button>
@@ -340,19 +303,7 @@ export const SkillsManager: React.FC<SkillsManagerProps> = ({ skills = [], onSav
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Alert onClose={handleSnackbarClose} severity="success" sx={{ width: '100%' }}>
-          Skills saved successfully!
-        </Alert>
-      </Snackbar>
-
-      {/* Error notification */}
-      <Snackbar
-        open={!!error}
-        autoHideDuration={6000}
-        onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert onClose={handleSnackbarClose} severity="error" sx={{ width: '100%' }}>
-          {error}
+          Skill saved successfully!
         </Alert>
       </Snackbar>
     </Paper>

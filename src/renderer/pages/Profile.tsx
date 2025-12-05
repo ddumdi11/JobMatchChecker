@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Container,
   Typography,
@@ -17,8 +17,7 @@ import {
 import { ProfileForm } from '../components/ProfileForm';
 import { SkillsManager } from '../components/SkillsManager';
 import { PreferencesPanel } from '../components/PreferencesPanel';
-import { UserProfile, HardSkill, UserPreferences } from '../../shared/types';
-import { useUnsavedChangesContext } from '../components/Layout';
+import { useProfileStore } from '../store/profileStore';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -28,14 +27,6 @@ interface TabPanelProps {
 
 /**
  * Renders an accessible tab panel whose content is shown only when its index matches the current tab value.
- *
- * The container uses `role="tabpanel"` and sets `id` / `aria-labelledby` attributes for accessibility. When active,
- * children are wrapped in a Box with top padding; when inactive the panel is hidden.
- *
- * @param props.children - The content to render inside the panel.
- * @param props.value - The currently selected tab index.
- * @param props.index - The index of this tab panel.
- * @returns The tab panel React element.
  */
 function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
@@ -55,9 +46,6 @@ function TabPanel(props: TabPanelProps) {
 
 /**
  * Accessibility attributes for a tab at the given index.
- *
- * @param index - The tab index used to compose the `id` and `aria-controls` values
- * @returns An object containing `id` for the tab and `aria-controls` for the corresponding tabpanel
  */
 function a11yProps(index: number) {
   return {
@@ -99,26 +87,20 @@ class ErrorBoundary extends React.Component<
 }
 
 /**
- * Renders the user Profile page with a profile completion indicator and tabbed sections for Personal Info, Skills, and Preferences.
- *
- * The component loads profile-related data, displays a loading state while fetching, and provides per-section save handlers:
- * - Personal Info (auto-save behavior)
- * - Skills (explicit save)
- * - Preferences (explicit save)
- *
- * @returns The rendered Profile page React element.
+ * Renders the user Profile page with profile completion indicator and tabbed sections.
  */
 function Profile() {
   const [activeTab, setActiveTab] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [skills, setSkills] = useState<HardSkill[]>([]);
-  const [preferences, setPreferences] = useState<UserPreferences | null>(null);
 
-  // Integrate with unsaved changes context
-  // Note: Child components (ProfileForm, SkillsManager, PreferencesPanel) track their own unsaved state
-  // In future iterations, we can lift this state here and aggregate it
-  const unsavedChangesContext = useUnsavedChangesContext();
+  // Get state from store for profile completion calculation
+  const profile = useProfileStore(state => state.profile);
+  const skills = useProfileStore(state => state.skills);
+  const preferences = useProfileStore(state => state.preferences);
+  const isLoadingProfile = useProfileStore(state => state.isLoadingProfile);
+  const isLoadingSkills = useProfileStore(state => state.isLoadingSkills);
+  const isLoadingPreferences = useProfileStore(state => state.isLoadingPreferences);
+
+  const loading = isLoadingProfile || isLoadingSkills || isLoadingPreferences;
 
   // Calculate profile completion percentage
   const calculateCompletion = (): number => {
@@ -136,134 +118,8 @@ function Profile() {
 
   const completion = calculateCompletion();
 
-  // Transform DB snake_case to camelCase
-  const transformProfile = (dbProfile: any): UserProfile => ({
-    id: dbProfile.id,
-    firstName: dbProfile.first_name || '',
-    lastName: dbProfile.last_name || '',
-    email: dbProfile.email || '',
-    phone: dbProfile.phone || '',
-    location: dbProfile.location || '',
-    createdAt: dbProfile.created_at ? new Date(dbProfile.created_at) : new Date(),
-    updatedAt: dbProfile.updated_at ? new Date(dbProfile.updated_at) : new Date()
-  });
-
-  const transformSkills = (dbSkills: any[]): HardSkill[] =>
-    dbSkills.map(skill => ({
-      id: skill.id,
-      name: skill.name,
-      level: skill.level,
-      categoryId: skill.category_id,
-      categoryName: skill.category_name,
-      yearsOfExperience: skill.years_experience
-    }));
-
-  const transformPreferences = (dbPrefs: any): UserPreferences => ({
-    // Handler already returns camelCase, so just pass through
-    minSalary: dbPrefs.minSalary,
-    maxSalary: dbPrefs.maxSalary,
-    preferredLocations: dbPrefs.preferredLocations ?? [],
-    willingToRelocate: Boolean(dbPrefs.willingToRelocate),
-    remoteWorkPreference: dbPrefs.remoteWorkPreference,
-    preferredRemotePercentage: dbPrefs.preferredRemotePercentage,
-    acceptableRemoteMin: dbPrefs.acceptableRemoteMin,
-    acceptableRemoteMax: dbPrefs.acceptableRemoteMax,
-    remoteWorkUpdatedAt: dbPrefs.remoteWorkUpdatedAt
-      ? new Date(dbPrefs.remoteWorkUpdatedAt)
-      : undefined
-  });
-
-  // Load profile data
-  useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        setLoading(true);
-
-        // Load profile with skills and preferences
-        const profileData = await window.api.getProfile();
-
-        if (profileData) {
-          const { skills: profileSkills, preferences: profilePrefs, ...dbProfile } = profileData;
-
-          setProfile(transformProfile(dbProfile));
-          setSkills(profileSkills ? transformSkills(profileSkills) : []);
-          setPreferences(profilePrefs ? transformPreferences(profilePrefs) : null);
-        } else {
-          setProfile(null);
-          setSkills([]);
-          setPreferences(null);
-        }
-      } catch (error) {
-        console.error('Failed to load profile:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadProfile();
-  }, []);
-
-  const handleProfileSave = async (profileData: Partial<UserProfile>) => {
-    try {
-      await window.api.updateProfile(profileData);
-      // Update local state optimistically
-      setProfile(prev => prev ? { ...prev, ...profileData } : null);
-    } catch (error) {
-      console.error('Failed to save profile:', error);
-      throw error;
-    }
-  };
-
-  const handleSkillsSave = async (skillsData: HardSkill[]) => {
-    try {
-      // Save all skills via upsert
-      const savedSkills = await Promise.all(
-        skillsData.map(skill => window.api.upsertSkill(skill))
-      );
-      setSkills(savedSkills);
-    } catch (error) {
-      console.error('Failed to save skills:', error);
-      throw error;
-    }
-  };
-
-  const handlePreferencesSave = async (preferencesData: UserPreferences) => {
-    try {
-      await window.api.updatePreferences(preferencesData);
-      // Update local state optimistically
-      setPreferences(preferencesData);
-    } catch (error) {
-      console.error('Failed to save preferences:', error);
-      throw error;
-    }
-  };
-
-  const handleTabChange = async (_event: React.SyntheticEvent, newValue: number) => {
-    // Set active tab immediately for responsive UI
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
-    
-    // Don't reload if there are unsaved changes (would overwrite user edits)
-    // Note: Individual components track their own unsaved state
-    // In future, we can check unsavedChangesContext here
-    
-    // Reload profile data when switching tabs to ensure fresh data
-    try {
-      const profileData = await window.api.getProfile();
-      
-      if (profileData) {
-        const { skills: profileSkills, preferences: profilePrefs, ...dbProfile } = profileData;
-        setProfile(transformProfile(dbProfile));
-        setSkills(profileSkills ? transformSkills(profileSkills) : []);
-        setPreferences(profilePrefs ? transformPreferences(profilePrefs) : null);
-      } else {
-        // Clear stale state if no profile data
-        setProfile(null);
-        setSkills([]);
-        setPreferences(null);
-      }
-    } catch (error) {
-      console.error('Failed to reload profile on tab change:', error);
-    }
   };
 
   return (
@@ -328,35 +184,26 @@ function Profile() {
 
             <Box sx={{ p: 3 }}>
               <TabPanel value={activeTab} index={0}>
-                <ProfileForm
-                  profile={profile || undefined}
-                  onSave={handleProfileSave}
-                />
+                <ProfileForm />
               </TabPanel>
 
               <TabPanel value={activeTab} index={1}>
-                <SkillsManager
-                  skills={skills}
-                  onSave={handleSkillsSave}
-                />
+                <SkillsManager />
               </TabPanel>
 
               <TabPanel value={activeTab} index={2}>
-                <PreferencesPanel
-                  preferences={preferences || undefined}
-                  onSave={handlePreferencesSave}
-                />
+                <PreferencesPanel />
               </TabPanel>
             </Box>
           </Paper>
         )}
 
-        {/* Global unsaved changes warning */}
+        {/* Global info */}
         {!loading && (
           <Alert severity="info" sx={{ mt: 3 }}>
             <Typography variant="body2">
-              <strong>Note:</strong> Each section has its own save mechanism.
-              Personal Info auto-saves after 2 seconds. Skills and Preferences require explicit save.
+              <strong>Note:</strong> All changes are automatically saved to the database.
+              Your profile data is managed through a centralized state store.
             </Typography>
           </Alert>
         )}

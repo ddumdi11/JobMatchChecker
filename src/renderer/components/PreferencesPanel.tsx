@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Button,
@@ -18,15 +18,10 @@ import {
 } from '@mui/material';
 import { Save as SaveIcon } from '@mui/icons-material';
 import {
-  UserPreferences,
   RemoteWorkPreference,
   isValidRemoteWorkRange
 } from '../../shared/types';
-
-interface PreferencesPanelProps {
-  preferences?: UserPreferences;
-  onSave?: (preferences: UserPreferences) => Promise<void>;
-}
+import { useProfileStore, Preferences } from '../store/profileStore';
 
 const REMOTE_WORK_OPTIONS: { value: RemoteWorkPreference; label: string }[] = [
   { value: 'remote_only', label: 'Remote Only' },
@@ -35,7 +30,15 @@ const REMOTE_WORK_OPTIONS: { value: RemoteWorkPreference; label: string }[] = [
   { value: 'flexible', label: 'Flexible' }
 ];
 
-export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences, onSave }) => {
+export const PreferencesPanel: React.FC = () => {
+  // Store hooks
+  const preferences = useProfileStore(state => state.preferences);
+  const isLoading = useProfileStore(state => state.isLoadingPreferences);
+  const error = useProfileStore(state => state.preferencesError);
+  const updatePreferences = useProfileStore(state => state.updatePreferences);
+  const loadPreferences = useProfileStore(state => state.loadPreferences);
+
+  // Local form state
   const [formData, setFormData] = useState({
     minSalary: preferences?.minSalary ?? undefined,
     maxSalary: preferences?.maxSalary ?? undefined,
@@ -44,65 +47,33 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
     remoteWorkPreference: (preferences?.remoteWorkPreference ?? 'flexible') as RemoteWorkPreference,
     preferredRemotePercentage: preferences?.preferredRemotePercentage ?? 50,
     acceptableRemoteMin: preferences?.acceptableRemoteMin ?? 0,
-    acceptableRemoteMax: preferences?.acceptableRemoteMax ?? 100,
-    willingToRelocate: preferences?.willingToRelocate ?? false,
-    jobTypes: preferences?.jobTypes ?? {
-      fullTime: true,
-      partTime: false,
-      contract: false
-    }
+    acceptableRemoteMax: preferences?.acceptableRemoteMax ?? 100
   });
 
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [isInitialMount, setIsInitialMount] = useState(true);
-  const skipUnsavedRef = useRef(false);
 
-  // Sync incoming preferences to formData
+  // Load preferences on mount
+  useEffect(() => {
+    loadPreferences();
+  }, [loadPreferences]);
+
+  // Sync preferences from store to form
   useEffect(() => {
     if (preferences) {
-      skipUnsavedRef.current = true;
       setFormData({
         minSalary: preferences.minSalary ?? undefined,
-        maxSalary: preferences.maxSalary,
+        maxSalary: preferences.maxSalary ?? undefined,
         preferredLocations: preferences.preferredLocations ?? [],
         locationInput: '',
         remoteWorkPreference: preferences.remoteWorkPreference ?? 'flexible',
         preferredRemotePercentage: preferences.preferredRemotePercentage ?? 50,
         acceptableRemoteMin: preferences.acceptableRemoteMin ?? 0,
-        acceptableRemoteMax: preferences.acceptableRemoteMax ?? 100,
-        willingToRelocate: preferences.willingToRelocate ?? false,
-        jobTypes: preferences.jobTypes ? {
-          fullTime: preferences.jobTypes.fullTime ?? true,
-          partTime: preferences.jobTypes.partTime ?? false,
-          contract: preferences.jobTypes.contract ?? false
-        } : {
-          fullTime: true,
-          partTime: false,
-          contract: false
-        }
+        acceptableRemoteMax: preferences.acceptableRemoteMax ?? 100
       });
       setValidationError(null);
-      setHasUnsavedChanges(false);
-      skipUnsavedRef.current = false;
     }
   }, [preferences]);
-
-  // Track unsaved changes (skip initial mount and programmatic updates)
-  useEffect(() => {
-    if (skipUnsavedRef.current) {
-      skipUnsavedRef.current = false;
-      return;
-    }
-    if (isInitialMount) {
-      setIsInitialMount(false);
-    } else {
-      setHasUnsavedChanges(true);
-    }
-  }, [formData]);
 
   // Validate remote work range
   useEffect(() => {
@@ -157,40 +128,29 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
   const handleSave = async () => {
     // Validate before save
     if (validationError) {
-      setError(validationError);
       return;
     }
 
     try {
-      setLoading(true);
-      setError(null);
-
-      const preferencesToSave: UserPreferences = {
+      const preferencesToSave: Preferences = {
         minSalary: formData.minSalary,
         maxSalary: formData.maxSalary,
         preferredLocations: formData.preferredLocations,
-        willingToRelocate: formData.willingToRelocate,
         remoteWorkPreference: formData.remoteWorkPreference,
         preferredRemotePercentage: formData.preferredRemotePercentage,
         acceptableRemoteMin: formData.acceptableRemoteMin,
-        acceptableRemoteMax: formData.acceptableRemoteMax,
-        jobTypes: formData.jobTypes
+        acceptableRemoteMax: formData.acceptableRemoteMax
       };
 
-      await onSave?.(preferencesToSave);
-
+      await updatePreferences(preferencesToSave);
       setSuccess(true);
-      setHasUnsavedChanges(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save preferences');
-    } finally {
-      setLoading(false);
+      // Error is handled by store
     }
   };
 
   const handleSnackbarClose = () => {
     setSuccess(false);
-    setError(null);
   };
 
   return (
@@ -198,6 +158,13 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
       <Typography variant="h6" sx={{ mb: 3 }}>
         Job Preferences
       </Typography>
+
+      {/* Error display */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => useProfileStore.setState({ preferencesError: null })}>
+          {error}
+        </Alert>
+      )}
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         {/* Salary Range */}
@@ -213,6 +180,7 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
               onChange={handleSalaryChange('minSalary')}
               fullWidth
               InputProps={{ inputProps: { min: 0 } }}
+              disabled={isLoading}
             />
             <TextField
               label="Maximum Salary"
@@ -221,6 +189,7 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
               onChange={handleSalaryChange('maxSalary')}
               fullWidth
               InputProps={{ inputProps: { min: 0 } }}
+              disabled={isLoading}
             />
           </Box>
         </Box>
@@ -237,8 +206,9 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
               onChange={e => setFormData(prev => ({ ...prev, locationInput: e.target.value }))}
               onKeyDown={e => e.key === 'Enter' && handleLocationAdd()}
               fullWidth
+              disabled={isLoading}
             />
-            <Button onClick={handleLocationAdd} variant="outlined">
+            <Button onClick={handleLocationAdd} variant="outlined" disabled={isLoading}>
               Add
             </Button>
           </Box>
@@ -264,6 +234,7 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
               value={formData.remoteWorkPreference}
               onChange={e => setFormData(prev => ({ ...prev, remoteWorkPreference: e.target.value as RemoteWorkPreference }))}
               label="Preference Type"
+              disabled={isLoading}
             >
               {REMOTE_WORK_OPTIONS.map(option => (
                 <MenuItem key={option.value} value={option.value}>
@@ -289,6 +260,7 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
             ]}
             valueLabelDisplay="auto"
             valueLabelFormat={value => `${value}%`}
+            disabled={isLoading}
           />
 
           <Typography variant="body2" gutterBottom sx={{ mt: 2 }}>
@@ -308,6 +280,7 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
             valueLabelDisplay="auto"
             valueLabelFormat={value => `${value}%`}
             sx={{ color: 'secondary.main' }}
+            disabled={isLoading}
           />
 
           {validationError && (
@@ -317,62 +290,6 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
           )}
         </Box>
 
-        {/* Job Type Preferences */}
-        <Box>
-          <Typography variant="subtitle2" gutterBottom>
-            Job Type
-          </Typography>
-          <FormGroup row>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={formData.jobTypes.fullTime}
-                  onChange={e => setFormData(prev => ({
-                    ...prev,
-                    jobTypes: { ...prev.jobTypes, fullTime: e.target.checked }
-                  }))}
-                />
-              }
-              label="Full-Time"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={formData.jobTypes.partTime}
-                  onChange={e => setFormData(prev => ({
-                    ...prev,
-                    jobTypes: { ...prev.jobTypes, partTime: e.target.checked }
-                  }))}
-                />
-              }
-              label="Part-Time"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={formData.jobTypes.contract}
-                  onChange={e => setFormData(prev => ({
-                    ...prev,
-                    jobTypes: { ...prev.jobTypes, contract: e.target.checked }
-                  }))}
-                />
-              }
-              label="Contract"
-            />
-          </FormGroup>
-        </Box>
-
-        {/* Relocation */}
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={formData.willingToRelocate}
-              onChange={e => setFormData(prev => ({ ...prev, willingToRelocate: e.target.checked }))}
-            />
-          }
-          label="Willing to relocate"
-        />
-
         {/* Save Button */}
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
           <Button
@@ -380,17 +297,11 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
             color="primary"
             startIcon={<SaveIcon />}
             onClick={handleSave}
-            disabled={!hasUnsavedChanges || loading || !!validationError}
+            disabled={isLoading || !!validationError}
           >
-            {loading ? 'Saving...' : 'Save Preferences'}
+            {isLoading ? 'Saving...' : 'Save Preferences'}
           </Button>
         </Box>
-
-        {hasUnsavedChanges && !validationError && (
-          <Alert severity="info">
-            You have unsaved changes. Click "Save Preferences" to persist your updates.
-          </Alert>
-        )}
       </Box>
 
       {/* Success notification */}
@@ -402,18 +313,6 @@ export const PreferencesPanel: React.FC<PreferencesPanelProps> = ({ preferences,
       >
         <Alert onClose={handleSnackbarClose} severity="success" sx={{ width: '100%' }}>
           Preferences saved successfully!
-        </Alert>
-      </Snackbar>
-
-      {/* Error notification */}
-      <Snackbar
-        open={!!error}
-        autoHideDuration={6000}
-        onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert onClose={handleSnackbarClose} severity="error" sx={{ width: '100%' }}>
-          {error}
         </Alert>
       </Snackbar>
     </Paper>
