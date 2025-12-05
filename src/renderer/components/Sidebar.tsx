@@ -11,6 +11,7 @@ import {
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import PersonIcon from '@mui/icons-material/Person';
 import WorkIcon from '@mui/icons-material/Work';
+import AddIcon from '@mui/icons-material/Add';
 import SettingsIcon from '@mui/icons-material/Settings';
 
 const DRAWER_WIDTH = 240;
@@ -25,6 +26,7 @@ const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
   { label: 'Profile', path: '/profile', icon: <PersonIcon /> },
   { label: 'Jobs', path: '/jobs', icon: <WorkIcon /> },
+  { label: 'Add Job', path: '/jobs/add', icon: <AddIcon /> },
   { label: 'Settings', path: '/settings', icon: <SettingsIcon /> }
 ];
 

@@ -9,6 +9,8 @@ import { Layout } from './components/Layout';
 // Import pages
 import Dashboard from './pages/Dashboard';
 import JobDetail from './pages/JobDetail';
+import JobList from './pages/JobList';
+import JobAdd from './pages/JobAdd';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 
@@ -41,7 +43,15 @@ const router = createHashRouter([
       },
       {
         path: 'jobs',
+        element: <JobList />,
+      },
+      {
+        path: 'jobs/:id',
         element: <JobDetail />,
+      },
+      {
+        path: 'jobs/add',
+        element: <JobAdd />,
       },
       {
         path: 'settings',
