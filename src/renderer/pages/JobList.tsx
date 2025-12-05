@@ -23,7 +23,12 @@ import {
   CircularProgress,
   Alert,
   InputAdornment,
-  Stack
+  Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -57,6 +62,10 @@ export default function JobList() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<string>(sortConfig.field);
   const [sortDirection, setSortDirection] = useState<string>(sortConfig.direction);
+
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [jobToDelete, setJobToDelete] = useState<number | null>(null);
 
   // Fetch jobs on mount
   useEffect(() => {
@@ -108,17 +117,33 @@ export default function JobList() {
     console.log('Change rows per page:', newLimit);
   };
 
-  // Handle delete
-  const handleDelete = async (id: number) => {
-    if (window.confirm('Möchten Sie diesen Job wirklich löschen?')) {
-      try {
-        await deleteJob(id);
-        // Refresh list
-        await fetchJobs();
-      } catch (err) {
-        console.error('Failed to delete job:', err);
-      }
+  // Handle delete - open confirmation dialog
+  const handleDeleteClick = (id: number) => {
+    setJobToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  // Handle delete confirmation
+  const handleDeleteConfirm = async () => {
+    if (jobToDelete === null) return;
+
+    try {
+      await deleteJob(jobToDelete);
+      setDeleteDialogOpen(false);
+      setJobToDelete(null);
+      // Refresh list
+      await fetchJobs();
+    } catch (err) {
+      console.error('Failed to delete job:', err);
+      setDeleteDialogOpen(false);
+      setJobToDelete(null);
     }
+  };
+
+  // Handle delete cancel
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setJobToDelete(null);
   };
 
   // Handle edit
@@ -373,7 +398,7 @@ export default function JobList() {
                           </IconButton>
                           <IconButton
                             size="small"
-                            onClick={() => handleDelete(job.id!)}
+                            onClick={() => job.id && handleDeleteClick(job.id)}
                             color="error"
                           >
                             <DeleteIcon fontSize="small" />
@@ -402,6 +427,31 @@ export default function JobList() {
           </>
         )}
       </Paper>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+      >
+        <DialogTitle id="delete-dialog-title">
+          Job löschen?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-dialog-description">
+            Möchten Sie diesen Job wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} color="primary">
+            Abbrechen
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Löschen
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }
