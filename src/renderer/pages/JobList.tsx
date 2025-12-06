@@ -105,7 +105,7 @@ export default function JobList() {
                normalized === 'remote' ||
                normalized.includes('vollständig') ||
                normalized.includes('full remote');
-      case 'hybrid':
+      case 'hybrid': {
         // Matches: "hybrid", or percentage values that are not 100% or 0%
         if (normalized.includes('hybrid')) return true;
         // Check for partial remote percentages (e.g., "50% remote", "80%")
@@ -115,6 +115,7 @@ export default function JobList() {
           return percent > 0 && percent < 100;
         }
         return false;
+      }
       case 'onsite':
         // Matches: "on-site", "vor ort", "office", "0%", or empty/undefined
         return normalized.includes('on-site') ||
