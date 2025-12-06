@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -29,24 +29,42 @@ import {
   Star as StarIcon,
   Schedule as ScheduleIcon
 } from '@mui/icons-material';
-import { useJobStore, JobOffer } from '../store/jobStore';
+import { JobOffer } from '../store/jobStore';
 
 /**
  * Dashboard Page - Overview with statistics and quick access to jobs
  * Feature: Dashboard Improvements
+ *
+ * Note: Dashboard fetches ALL jobs directly from API (not via store pagination)
+ * to ensure accurate statistics. This is acceptable as expected max is ~200-300 jobs.
  */
 function Dashboard() {
   const navigate = useNavigate();
 
-  // Get data from store
-  const jobs = useJobStore(state => state.jobs);
-  const isLoading = useJobStore(state => state.isLoading);
-  const fetchJobs = useJobStore(state => state.fetchJobs);
+  // Local state for all jobs (bypasses store pagination)
+  const [jobs, setJobs] = useState<JobOffer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch all jobs on mount
+  // Fetch ALL jobs on mount (high limit to get everything)
   useEffect(() => {
-    fetchJobs({}, { field: 'created_at', direction: 'desc' });
-  }, [fetchJobs]);
+    const fetchAllJobs = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch with high limit to get all jobs for accurate stats
+        const result = await window.api.getJobs(
+          {},
+          { field: 'created_at', direction: 'desc' },
+          { page: 1, limit: 1000 }
+        );
+        setJobs(result.jobs);
+      } catch (error) {
+        console.error('Failed to fetch jobs for dashboard:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchAllJobs();
+  }, []);
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -64,7 +82,7 @@ function Dashboard() {
     const statusCounts = {
       new: jobs.filter(j => j.status === 'new').length,
       applied: jobs.filter(j => j.status === 'applied').length,
-      interesting: jobs.filter(j => j.status === 'interesting' || j.status === 'reviewing').length,
+      reviewing: jobs.filter(j => j.status === 'reviewing').length,
       rejected: jobs.filter(j => j.status === 'rejected').length
     };
 
@@ -389,7 +407,7 @@ function Dashboard() {
                         color={
                           job.status === 'new' ? 'info' :
                           job.status === 'applied' ? 'warning' :
-                          job.status === 'interesting' ? 'primary' :
+                          job.status === 'reviewing' ? 'primary' :
                           'default'
                         }
                       />

@@ -8,6 +8,7 @@ interface Window {
     updateJob: (id: number, data: any) => Promise<any>;
     deleteJob: (id: number) => Promise<void>;
     getAllJobs: () => Promise<any[]>;
+    getJobs: (filters?: any, sort?: any, pagination?: any) => Promise<{ jobs: any[]; pagination: { page: number; limit: number; total: number } }>;
     getJobById: (id: number) => Promise<any>;
     createProfile: (data: any) => Promise<any>;
     updateProfile: (data: any) => Promise<any>;
