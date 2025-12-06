@@ -64,7 +64,6 @@ export default function JobList() {
   const deleteJob = useJobStore(state => state.deleteJob);
   const isLoading = useJobStore(state => state.isLoading);
   const error = useJobStore(state => state.error);
-  const pagination = useJobStore(state => state.pagination);
   const sortConfig = useJobStore(state => state.sortConfig);
   const setSortConfig = useJobStore(state => state.setSortConfig);
 
@@ -80,6 +79,10 @@ export default function JobList() {
   const [onlyWithMatchScore, setOnlyWithMatchScore] = useState(false);
   const [remoteFilter, setRemoteFilter] = useState<string>('all'); // 'all', 'remote', 'hybrid', 'onsite'
 
+  // Local pagination state (for client-side filtered results)
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [jobToDelete, setJobToDelete] = useState<number | null>(null);
@@ -91,10 +94,50 @@ export default function JobList() {
     onlyWithMatchScore ||
     remoteFilter !== 'all';
 
+  // Helper function to normalize and match remote option
+  const matchRemoteOption = (remoteOption: string | undefined, filter: string): boolean => {
+    const normalized = (remoteOption || '').toLowerCase().trim();
+
+    switch (filter) {
+      case 'remote':
+        // Matches: "100% remote", "remote", "vollständig remote", "full remote"
+        return normalized.includes('100%') ||
+               normalized === 'remote' ||
+               normalized.includes('vollständig') ||
+               normalized.includes('full remote');
+      case 'hybrid':
+        // Matches: "hybrid", or percentage values that are not 100% or 0%
+        if (normalized.includes('hybrid')) return true;
+        // Check for partial remote percentages (e.g., "50% remote", "80%")
+        const percentMatch = normalized.match(/(\d+)%/);
+        if (percentMatch) {
+          const percent = parseInt(percentMatch[1], 10);
+          return percent > 0 && percent < 100;
+        }
+        return false;
+      case 'onsite':
+        // Matches: "on-site", "vor ort", "office", "0%", or empty/undefined
+        return normalized.includes('on-site') ||
+               normalized.includes('onsite') ||
+               normalized.includes('vor ort') ||
+               normalized.includes('office') ||
+               normalized.includes('0%') ||
+               normalized === '' ||
+               normalized === '-';
+      default:
+        return true;
+    }
+  };
+
   // Fetch jobs on mount
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [searchTerm, statusFilter, matchScoreRange, onlyWithMatchScore, remoteFilter]);
 
   // Handle filter application
   const handleApplyFilters = () => {
@@ -138,25 +181,19 @@ export default function JobList() {
       });
     }
 
-    // Remote filter
+    // Remote filter (using normalized matching)
     if (remoteFilter !== 'all') {
-      result = result.filter(job => {
-        const remote = job.remoteOption?.toLowerCase() || '';
-        switch (remoteFilter) {
-          case 'remote':
-            return remote.includes('100%') || remote.includes('remote') || remote.includes('vollständig');
-          case 'hybrid':
-            return remote.includes('hybrid') || (remote.includes('%') && !remote.includes('100%'));
-          case 'onsite':
-            return remote.includes('on-site') || remote.includes('vor ort') || remote.includes('office') || remote === '' || remote === '-';
-          default:
-            return true;
-        }
-      });
+      result = result.filter(job => matchRemoteOption(job.remoteOption, remoteFilter));
     }
 
     return result;
   }, [jobs, searchTerm, matchScoreRange, onlyWithMatchScore, remoteFilter]);
+
+  // Paginated jobs for display (client-side pagination)
+  const paginatedJobs = React.useMemo(() => {
+    const startIndex = page * rowsPerPage;
+    return filteredJobs.slice(startIndex, startIndex + rowsPerPage);
+  }, [filteredJobs, page, rowsPerPage]);
 
   // Handle sort change
   const handleSortChange = (field: string) => {
@@ -173,16 +210,16 @@ export default function JobList() {
     fetchJobs(filters, { field: field as any, direction: newDirection as any });
   };
 
-  // Handle page change
+  // Handle page change (client-side pagination)
   const handleChangePage = (_event: unknown, newPage: number) => {
-    fetchJobs(undefined, undefined, newPage + 1); // API uses 1-based pages
+    setPage(newPage);
   };
 
-  // Handle rows per page change
+  // Handle rows per page change (client-side pagination)
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newLimit = parseInt(event.target.value, 10);
-    // TODO: Update pagination limit in store
-    console.log('Change rows per page:', newLimit);
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    setRowsPerPage(newRowsPerPage);
+    setPage(0); // Reset to first page when changing rows per page
   };
 
   // Handle delete - open confirmation dialog
@@ -255,6 +292,7 @@ export default function JobList() {
     setMatchScoreRange([0, 100]);
     setOnlyWithMatchScore(false);
     setRemoteFilter('all');
+    setPage(0);
     fetchJobs();
   };
 
@@ -263,6 +301,7 @@ export default function JobList() {
     setMatchScoreRange([0, 100]);
     setOnlyWithMatchScore(false);
     setRemoteFilter('all');
+    setPage(0);
   };
 
   return (
@@ -352,7 +391,7 @@ export default function JobList() {
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} sx={{ mt: 2 }}>
               {/* Match Score Range */}
               <Box sx={{ minWidth: 250, flexGrow: 1 }}>
-                <Typography variant="body2" gutterBottom>
+                <Typography variant="body2" gutterBottom id="match-score-slider-label">
                   Match-Score: {matchScoreRange[0]}% - {matchScoreRange[1]}%
                 </Typography>
                 <Slider
@@ -360,6 +399,7 @@ export default function JobList() {
                   onChange={(_e, newValue) => setMatchScoreRange(newValue as number[])}
                   valueLabelDisplay="auto"
                   valueLabelFormat={(value) => `${value}%`}
+                  aria-labelledby="match-score-slider-label"
                   min={0}
                   max={100}
                   marks={[
@@ -555,7 +595,7 @@ export default function JobList() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredJobs.map((job) => (
+                  {paginatedJobs.map((job) => (
                     <TableRow
                       key={job.id}
                       hover
@@ -634,9 +674,9 @@ export default function JobList() {
             <TablePagination
               rowsPerPageOptions={[10, 20, 50]}
               component="div"
-              count={pagination.total}
-              rowsPerPage={pagination.limit}
-              page={pagination.page - 1} // MUI uses 0-based pages
+              count={filteredJobs.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
               onPageChange={handleChangePage}
               onRowsPerPageChange={handleChangeRowsPerPage}
               labelRowsPerPage="Jobs pro Seite:"
