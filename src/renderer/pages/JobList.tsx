@@ -28,7 +28,9 @@ import {
   DialogTitle,
   DialogContent,
   DialogContentText,
-  DialogActions
+  DialogActions,
+  Skeleton,
+  Tooltip
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -36,7 +38,8 @@ import {
   Delete as DeleteIcon,
   Search as SearchIcon,
   FilterList as FilterIcon,
-  Sort as SortIcon
+  Sort as SortIcon,
+  WorkOff as WorkOffIcon
 } from '@mui/icons-material';
 import { useJobStore } from '../store/jobStore';
 
@@ -256,21 +259,57 @@ export default function JobList() {
       {/* Jobs Table */}
       <Paper sx={{ width: '100%', overflow: 'hidden' }}>
         {isLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-            <CircularProgress />
-          </Box>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Titel</TableCell>
+                  <TableCell>Firma</TableCell>
+                  <TableCell>Standort</TableCell>
+                  <TableCell>Gehalt</TableCell>
+                  <TableCell>Remote</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell align="center">Match</TableCell>
+                  <TableCell>Datum</TableCell>
+                  <TableCell align="right">Aktionen</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton width={180} /></TableCell>
+                    <TableCell><Skeleton width={120} /></TableCell>
+                    <TableCell><Skeleton width={100} /></TableCell>
+                    <TableCell><Skeleton width={80} /></TableCell>
+                    <TableCell><Skeleton width={60} /></TableCell>
+                    <TableCell><Skeleton width={70} height={24} /></TableCell>
+                    <TableCell align="center"><Skeleton width={40} /></TableCell>
+                    <TableCell><Skeleton width={80} /></TableCell>
+                    <TableCell align="right">
+                      <Stack direction="row" spacing={1} justifyContent="flex-end">
+                        <Skeleton variant="circular" width={28} height={28} />
+                        <Skeleton variant="circular" width={28} height={28} />
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         ) : filteredJobs.length === 0 ? (
-          <Box sx={{ p: 4, textAlign: 'center' }}>
+          <Box sx={{ p: 6, textAlign: 'center' }}>
             {jobs.length === 0 ? (
               <>
-                <Typography variant="h6" color="text.secondary" gutterBottom>
-                  Keine Jobs gefunden
+                <WorkOffIcon sx={{ fontSize: 80, color: 'text.secondary', mb: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  Noch keine Jobs vorhanden
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Fügen Sie Ihren ersten Job hinzu, um loszulegen!
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Erstelle deinen ersten Job, um mit dem Matching zu starten!
                 </Typography>
                 <Button
                   variant="contained"
+                  size="large"
                   startIcon={<AddIcon />}
                   onClick={() => navigate('/jobs/add')}
                 >
@@ -279,11 +318,12 @@ export default function JobList() {
               </>
             ) : (
               <>
-                <Typography variant="h6" color="text.secondary" gutterBottom>
+                <SearchIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+                <Typography variant="h6" gutterBottom>
                   Keine passenden Jobs gefunden
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Versuchen Sie es mit anderen Suchbegriffen oder Filtern.
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Versuche es mit anderen Suchbegriffen oder Filtern.
                 </Typography>
                 <Button
                   variant="outlined"
@@ -396,20 +436,24 @@ export default function JobList() {
                       <TableCell>{formatDate(job.postedDate)}</TableCell>
                       <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                         <Stack direction="row" spacing={1} justifyContent="flex-end">
-                          <IconButton
-                            size="small"
-                            onClick={() => job.id && handleEdit(job.id)}
-                            color="primary"
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => job.id && handleDeleteClick(job.id)}
-                            color="error"
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
+                          <Tooltip title="Job bearbeiten">
+                            <IconButton
+                              size="small"
+                              onClick={() => job.id && handleEdit(job.id)}
+                              color="primary"
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Job löschen">
+                            <IconButton
+                              size="small"
+                              onClick={() => job.id && handleDeleteClick(job.id)}
+                              color="error"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                         </Stack>
                       </TableCell>
                     </TableRow>
