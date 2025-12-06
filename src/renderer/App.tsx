@@ -8,6 +8,7 @@ import { Layout } from './components/Layout';
 
 // Import components
 import FirstRunDialog from './components/FirstRunDialog';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Import pages
 import Dashboard from './pages/Dashboard';
@@ -104,8 +105,10 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <RouterProvider router={router} />
-      <FirstRunDialog open={showFirstRun} onComplete={handleFirstRunComplete} />
+      <ErrorBoundary>
+        <RouterProvider router={router} />
+        <FirstRunDialog open={showFirstRun} onComplete={handleFirstRunComplete} />
+      </ErrorBoundary>
     </ThemeProvider>
   );
 }

@@ -33,7 +33,8 @@ import {
   TableRow,
   Accordion,
   AccordionSummary,
-  AccordionDetails
+  AccordionDetails,
+  Tooltip
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -290,20 +291,22 @@ export default function JobDetail() {
         </Box>
 
         <Stack direction="row" spacing={1}>
-          <IconButton
-            color="primary"
-            onClick={handleEdit}
-            title="Bearbeiten"
-          >
-            <EditIcon />
-          </IconButton>
-          <IconButton
-            color="error"
-            onClick={handleDeleteClick}
-            title="Löschen"
-          >
-            <DeleteIcon />
-          </IconButton>
+          <Tooltip title="Job bearbeiten">
+            <IconButton
+              color="primary"
+              onClick={handleEdit}
+            >
+              <EditIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Job löschen">
+            <IconButton
+              color="error"
+              onClick={handleDeleteClick}
+            >
+              <DeleteIcon />
+            </IconButton>
+          </Tooltip>
         </Stack>
       </Box>
 
@@ -576,13 +579,15 @@ export default function JobDetail() {
               </Button>
 
               {displayedMatching && (
-                <Button
-                  variant="outlined"
-                  onClick={handleReMatch}
-                  startIcon={<RefreshIcon />}
-                >
-                  Erneut matchen
-                </Button>
+                <Tooltip title="Erneut matchen (kostet API-Tokens)">
+                  <Button
+                    variant="outlined"
+                    onClick={handleReMatch}
+                    startIcon={<RefreshIcon />}
+                  >
+                    Erneut matchen
+                  </Button>
+                </Tooltip>
               )}
             </Box>
 
