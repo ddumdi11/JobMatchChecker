@@ -15,12 +15,12 @@
 
 exports.up = async function(knex) {
   // Step 1: Add user_profile_id to skills table with CASCADE DELETE
-  // Note: No default profile is created - First-Run-Dialog will handle profile creation
+  // Note: nullable() allows existing skills to remain until profile is created
+  // Application must set user_profile_id explicitly when creating new skills
   await knex.schema.alterTable('skills', (table) => {
     table.integer('user_profile_id')
       .unsigned()
-      .defaultTo(1)
-      .notNullable()
+      .nullable()
       .references('id')
       .inTable('user_profile')
       .onDelete('CASCADE')
@@ -28,11 +28,12 @@ exports.up = async function(knex) {
   });
 
   // Step 2: Add user_profile_id to user_preferences table with CASCADE DELETE
+  // Note: nullable() allows existing preferences to remain until profile is created
+  // Application must set user_profile_id explicitly when creating new preferences
   await knex.schema.alterTable('user_preferences', (table) => {
     table.integer('user_profile_id')
       .unsigned()
-      .defaultTo(1)
-      .notNullable()
+      .nullable()
       .references('id')
       .inTable('user_profile')
       .onDelete('CASCADE')
