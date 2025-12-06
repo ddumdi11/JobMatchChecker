@@ -86,15 +86,10 @@ Be objective and consider:
 4. Salary expectations (15%)`
   });
 
-  // Initialize user_preferences with empty row
-  await knex('user_preferences').insert({
-    id: 1,
-    remote_preference: 'flexible'
-  });
+  // Note: user_preferences will be created by First-Run-Dialog along with user profile
 };
 
 exports.down = async function(knex) {
-  await knex('user_preferences').where({ id: 1 }).del();
   await knex('matching_prompts').del();
   await knex('job_sources').del();
   await knex('skill_categories').del();
