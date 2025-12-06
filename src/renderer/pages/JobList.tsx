@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -20,7 +20,6 @@ import {
   TablePagination,
   IconButton,
   Chip,
-  CircularProgress,
   Alert,
   InputAdornment,
   Stack,
@@ -47,7 +46,8 @@ import {
   WorkOff as WorkOffIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  Keyboard as KeyboardIcon
 } from '@mui/icons-material';
 import { useJobStore } from '../store/jobStore';
 
@@ -86,6 +86,11 @@ export default function JobList() {
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [jobToDelete, setJobToDelete] = useState<number | null>(null);
+
+  // Keyboard navigation state
+  const [focusedRowIndex, setFocusedRowIndex] = useState<number>(-1);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
 
   // Check if any extended filters are active
   const hasActiveExtendedFilters =
@@ -196,6 +201,145 @@ export default function JobList() {
     return filteredJobs.slice(startIndex, startIndex + rowsPerPage);
   }, [filteredJobs, page, rowsPerPage]);
 
+  // Reset focused row when paginated jobs change
+  useEffect(() => {
+    setFocusedRowIndex(-1);
+  }, [page, rowsPerPage, filteredJobs.length]);
+
+  // Scroll focused row into view
+  const scrollRowIntoView = useCallback((index: number) => {
+    const tableContainer = tableContainerRef.current;
+    if (!tableContainer) return;
+
+    const rows = tableContainer.querySelectorAll('tbody tr');
+    if (rows[index]) {
+      rows[index].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, []);
+
+  // Handle view details
+  const handleView = useCallback((id: number) => {
+    navigate(`/jobs/${id}`);
+  }, [navigate]);
+
+  // Handle edit
+  const handleEdit = useCallback((id: number) => {
+    navigate(`/jobs/${id}/edit`);
+  }, [navigate]);
+
+  // Handle delete - open confirmation dialog
+  const handleDeleteClick = useCallback((id: number) => {
+    setJobToDelete(id);
+    setDeleteDialogOpen(true);
+  }, []);
+
+  // Keyboard navigation handler
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    // Don't handle shortcuts when dialog is open
+    if (deleteDialogOpen) return;
+
+    // Check if focus is in an input field (except for Escape)
+    const activeElement = document.activeElement;
+    const isInputFocused = activeElement instanceof HTMLInputElement ||
+                           activeElement instanceof HTMLTextAreaElement ||
+                           activeElement instanceof HTMLSelectElement;
+
+    // Handle Escape - always works
+    if (event.key === 'Escape') {
+      if (isInputFocused) {
+        (activeElement as HTMLElement).blur();
+      }
+      setFocusedRowIndex(-1);
+      return;
+    }
+
+    // Don't handle other shortcuts when typing in input
+    if (isInputFocused) return;
+
+    const jobCount = paginatedJobs.length;
+    if (jobCount === 0) return;
+
+    switch (event.key) {
+      case 'ArrowDown':
+      case 'j': // vim-style
+        event.preventDefault();
+        setFocusedRowIndex(prev => {
+          const newIndex = prev < jobCount - 1 ? prev + 1 : prev;
+          scrollRowIntoView(newIndex);
+          return newIndex;
+        });
+        break;
+
+      case 'ArrowUp':
+      case 'k': // vim-style
+        event.preventDefault();
+        setFocusedRowIndex(prev => {
+          const newIndex = prev > 0 ? prev - 1 : 0;
+          scrollRowIntoView(newIndex);
+          return newIndex;
+        });
+        break;
+
+      case 'Home':
+        event.preventDefault();
+        setFocusedRowIndex(0);
+        scrollRowIntoView(0);
+        break;
+
+      case 'End':
+        event.preventDefault();
+        setFocusedRowIndex(jobCount - 1);
+        scrollRowIntoView(jobCount - 1);
+        break;
+
+      case 'Enter':
+        if (focusedRowIndex >= 0 && focusedRowIndex < jobCount) {
+          const job = paginatedJobs[focusedRowIndex];
+          if (job.id) {
+            handleView(job.id);
+          }
+        }
+        break;
+
+      case 'e':
+        event.preventDefault();
+        if (focusedRowIndex >= 0 && focusedRowIndex < jobCount) {
+          const job = paginatedJobs[focusedRowIndex];
+          if (job.id) {
+            handleEdit(job.id);
+          }
+        }
+        break;
+
+      case 'Delete':
+      case 'Backspace':
+        if (focusedRowIndex >= 0 && focusedRowIndex < jobCount) {
+          event.preventDefault();
+          const job = paginatedJobs[focusedRowIndex];
+          if (job.id) {
+            handleDeleteClick(job.id);
+          }
+        }
+        break;
+
+      case 'n':
+        event.preventDefault();
+        navigate('/jobs/add');
+        break;
+
+      case '/':
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        break;
+    }
+  }, [deleteDialogOpen, paginatedJobs, focusedRowIndex, navigate, scrollRowIntoView, handleView, handleEdit, handleDeleteClick]);
+
+  // Attach keyboard listener
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
   // Handle sort change
   const handleSortChange = (field: string) => {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
@@ -223,12 +367,6 @@ export default function JobList() {
     setPage(0); // Reset to first page when changing rows per page
   };
 
-  // Handle delete - open confirmation dialog
-  const handleDeleteClick = (id: number) => {
-    setJobToDelete(id);
-    setDeleteDialogOpen(true);
-  };
-
   // Handle delete confirmation
   const handleDeleteConfirm = async () => {
     if (jobToDelete === null) return;
@@ -250,16 +388,6 @@ export default function JobList() {
   const handleDeleteCancel = () => {
     setDeleteDialogOpen(false);
     setJobToDelete(null);
-  };
-
-  // Handle edit
-  const handleEdit = (id: number) => {
-    navigate(`/jobs/${id}/edit`);
-  };
-
-  // Handle view details
-  const handleView = (id: number) => {
-    navigate(`/jobs/${id}`);
   };
 
   // Format salary range for display
@@ -308,9 +436,34 @@ export default function JobList() {
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Job-Übersicht
-        </Typography>
+        <Box>
+          <Typography variant="h4" component="h1">
+            Job-Übersicht
+          </Typography>
+          <Tooltip
+            title={
+              <Box sx={{ p: 1 }}>
+                <Typography variant="subtitle2" gutterBottom>Tastaturkürzel:</Typography>
+                <Typography variant="body2">↑/↓ oder j/k - Navigation</Typography>
+                <Typography variant="body2">Enter - Job öffnen</Typography>
+                <Typography variant="body2">e - Bearbeiten</Typography>
+                <Typography variant="body2">Delete - Löschen</Typography>
+                <Typography variant="body2">n - Neuer Job</Typography>
+                <Typography variant="body2">/ - Suche fokussieren</Typography>
+                <Typography variant="body2">Esc - Fokus entfernen</Typography>
+              </Box>
+            }
+            arrow
+            placement="right"
+          >
+            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, mt: 0.5, cursor: 'help' }}>
+              <KeyboardIcon fontSize="small" color="action" />
+              <Typography variant="caption" color="text.secondary">
+                Tastaturkürzel verfügbar
+              </Typography>
+            </Box>
+          </Tooltip>
+        </Box>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
@@ -330,6 +483,7 @@ export default function JobList() {
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Titel, Firma, Standort..."
             sx={{ minWidth: 300, flexGrow: 1 }}
+            inputRef={searchInputRef}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -550,7 +704,7 @@ export default function JobList() {
           </Box>
         ) : (
           <>
-            <TableContainer>
+            <TableContainer ref={tableContainerRef}>
               <Table stickyHeader>
                 <TableHead>
                   <TableRow>
@@ -596,11 +750,20 @@ export default function JobList() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {paginatedJobs.map((job) => (
+                  {paginatedJobs.map((job, index) => (
                     <TableRow
                       key={job.id}
                       hover
-                      sx={{ cursor: 'pointer' }}
+                      selected={focusedRowIndex === index}
+                      sx={{
+                        cursor: 'pointer',
+                        ...(focusedRowIndex === index && {
+                          bgcolor: 'action.selected',
+                          outline: '2px solid',
+                          outlineColor: 'primary.main',
+                          outlineOffset: '-2px'
+                        })
+                      }}
                       onClick={() => job.id && handleView(job.id)}
                     >
                       <TableCell>
