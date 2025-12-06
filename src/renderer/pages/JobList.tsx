@@ -30,7 +30,12 @@ import {
   DialogContentText,
   DialogActions,
   Skeleton,
-  Tooltip
+  Tooltip,
+  Collapse,
+  Slider,
+  FormControlLabel,
+  Checkbox,
+  Divider
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -39,7 +44,10 @@ import {
   Search as SearchIcon,
   FilterList as FilterIcon,
   Sort as SortIcon,
-  WorkOff as WorkOffIcon
+  WorkOff as WorkOffIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import { useJobStore } from '../store/jobStore';
 
@@ -66,9 +74,22 @@ export default function JobList() {
   const [sortField, setSortField] = useState<string>(sortConfig.field);
   const [sortDirection, setSortDirection] = useState<string>(sortConfig.direction);
 
+  // Extended filter state
+  const [showExtendedFilters, setShowExtendedFilters] = useState(false);
+  const [matchScoreRange, setMatchScoreRange] = useState<number[]>([0, 100]);
+  const [onlyWithMatchScore, setOnlyWithMatchScore] = useState(false);
+  const [remoteFilter, setRemoteFilter] = useState<string>('all'); // 'all', 'remote', 'hybrid', 'onsite'
+
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [jobToDelete, setJobToDelete] = useState<number | null>(null);
+
+  // Check if any extended filters are active
+  const hasActiveExtendedFilters =
+    matchScoreRange[0] > 0 ||
+    matchScoreRange[1] < 100 ||
+    onlyWithMatchScore ||
+    remoteFilter !== 'all';
 
   // Fetch jobs on mount
   useEffect(() => {
@@ -86,19 +107,56 @@ export default function JobList() {
     fetchJobs(filters, { field: sortField as any, direction: sortDirection as any });
   };
 
-  // Client-side filtering for search (until backend supports it)
+  // Client-side filtering for search and extended filters
   const filteredJobs = React.useMemo(() => {
-    if (!searchTerm.trim()) {
-      return jobs;
+    let result = jobs;
+
+    // Search filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(job =>
+        job.title.toLowerCase().includes(term) ||
+        job.company.toLowerCase().includes(term) ||
+        (job.location && job.location.toLowerCase().includes(term))
+      );
     }
 
-    const term = searchTerm.toLowerCase();
-    return jobs.filter(job =>
-      job.title.toLowerCase().includes(term) ||
-      job.company.toLowerCase().includes(term) ||
-      (job.location && job.location.toLowerCase().includes(term))
-    );
-  }, [jobs, searchTerm]);
+    // Match score filter
+    if (onlyWithMatchScore) {
+      result = result.filter(job =>
+        job.matchScore !== null && job.matchScore !== undefined
+      );
+    }
+
+    // Match score range filter
+    if (matchScoreRange[0] > 0 || matchScoreRange[1] < 100) {
+      result = result.filter(job => {
+        if (job.matchScore === null || job.matchScore === undefined) {
+          return false; // Exclude jobs without match score when range is set
+        }
+        return job.matchScore >= matchScoreRange[0] && job.matchScore <= matchScoreRange[1];
+      });
+    }
+
+    // Remote filter
+    if (remoteFilter !== 'all') {
+      result = result.filter(job => {
+        const remote = job.remoteOption?.toLowerCase() || '';
+        switch (remoteFilter) {
+          case 'remote':
+            return remote.includes('100%') || remote.includes('remote') || remote.includes('vollständig');
+          case 'hybrid':
+            return remote.includes('hybrid') || (remote.includes('%') && !remote.includes('100%'));
+          case 'onsite':
+            return remote.includes('on-site') || remote.includes('vor ort') || remote.includes('office') || remote === '' || remote === '-';
+          default:
+            return true;
+        }
+      });
+    }
+
+    return result;
+  }, [jobs, searchTerm, matchScoreRange, onlyWithMatchScore, remoteFilter]);
 
   // Handle sort change
   const handleSortChange = (field: string) => {
@@ -190,6 +248,23 @@ export default function JobList() {
     }
   };
 
+  // Reset all filters
+  const handleResetAllFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setMatchScoreRange([0, 100]);
+    setOnlyWithMatchScore(false);
+    setRemoteFilter('all');
+    fetchJobs();
+  };
+
+  // Reset extended filters only
+  const handleResetExtendedFilters = () => {
+    setMatchScoreRange([0, 100]);
+    setOnlyWithMatchScore(false);
+    setRemoteFilter('all');
+  };
+
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -207,6 +282,7 @@ export default function JobList() {
 
       {/* Filters */}
       <Paper sx={{ p: 2, mb: 3 }}>
+        {/* Basic Filters Row */}
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
           <TextField
             label="Suche"
@@ -246,7 +322,103 @@ export default function JobList() {
           >
             Filter anwenden
           </Button>
+
+          <Button
+            variant="outlined"
+            onClick={() => setShowExtendedFilters(!showExtendedFilters)}
+            endIcon={showExtendedFilters ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            color={hasActiveExtendedFilters ? 'primary' : 'inherit'}
+          >
+            Erweiterte Filter
+            {hasActiveExtendedFilters && (
+              <Chip
+                size="small"
+                label="aktiv"
+                color="primary"
+                sx={{ ml: 1, height: 20 }}
+              />
+            )}
+          </Button>
         </Box>
+
+        {/* Extended Filters (Collapsible) */}
+        <Collapse in={showExtendedFilters}>
+          <Divider sx={{ my: 2 }} />
+          <Box sx={{ pt: 1 }}>
+            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              Erweiterte Filter
+            </Typography>
+
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} sx={{ mt: 2 }}>
+              {/* Match Score Range */}
+              <Box sx={{ minWidth: 250, flexGrow: 1 }}>
+                <Typography variant="body2" gutterBottom>
+                  Match-Score: {matchScoreRange[0]}% - {matchScoreRange[1]}%
+                </Typography>
+                <Slider
+                  value={matchScoreRange}
+                  onChange={(_e, newValue) => setMatchScoreRange(newValue as number[])}
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={(value) => `${value}%`}
+                  min={0}
+                  max={100}
+                  marks={[
+                    { value: 0, label: '0%' },
+                    { value: 50, label: '50%' },
+                    { value: 100, label: '100%' }
+                  ]}
+                  sx={{ mt: 1 }}
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={onlyWithMatchScore}
+                      onChange={(e) => setOnlyWithMatchScore(e.target.checked)}
+                      size="small"
+                    />
+                  }
+                  label={
+                    <Typography variant="body2">
+                      Nur Jobs mit Match-Score
+                    </Typography>
+                  }
+                />
+              </Box>
+
+              {/* Remote Filter */}
+              <Box sx={{ minWidth: 180 }}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Remote-Option</InputLabel>
+                  <Select
+                    value={remoteFilter}
+                    label="Remote-Option"
+                    onChange={(e) => setRemoteFilter(e.target.value)}
+                  >
+                    <MenuItem value="all">Alle</MenuItem>
+                    <MenuItem value="remote">100% Remote</MenuItem>
+                    <MenuItem value="hybrid">Hybrid</MenuItem>
+                    <MenuItem value="onsite">Vor Ort</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+
+              {/* Reset Extended Filters */}
+              <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                <Tooltip title="Erweiterte Filter zurücksetzen">
+                  <Button
+                    variant="text"
+                    color="inherit"
+                    startIcon={<ClearIcon />}
+                    onClick={handleResetExtendedFilters}
+                    disabled={!hasActiveExtendedFilters}
+                  >
+                    Zurücksetzen
+                  </Button>
+                </Tooltip>
+              </Box>
+            </Stack>
+          </Box>
+        </Collapse>
       </Paper>
 
       {/* Error display */}
@@ -327,13 +499,10 @@ export default function JobList() {
                 </Typography>
                 <Button
                   variant="outlined"
-                  onClick={() => {
-                    setSearchTerm('');
-                    setStatusFilter('all');
-                    handleApplyFilters();
-                  }}
+                  startIcon={<ClearIcon />}
+                  onClick={handleResetAllFilters}
                 >
-                  Filter zurücksetzen
+                  Alle Filter zurücksetzen
                 </Button>
               </>
             )}
