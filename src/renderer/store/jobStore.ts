@@ -128,7 +128,7 @@ export const useJobStore = create<JobState>()(
 
       filters: {},
       sortConfig: { field: 'created_at', direction: 'desc' },
-      pagination: { page: 1, limit: 20, total: 0 },
+      pagination: { page: 1, limit: 1000, total: 0 },
 
       isLoading: false,
       isExtracting: false,

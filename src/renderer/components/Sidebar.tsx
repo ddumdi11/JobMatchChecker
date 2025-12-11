@@ -13,6 +13,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import WorkIcon from '@mui/icons-material/Work';
 import AddIcon from '@mui/icons-material/Add';
 import SettingsIcon from '@mui/icons-material/Settings';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
 const DRAWER_WIDTH = 240;
 
@@ -27,6 +28,7 @@ const navItems: NavItem[] = [
   { label: 'Profile', path: '/profile', icon: <PersonIcon /> },
   { label: 'Jobs', path: '/jobs', icon: <WorkIcon /> },
   { label: 'Add Job', path: '/jobs/add', icon: <AddIcon /> },
+  { label: 'CSV Import', path: '/import', icon: <CloudUploadIcon /> },
   { label: 'Settings', path: '/settings', icon: <SettingsIcon /> }
 ];
 

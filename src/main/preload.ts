@@ -52,7 +52,19 @@ contextBridge.exposeInMainWorld('api', {
   // Database
   backupDatabase: () => ipcRenderer.invoke(IPC_CHANNELS.DB_BACKUP),
   restoreDatabase: (backupPath: string) => ipcRenderer.invoke(IPC_CHANNELS.DB_RESTORE, backupPath),
-  migrateDatabase: () => ipcRenderer.invoke(IPC_CHANNELS.DB_MIGRATE)
+  migrateDatabase: () => ipcRenderer.invoke(IPC_CHANNELS.DB_MIGRATE),
+
+  // Import operations (CSV Import)
+  importSelectCsvFile: () => ipcRenderer.invoke('import:selectCsvFile'),
+  importProcessCsv: (filename: string, csvContent: string) => ipcRenderer.invoke('import:processCsv', filename, csvContent),
+  importGetSessions: () => ipcRenderer.invoke('import:getSessions'),
+  importGetSession: (sessionId: number) => ipcRenderer.invoke('import:getSession', sessionId),
+  importGetStagingRows: (sessionId: number) => ipcRenderer.invoke('import:getStagingRows', sessionId),
+  importRow: (rowId: number) => ipcRenderer.invoke('import:importRow', rowId),
+  importAllNew: (sessionId: number) => ipcRenderer.invoke('import:importAllNew', sessionId),
+  importSkipRow: (rowId: number) => ipcRenderer.invoke('import:skipRow', rowId),
+  importUpdateRowStatus: (rowId: number, status: string) => ipcRenderer.invoke('import:updateRowStatus', rowId, status),
+  importDeleteSession: (sessionId: number) => ipcRenderer.invoke('import:deleteSession', sessionId)
 });
 
 // Type definition for window.api
@@ -90,6 +102,17 @@ declare global {
       backupDatabase: () => Promise<string>;
       restoreDatabase: (backupPath: string) => Promise<void>;
       migrateDatabase: () => Promise<void>;
+      // Import operations
+      importSelectCsvFile: () => Promise<{ canceled: boolean; filePath?: string; filename?: string; content?: string }>;
+      importProcessCsv: (filename: string, csvContent: string) => Promise<any>;
+      importGetSessions: () => Promise<any[]>;
+      importGetSession: (sessionId: number) => Promise<any>;
+      importGetStagingRows: (sessionId: number) => Promise<any[]>;
+      importRow: (rowId: number) => Promise<{ success: boolean; jobId?: number }>;
+      importAllNew: (sessionId: number) => Promise<{ imported: number; failed: number }>;
+      importSkipRow: (rowId: number) => Promise<{ success: boolean }>;
+      importUpdateRowStatus: (rowId: number, status: string) => Promise<{ success: boolean }>;
+      importDeleteSession: (sessionId: number) => Promise<{ success: boolean }>;
     };
   }
 }

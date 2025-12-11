@@ -17,6 +17,7 @@ import JobList from './pages/JobList';
 import JobAdd from './pages/JobAdd';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
+import Import from './pages/Import';
 
 const theme = createTheme({
   palette: {
@@ -64,6 +65,10 @@ const router = createHashRouter([
       {
         path: 'settings',
         element: <Settings />,
+      },
+      {
+        path: 'import',
+        element: <Import />,
       },
     ],
   },

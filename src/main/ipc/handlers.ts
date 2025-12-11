@@ -1,5 +1,6 @@
-import { ipcMain } from 'electron';
+import { ipcMain, dialog } from 'electron';
 import * as log from 'electron-log';
+import * as fs from 'fs';
 import Store from 'electron-store';
 import Anthropic from '@anthropic-ai/sdk';
 import { IPC_CHANNELS } from '../../shared/constants';
@@ -8,6 +9,7 @@ import { backupDatabase, restoreDatabase, runMigrations } from '../database/db';
 import * as jobService from '../services/jobService';
 import * as aiExtractionService from '../services/aiExtractionService';
 import * as matchingService from '../services/matchingService';
+import * as importService from '../services/importService';
 
 const store = new Store();
 
@@ -573,6 +575,140 @@ export function registerIpcHandlers() {
       return results;
     } catch (error) {
       log.error('Error testing migration:', error);
+      throw error;
+    }
+  });
+
+  // ==========================================================================
+  // Import operations (CSV Import from external sources)
+  // ==========================================================================
+
+  // Open file dialog and select CSV file
+  ipcMain.handle('import:selectCsvFile', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        title: 'CSV-Datei zum Importieren auswählen',
+        filters: [
+          { name: 'CSV Files', extensions: ['csv'] },
+          { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return { canceled: true };
+      }
+
+      const filePath = result.filePaths[0];
+      const filename = filePath.split(/[\\/]/).pop() || 'import.csv';
+
+      // Read file content
+      const content = fs.readFileSync(filePath, 'utf-8');
+
+      return {
+        canceled: false,
+        filePath,
+        filename,
+        content
+      };
+    } catch (error: any) {
+      log.error('Error selecting CSV file:', error);
+      throw error;
+    }
+  });
+
+  // Process CSV content and create import session
+  ipcMain.handle('import:processCsv', async (_, filename: string, csvContent: string) => {
+    try {
+      const session = importService.processImportCsv(filename, csvContent);
+      return session;
+    } catch (error: any) {
+      log.error('Error processing CSV:', error);
+      throw error;
+    }
+  });
+
+  // Get all import sessions
+  ipcMain.handle('import:getSessions', async () => {
+    try {
+      return importService.getImportSessions();
+    } catch (error: any) {
+      log.error('Error getting import sessions:', error);
+      throw error;
+    }
+  });
+
+  // Get a single import session
+  ipcMain.handle('import:getSession', async (_, sessionId: number) => {
+    try {
+      return importService.getImportSession(sessionId);
+    } catch (error: any) {
+      log.error('Error getting import session:', error);
+      throw error;
+    }
+  });
+
+  // Get staging rows for a session
+  ipcMain.handle('import:getStagingRows', async (_, sessionId: number) => {
+    try {
+      return importService.getStagingRows(sessionId);
+    } catch (error: any) {
+      log.error('Error getting staging rows:', error);
+      throw error;
+    }
+  });
+
+  // Import a single staging row (with AI extraction)
+  ipcMain.handle('import:importRow', async (_, rowId: number) => {
+    try {
+      const jobId = await importService.importStagingRow(rowId);
+      return { success: true, jobId };
+    } catch (error: any) {
+      log.error('Error importing row:', error);
+      throw error;
+    }
+  });
+
+  // Import all new rows from a session
+  ipcMain.handle('import:importAllNew', async (_, sessionId: number) => {
+    try {
+      const result = await importService.importAllNewRows(sessionId);
+      return result;
+    } catch (error: any) {
+      log.error('Error importing all new rows:', error);
+      throw error;
+    }
+  });
+
+  // Skip a staging row
+  ipcMain.handle('import:skipRow', async (_, rowId: number) => {
+    try {
+      importService.skipStagingRow(rowId);
+      return { success: true };
+    } catch (error: any) {
+      log.error('Error skipping row:', error);
+      throw error;
+    }
+  });
+
+  // Update staging row status
+  ipcMain.handle('import:updateRowStatus', async (_, rowId: number, status: string) => {
+    try {
+      importService.updateStagingRowStatus(rowId, status as any);
+      return { success: true };
+    } catch (error: any) {
+      log.error('Error updating row status:', error);
+      throw error;
+    }
+  });
+
+  // Delete an import session
+  ipcMain.handle('import:deleteSession', async (_, sessionId: number) => {
+    try {
+      importService.deleteImportSession(sessionId);
+      return { success: true };
+    } catch (error: any) {
+      log.error('Error deleting import session:', error);
       throw error;
     }
   });

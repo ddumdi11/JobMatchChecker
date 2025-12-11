@@ -55,13 +55,28 @@ export async function extractJobFields(text: string): Promise<AIExtractionResult
   try {
     const prompt = `Extract structured job offer fields from the following job posting text.
 
+IMPORTANT: This text may come from various sources including:
+- Arbeitsagentur (German employment agency) - look for labeled fields like "Arbeitgeber:", "Angebotsart:", "Arbeitsort:"
+- LinkedIn, StepStone, Indeed, or other job boards
+- Company career pages
+- Email or PDF job descriptions
+
+For Arbeitsagentur-style listings, note that:
+- "Detailansicht des Stellenangebots" is just a header, NOT the job title
+- The actual job title often appears after the employer name or in a prominent position
+- "Arbeitgeber:" indicates the company name
+- Salary may appear as a range like "60.000 € – 80.000 €/Jahr"
+- "Heim-/Telearbeit" or "Remote" indicates remote work options
+- "Vollzeit"/"Teilzeit" indicates contract type
+- "unbefristet"/"befristet" indicates permanent/temporary
+
 Return a JSON object with these fields (all optional except where noted):
-- title (string, required): Job title
-- company (string, required): Company name
-- location (string): Job location
-- remoteOption (string): Remote work details (e.g., "100% remote", "hybrid")
-- salaryRange (string): Salary information
-- contractType (string): Employment type (e.g., "Full-time", "Contract")
+- title (string, required): The actual job position title (e.g., "Java Architekt", "Software Developer")
+- company (string, required): Company/employer name (look for "Arbeitgeber:" in German listings)
+- location (string): Job location (look for "Arbeitsort:" or city names)
+- remoteOption (string): Remote work details (e.g., "100% remote", "hybrid", "überwiegend remote")
+- salaryRange (string): Salary information (preserve original format)
+- contractType (string): Employment type (e.g., "Vollzeit", "Full-time", "unbefristet")
 - postedDate (string, format: YYYY-MM-DD): Date job was posted
 - deadline (string, format: YYYY-MM-DD): Application deadline
 - url (string): Link to job posting
