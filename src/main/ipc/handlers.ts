@@ -694,7 +694,12 @@ export function registerIpcHandlers() {
   // Update staging row status
   ipcMain.handle('import:updateRowStatus', async (_, rowId: number, status: string) => {
     try {
-      importService.updateStagingRowStatus(rowId, status as any);
+      // Validate status parameter
+      const validStatuses = ['pending', 'duplicate', 'likely_duplicate', 'new', 'imported', 'skipped'] as const;
+      if (!validStatuses.includes(status as typeof validStatuses[number])) {
+        throw new Error(`Invalid status: ${status}. Valid values: ${validStatuses.join(', ')}`);
+      }
+      importService.updateStagingRowStatus(rowId, status as typeof validStatuses[number]);
       return { success: true };
     } catch (error: any) {
       log.error('Error updating row status:', error);

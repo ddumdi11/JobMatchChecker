@@ -235,6 +235,43 @@ export function checkDuplicate(csvRow: CsvRow): DuplicateCheckResult {
     }
   }
 
+  // Check 3: Search for existing job titles or company names in CSV content
+  if (csvRow.content && csvRow.content.trim() !== '') {
+    const normalizedContent = csvRow.content.toLowerCase();
+
+    // Get all jobs and check if their title or company appears in content
+    const allJobs = db.prepare(`
+      SELECT id, title, company FROM job_offers
+    `).all() as Array<{ id: number; title: string; company: string }>;
+
+    for (const job of allJobs) {
+      // Skip jobs with generic titles or unknown company
+      if (job.title.toLowerCase().includes('detailansicht') ||
+          job.company.toLowerCase() === 'unknown') {
+        continue;
+      }
+
+      const titleInContent = normalizedContent.includes(job.title.toLowerCase());
+      const companyInContent = job.company &&
+                               job.company.length > 3 &&
+                               normalizedContent.includes(job.company.toLowerCase());
+
+      if (titleInContent || companyInContent) {
+        const matchType = titleInContent && companyInContent
+          ? 'Title & Company'
+          : (titleInContent ? 'Title' : 'Company');
+
+        return {
+          isDuplicate: false,
+          isLikelyDuplicate: true,
+          matchedJobId: job.id,
+          duplicateScore: titleInContent && companyInContent ? 90 : 75,
+          duplicateReason: `${matchType} found in content: "${job.title}" at ${job.company}`
+        };
+      }
+    }
+  }
+
   // No duplicate found
   return {
     isDuplicate: false,

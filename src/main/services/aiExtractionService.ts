@@ -66,7 +66,8 @@ For Arbeitsagentur-style listings, note that:
 - The actual job title often appears after the employer name or in a prominent position
 - "Arbeitgeber:" indicates the company name
 - Salary may appear as a range like "60.000 € – 80.000 €/Jahr"
-- "Heim-/Telearbeit" or "Remote" indicates remote work options
+- "Heim-/Telearbeit", "Telearbeit", "Homeoffice", or "Remote" indicates remote work options
+- Look for phrases like "überwiegend remote", "teilweise remote", "nach Absprache" for remote details
 - "Vollzeit"/"Teilzeit" indicates contract type
 - "unbefristet"/"befristet" indicates permanent/temporary
 
@@ -74,12 +75,13 @@ Return a JSON object with these fields (all optional except where noted):
 - title (string, required): The actual job position title (e.g., "Java Architekt", "Software Developer")
 - company (string, required): Company/employer name (look for "Arbeitgeber:" in German listings)
 - location (string): Job location (look for "Arbeitsort:" or city names)
-- remoteOption (string): Remote work details (e.g., "100% remote", "hybrid", "überwiegend remote")
+- remoteOption (string): Remote/home office work details - look for "Heim-/Telearbeit", "Telearbeit", "Homeoffice", "Remote", percentage mentions like "überwiegend" (mostly), "teilweise" (partly), or specific percentages. Extract the full remote work arrangement description.
 - salaryRange (string): Salary information (preserve original format)
 - contractType (string): Employment type (e.g., "Vollzeit", "Full-time", "unbefristet")
 - postedDate (string, format: YYYY-MM-DD): Date job was posted
 - deadline (string, format: YYYY-MM-DD): Application deadline
 - url (string): Link to job posting
+- requirements (array of strings): Key requirements, skills, or qualifications mentioned (e.g., technologies, years of experience, certifications)
 
 Job text:
 ${text}
@@ -162,6 +164,10 @@ Return ONLY valid JSON, no explanation or markdown. If a field cannot be extract
     if (extractedData.salaryRange) fields.salaryRange = extractedData.salaryRange;
     if (extractedData.contractType) fields.contractType = extractedData.contractType;
     if (extractedData.url) fields.url = extractedData.url;
+    // Store extracted requirements in notes field (no separate DB column)
+    if (extractedData.requirements && Array.isArray(extractedData.requirements) && extractedData.requirements.length > 0) {
+      fields.notes = `Anforderungen:\n- ${extractedData.requirements.join('\n- ')}`;
+    }
 
     // Parse dates
     if (extractedData.postedDate) {

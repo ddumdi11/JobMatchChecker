@@ -38,7 +38,8 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   Info as InfoIcon,
-  ContentCopy as DuplicateIcon
+  ContentCopy as DuplicateIcon,
+  ContentCopy as CopyIcon
 } from '@mui/icons-material';
 
 // Types for import data
@@ -92,6 +93,9 @@ export default function Import() {
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<number | null>(null);
+
+  // Copy feedback state
+  const [copiedRowId, setCopiedRowId] = useState<number | null>(null);
 
   // Load sessions on mount
   useEffect(() => {
@@ -232,6 +236,20 @@ export default function Import() {
       setSessionToDelete(null);
     } catch (err: any) {
       setError(err.message || 'Fehler beim Löschen');
+    }
+  };
+
+  // Copy content to clipboard
+  const handleCopyContent = async (rowId: number, content: string | undefined) => {
+    if (!content) return;
+
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedRowId(rowId);
+      // Reset feedback after 2 seconds
+      setTimeout(() => setCopiedRowId(null), 2000);
+    } catch (err) {
+      setError('Fehler beim Kopieren in die Zwischenablage');
     }
   };
 
@@ -522,9 +540,21 @@ export default function Import() {
                                   {row.duplicateReason}
                                 </Alert>
                               )}
-                              <Typography variant="subtitle2" gutterBottom>
-                                Inhalt (Vorschau):
-                              </Typography>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="subtitle2">
+                                  Inhalt (Vorschau):
+                                </Typography>
+                                <Button
+                                  size="small"
+                                  variant={copiedRowId === row.id ? 'contained' : 'outlined'}
+                                  color={copiedRowId === row.id ? 'success' : 'primary'}
+                                  startIcon={copiedRowId === row.id ? <CheckIcon /> : <CopyIcon />}
+                                  onClick={() => handleCopyContent(row.id, row.csvContent)}
+                                  disabled={!row.csvContent}
+                                >
+                                  {copiedRowId === row.id ? 'Kopiert!' : 'Inhalt kopieren'}
+                                </Button>
+                              </Box>
                               <Typography
                                 variant="body2"
                                 color="text.secondary"
