@@ -16,6 +16,10 @@ contextBridge.exposeInMainWorld('api', {
   getJobStatusOptions: () => ipcRenderer.invoke('getJobStatusOptions'),
   extractJobFields: (text: string) => ipcRenderer.invoke('extractJobFields', text),
 
+  // Merge operations (Issue #28)
+  createMergePreview: (existingJobId: number, newData: any) => ipcRenderer.invoke('job:createMergePreview', existingJobId, newData),
+  mergeJobs: (existingJobId: number, fields: any[]) => ipcRenderer.invoke('job:merge', existingJobId, fields),
+
   // Profile operations
   createProfile: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_CREATE, data),
   updateProfile: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_UPDATE, data),
@@ -80,6 +84,9 @@ declare global {
       getJobSources: () => Promise<Array<{ id: number; name: string }>>;
       getJobStatusOptions: () => Promise<Array<{ value: string; label: string }>>;
       extractJobFields: (text: string) => Promise<any>;
+      // Merge operations
+      createMergePreview: (existingJobId: number, newData: any) => Promise<any>;
+      mergeJobs: (existingJobId: number, fields: any[]) => Promise<any>;
       createProfile: (data: any) => Promise<any>;
       updateProfile: (data: any) => Promise<any>;
       deleteProfile: () => Promise<void>;

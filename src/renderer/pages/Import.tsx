@@ -39,8 +39,10 @@ import {
   ExpandLess as ExpandLessIcon,
   Info as InfoIcon,
   ContentCopy as DuplicateIcon,
-  ContentCopy as CopyIcon
+  ContentCopy as CopyIcon,
+  MergeType as MergeIcon
 } from '@mui/icons-material';
+import MergeDialog from '../components/MergeDialog';
 
 // Types for import data
 interface ImportSession {
@@ -96,6 +98,12 @@ export default function Import() {
 
   // Copy feedback state
   const [copiedRowId, setCopiedRowId] = useState<number | null>(null);
+
+  // Merge dialog state
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+  const [mergeJobId, setMergeJobId] = useState<number | null>(null);
+  const [mergeNewData, setMergeNewData] = useState<any>(null);
+  const [mergeRowId, setMergeRowId] = useState<number | null>(null);
 
   // Load sessions on mount
   useEffect(() => {
@@ -250,6 +258,52 @@ export default function Import() {
       setTimeout(() => setCopiedRowId(null), 2000);
     } catch (err) {
       setError('Fehler beim Kopieren in die Zwischenablage');
+    }
+  };
+
+  // Open merge dialog
+  const handleOpenMerge = async (row: StagingRow) => {
+    if (!row.matchedJobId) return;
+
+    // Build new data object from CSV row
+    const newData: any = {
+      title: row.csvTitle || row.extractedTitle,
+      url: row.csvUrl
+    };
+
+    // Add extracted fields if available
+    if (row.extractedTitle) newData.title = row.extractedTitle;
+    if (row.extractedCompany) newData.company = row.extractedCompany;
+
+    // Parse content if available (AI extraction would be better, but this is a start)
+    if (row.csvContent) {
+      newData.fullText = row.csvContent;
+      newData.rawImportData = row.csvContent;
+    }
+
+    setMergeJobId(row.matchedJobId);
+    setMergeNewData(newData);
+    setMergeRowId(row.id);
+    setMergeDialogOpen(true);
+  };
+
+  // Handle merge complete
+  const handleMergeComplete = async () => {
+    // Mark the staging row as imported
+    if (mergeRowId) {
+      try {
+        await window.api.importUpdateRowStatus(mergeRowId, 'imported');
+      } catch (err: any) {
+        console.error('Failed to update row status:', err);
+      }
+    }
+
+    setSuccessMessage('Jobs erfolgreich zusammengeführt');
+
+    // Refresh data
+    if (activeSession) {
+      await loadStagingRows(activeSession.id);
+      await loadSessions();
     }
   };
 
@@ -498,8 +552,19 @@ export default function Import() {
                           )}
                         </TableCell>
                         <TableCell align="right">
-                          {(row.status === 'new' || row.status === 'likely_duplicate') && (
+                          {(row.status === 'new' || row.status === 'likely_duplicate' || row.status === 'duplicate') && (
                             <>
+                              {(row.status === 'likely_duplicate' || row.status === 'duplicate') && row.matchedJobId && (
+                                <Tooltip title="Zusammenführen">
+                                  <IconButton
+                                    size="small"
+                                    color="primary"
+                                    onClick={() => handleOpenMerge(row)}
+                                  >
+                                    <MergeIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
                               <Tooltip title="Importieren">
                                 <IconButton
                                   size="small"
@@ -612,6 +677,15 @@ export default function Import() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Merge Dialog */}
+      <MergeDialog
+        open={mergeDialogOpen}
+        existingJobId={mergeJobId}
+        newData={mergeNewData}
+        onClose={() => setMergeDialogOpen(false)}
+        onMergeComplete={handleMergeComplete}
+      />
     </Container>
   );
 }

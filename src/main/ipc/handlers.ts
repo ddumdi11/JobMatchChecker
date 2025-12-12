@@ -86,6 +86,25 @@ export function registerIpcHandlers() {
     }
   });
 
+  // Merge operations (Issue #28)
+  ipcMain.handle('job:createMergePreview', async (_, existingJobId, newData) => {
+    try {
+      return await jobService.createMergePreview(existingJobId, newData);
+    } catch (error: any) {
+      log.error('Error in job:createMergePreview:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('job:merge', async (_, existingJobId, fields) => {
+    try {
+      return await jobService.mergeJobs(existingJobId, fields);
+    } catch (error: any) {
+      log.error('Error in job:merge:', error);
+      throw error;
+    }
+  });
+
   ipcMain.handle('extractJobFields', async (_, text) => {
     try {
       return await aiExtractionService.extractJobFields(text);
