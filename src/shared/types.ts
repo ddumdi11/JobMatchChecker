@@ -200,3 +200,20 @@ export interface AppSettings {
   value: string;
   updatedAt: Date;
 }
+
+// Merge Feature types (Issue #28)
+export type MergeFieldSource = 'db' | 'csv';
+
+export interface MergeFieldComparison {
+  field: keyof JobOffer;
+  dbValue: any;
+  csvValue: any;
+  selectedSource: MergeFieldSource;
+  isDifferent: boolean;
+}
+
+export interface MergePreview {
+  existingJob: JobOffer;
+  newData: Partial<JobOffer>;
+  fields: MergeFieldComparison[];
+}

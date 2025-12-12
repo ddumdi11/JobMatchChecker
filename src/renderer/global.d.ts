@@ -21,6 +21,9 @@ interface Window {
     // Matching operations
     matchJob: (jobId: number) => Promise<any>;
     getMatchingHistory: (jobId: number) => Promise<any[]>;
+    // Merge operations (Issue #28)
+    createMergePreview: (existingJobId: number, newData: any) => Promise<any>;
+    mergeJobs: (existingJobId: number, fields: any[]) => Promise<any>;
     // API Key management
     saveApiKey: (apiKey: string) => Promise<any>;
     getApiKey: () => Promise<string | null>;
