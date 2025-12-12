@@ -185,18 +185,35 @@ export default function JobAdd() {
         }
       }
 
-      // Parse remote percentage from remoteOption (e.g., "80% remote", "hybrid")
+      // Parse remote percentage from remoteOption (e.g., "80% remote", "hybrid", "überwiegend remote")
       let remotePercentage: number | undefined;
       if (fields.remoteOption) {
-        const remoteMatch = fields.remoteOption.match(/(\d+)%/);
+        const remoteOption = fields.remoteOption.toLowerCase();
+        const remoteMatch = fields.remoteOption.match(/(\d+)\s*%/);
         if (remoteMatch) {
           remotePercentage = parseInt(remoteMatch[1]);
-        } else if (fields.remoteOption.toLowerCase().includes('100%') ||
-                   fields.remoteOption.toLowerCase().includes('full') ||
-                   fields.remoteOption.toLowerCase().includes('vollständig')) {
+        } else if (remoteOption.includes('100%') ||
+                   remoteOption.includes('full') ||
+                   remoteOption.includes('vollständig') ||
+                   remoteOption.includes('komplett remote') ||
+                   remoteOption.includes('fully remote')) {
           remotePercentage = 100;
-        } else if (fields.remoteOption.toLowerCase().includes('hybrid')) {
-          remotePercentage = 50; // Default for hybrid
+        } else if (remoteOption.includes('überwiegend') ||
+                   remoteOption.includes('mostly') ||
+                   remoteOption.includes('größtenteils')) {
+          remotePercentage = 80; // "überwiegend" = mostly = ~80%
+        } else if (remoteOption.includes('hybrid') ||
+                   remoteOption.includes('teilweise') ||
+                   remoteOption.includes('partly')) {
+          remotePercentage = 50; // Default for hybrid/teilweise
+        } else if (remoteOption.includes('gelegentlich') ||
+                   remoteOption.includes('occasional')) {
+          remotePercentage = 20; // Gelegentlich = occasional = ~20%
+        } else if (remoteOption.includes('remote') ||
+                   remoteOption.includes('homeoffice') ||
+                   remoteOption.includes('telearbeit') ||
+                   remoteOption.includes('heim-/telearbeit')) {
+          remotePercentage = 50; // Generic remote mention - assume hybrid
         }
       }
 
@@ -205,7 +222,7 @@ export default function JobAdd() {
         company: fields.company || '',
         location: fields.location || '',
         description: (fields as any).fullText || '',
-        requirements: '',
+        requirements: (fields as any).notes || '', // AI extracts requirements into notes field
         salary_min: salaryMin,
         salary_max: salaryMax,
         remote_percentage: remotePercentage,

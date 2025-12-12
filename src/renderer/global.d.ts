@@ -33,5 +33,16 @@ interface Window {
     backupDatabase: () => Promise<string>;
     restoreDatabase: (backupPath: string) => Promise<void>;
     migrateDatabase: () => Promise<void>;
+    // Import operations (CSV Import)
+    importSelectCsvFile: () => Promise<{ canceled: boolean; filePath?: string; filename?: string; content?: string }>;
+    importProcessCsv: (filename: string, csvContent: string) => Promise<any>;
+    importGetSessions: () => Promise<any[]>;
+    importGetSession: (sessionId: number) => Promise<any>;
+    importGetStagingRows: (sessionId: number) => Promise<any[]>;
+    importRow: (rowId: number) => Promise<{ success: boolean; jobId?: number }>;
+    importAllNew: (sessionId: number) => Promise<{ imported: number; failed: number }>;
+    importSkipRow: (rowId: number) => Promise<{ success: boolean }>;
+    importUpdateRowStatus: (rowId: number, status: string) => Promise<{ success: boolean }>;
+    importDeleteSession: (sessionId: number) => Promise<{ success: boolean }>;
   };
 }
