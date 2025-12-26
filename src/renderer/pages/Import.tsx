@@ -266,6 +266,7 @@ export default function Import() {
     if (!row.matchedJobId) return;
 
     // Build new data object from CSV row
+    // Include all available fields from the staging row for comprehensive merge preview
     const newData: any = {
       title: row.csvTitle || row.extractedTitle,
       url: row.csvUrl
@@ -274,6 +275,27 @@ export default function Import() {
     // Add extracted fields if available
     if (row.extractedTitle) newData.title = row.extractedTitle;
     if (row.extractedCompany) newData.company = row.extractedCompany;
+
+    // Add additional CSV fields if available
+    // These fields may be populated from CSV columns or AI extraction
+    if ((row as any).csvPostedDate) {
+      newData.postedDate = new Date((row as any).csvPostedDate);
+    }
+    if ((row as any).csvDeadline) {
+      newData.deadline = new Date((row as any).csvDeadline);
+    }
+    if ((row as any).csvLocation) {
+      newData.location = (row as any).csvLocation;
+    }
+    if ((row as any).csvRemoteOption) {
+      newData.remoteOption = (row as any).csvRemoteOption;
+    }
+    if ((row as any).csvSalary || (row as any).csvSalaryRange) {
+      newData.salaryRange = (row as any).csvSalary || (row as any).csvSalaryRange;
+    }
+    if ((row as any).csvContractType) {
+      newData.contractType = (row as any).csvContractType;
+    }
 
     // Parse content if available (AI extraction would be better, but this is a start)
     if (row.csvContent) {
@@ -295,6 +317,8 @@ export default function Import() {
         await window.api.importUpdateRowStatus(mergeRowId, 'imported');
       } catch (err: any) {
         console.error('Failed to update row status:', err);
+        setError(`Fehler beim Aktualisieren des Status: ${err.message || 'Unbekannter Fehler'}`);
+        return; // Don't show success or refresh if status update failed
       }
     }
 
