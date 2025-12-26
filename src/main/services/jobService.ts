@@ -14,7 +14,10 @@ import type {
   JobSortConfig,
   PaginationParams,
   PaginatedJobsResponse,
-  JobStatus
+  JobStatus,
+  MergePreview,
+  MergeFieldComparison,
+  MergeFieldSource
 } from '../../shared/types';
 
 /**
@@ -540,4 +543,137 @@ export function getJobStatusOptions(): Array<{ value: JobStatus; label: string }
     { value: 'rejected', label: 'Rejected' },
     { value: 'archived', label: 'Archived' }
   ];
+}
+
+/**
+ * Create a merge preview comparing existing job with new data
+ * Feature: Issue #28 - Merge Feature for Duplicate Jobs
+ */
+export async function createMergePreview(
+  existingJobId: number,
+  newData: Partial<JobOffer>
+): Promise<MergePreview> {
+  const existingJob = await getJobById(existingJobId);
+
+  // Fields to compare (exclude id, createdAt, updatedAt, sourceName)
+  const fieldsToCompare: Array<keyof JobOffer> = [
+    'title',
+    'company',
+    'url',
+    'postedDate',
+    'deadline',
+    'location',
+    'remoteOption',
+    'salaryRange',
+    'contractType',
+    'fullText',
+    'rawImportData',
+    'importMethod',
+    'notes',
+    'status',
+    'matchScore',
+    'sourceId'
+  ];
+
+  const fields: MergeFieldComparison[] = fieldsToCompare.map(field => {
+    const dbValue = existingJob[field];
+    const csvValue = newData[field];
+
+    // Determine if values are different
+    const isDifferent = !areValuesEqual(dbValue, csvValue);
+
+    // Smart default: prefer non-empty value, or CSV if both have values
+    let selectedSource: MergeFieldSource = 'db';
+
+    if (isDifferent) {
+      // If DB is empty/null and CSV has value → use CSV
+      if (isEmpty(dbValue) && !isEmpty(csvValue)) {
+        selectedSource = 'csv';
+      }
+      // If both have values → use CSV (newer data)
+      else if (!isEmpty(dbValue) && !isEmpty(csvValue)) {
+        // Special case: for dates, prefer more recent
+        if (field === 'postedDate' && dbValue instanceof Date && csvValue instanceof Date) {
+          selectedSource = dbValue > csvValue ? 'db' : 'csv';
+        } else {
+          selectedSource = 'csv';
+        }
+      }
+      // If CSV is empty but DB has value → keep DB
+      else if (!isEmpty(dbValue) && isEmpty(csvValue)) {
+        selectedSource = 'db';
+      }
+    }
+
+    return {
+      field,
+      dbValue,
+      csvValue,
+      selectedSource,
+      isDifferent
+    };
+  });
+
+  return {
+    existingJob,
+    newData,
+    fields
+  };
+}
+
+/**
+ * Helper: Check if two values are equal (handles dates, nulls, etc.)
+ */
+function areValuesEqual(a: any, b: any): boolean {
+  // Both null/undefined
+  if (a == null && b == null) return true;
+  // One null/undefined
+  if (a == null || b == null) return false;
+
+  // Dates
+  if (a instanceof Date && b instanceof Date) {
+    return a.getTime() === b.getTime();
+  }
+
+  // Primitive comparison
+  return a === b;
+}
+
+/**
+ * Helper: Check if value is empty (null, undefined, empty string, etc.)
+ */
+function isEmpty(value: any): boolean {
+  if (value == null) return true;
+  if (typeof value === 'string' && value.trim() === '') return true;
+  if (typeof value === 'number' && isNaN(value)) return true;
+  return false;
+}
+
+/**
+ * Merge jobs: Update existing job with selected field values
+ * Feature: Issue #28 - Merge Feature for Duplicate Jobs
+ */
+export async function mergeJobs(
+  existingJobId: number,
+  fields: MergeFieldComparison[]
+): Promise<JobOffer> {
+  const existingJob = await getJobById(existingJobId);
+
+  // Build update data based on selected sources
+  const updateData: Partial<JobOfferInput> = {};
+
+  for (const field of fields) {
+    if (field.selectedSource === 'csv' && field.csvValue !== undefined) {
+      (updateData as any)[field.field] = field.csvValue;
+    }
+    // If 'db' is selected, we don't need to update (already in DB)
+  }
+
+  // If there are changes, update the job
+  if (Object.keys(updateData).length > 0) {
+    return await updateJob(existingJobId, updateData);
+  }
+
+  // No changes needed
+  return existingJob;
 }
