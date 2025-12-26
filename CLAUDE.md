@@ -27,4 +27,46 @@ TypeScript 5.3 / Node.js (Electron 38.2.1): Follow standard conventions
 - 004-database-backup-restore: Added TypeScript 5.3 / Node.js (Electron 38.2.1) + better-sqlite3 (existing), Knex.js (existing), Node.js fs/fs-extra
 
 <!-- MANUAL ADDITIONS START -->
+
+## Context Management & Summary Instructions
+
+When compacting or summarizing the conversation, prioritize the following information:
+
+### Critical Implementation Details
+- **CSV Import Feature** (PR #27): Content-based duplicate detection, staging workflow, import/skip/merge actions
+- **Merge Duplicates Feature** (Issue #28, PR #29): MergeDialog component, smart-merge logic, side-by-side comparison, automatic status updates
+- **Key Bug Fixes**:
+  - Merge button visibility: Include 'duplicate' status in addition to 'likely_duplicate'
+  - Auto-marking merged rows as 'imported' to remove from duplicate list
+
+### Recent Code Changes
+- `src/shared/types.ts`: MergeFieldSource, MergeFieldComparison, MergePreview types
+- `src/main/services/jobService.ts`: createMergePreview(), mergeJobs(), smart-merge helpers
+- `src/main/ipc/handlers.ts`: job:createMergePreview, job:merge handlers
+- `src/renderer/components/MergeDialog.tsx`: Complete merge UI with German labels
+- `src/renderer/pages/Import.tsx`: Merge button integration, status update after merge
+
+### Architecture Patterns
+- **Electron IPC**: Main process (jobService) ↔ Preload (contextBridge) ↔ Renderer (React)
+- **Smart-Merge Algorithm**: Prefers non-empty values, newer dates (postedDate), CSV for conflicts
+- **Staging Workflow**: import_staging → duplicate detection → manual merge → mark as 'imported'
+
+### Testing Results
+- All features tested and working
+- User feedback: Very positive ("richtig gut")
+- Branch: feature/merge-duplicates (commit 230d024)
+- Status: PR #29 created, CodeRabbit review in progress
+
+### User Preferences
+- Manual PR merging (user prefers to review and merge PRs themselves)
+- German UI labels throughout
+- Visual feedback with MUI components
+
+### Context Management Best Practice
+- **Manual `/compact` at 60-75%** context usage (between features) - Sweet spot!
+- **Emergency `/compact` at 85%+** to avoid auto-compact interruption during work
+- Use `/cost` to monitor current context usage
+- Auto-compact triggers at 95% but may interrupt ongoing work
+- `/clear` starts fresh session but loses all conversation history
+
 <!-- MANUAL ADDITIONS END -->
