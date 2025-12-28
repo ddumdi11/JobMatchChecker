@@ -51,6 +51,41 @@ When compacting or summarizing the conversation, prioritize the following inform
 - **Smart-Merge Algorithm**: Prefers non-empty values, newer dates (postedDate), CSV for conflicts
 - **Staging Workflow**: import_staging → duplicate detection → manual merge → mark as 'imported'
 
+## Type Naming Convention & Data Layer Separation
+
+The project follows a clear separation between database and TypeScript layers with consistent naming conventions:
+
+### Naming Convention Rules
+- **Database Layer (SQLite)**: `snake_case` for all column names (SQL standard)
+  - Examples: `source_id`, `posted_date`, `created_at`, `remote_option`, `salary_range`
+  - Location: Database schema in `src/main/database/migrations/`
+
+- **TypeScript Layer**: `camelCase` for all properties (JavaScript/TypeScript standard)
+  - Examples: `sourceId`, `postedDate`, `createdAt`, `remoteOption`, `salaryRange`
+  - Location: **Single source of truth** in `src/shared/types.ts`
+
+### Conversion & Data Flow
+```
+Database (snake_case)
+    ↓
+jobService.rowToJobOffer() [Conversion Layer]
+    ↓
+TypeScript Interfaces (camelCase)
+    ↓
+React Components / Zustand Stores
+```
+
+### Implementation Details
+- **Service Layer Conversion**: `src/main/services/jobService.ts` contains `rowToJobOffer()` function that converts DB rows to TypeScript types
+- **Shared Types**: ALL TypeScript interfaces defined in `src/shared/types.ts` (never duplicate type definitions!)
+- **Store Integration**: Renderer stores (e.g., `jobStore.ts`) import and re-export types from `shared/types.ts`
+
+### Important Notes
+- ⚠️ **Never define JobOffer or other data types locally** - always import from `src/shared/types.ts`
+- ✅ Database queries use snake_case column names
+- ✅ TypeScript code uses camelCase property names
+- ✅ Conversion happens automatically in the service layer
+
 ### Testing Results
 - All features tested and working
 - User feedback: Very positive ("richtig gut")
