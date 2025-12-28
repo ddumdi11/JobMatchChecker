@@ -89,7 +89,7 @@ export default function FirstRunDialog({ open, onComplete }: FirstRunDialogProps
 
       setIsSaving(true);
       try {
-        const result = await window.api.createProfile({
+        await window.api.createProfile({
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           email: email.trim() || null,
@@ -248,7 +248,7 @@ export default function FirstRunDialog({ open, onComplete }: FirstRunDialogProps
             </Box>
 
             <Alert severity="info" sx={{ mt: 2 }}>
-              Sie können Ihr Profil später jederzeit unter "Profil" erweitern und Skills hinzufügen.
+              Sie können Ihr Profil später jederzeit unter &quot;Profil&quot; erweitern und Skills hinzufügen.
             </Alert>
           </Box>
         );
@@ -322,7 +322,7 @@ export default function FirstRunDialog({ open, onComplete }: FirstRunDialogProps
             </Box>
 
             <Alert severity="info" sx={{ mt: 2 }}>
-              Sie können den API-Key auch später unter "Einstellungen" hinzufügen.
+              Sie können den API-Key auch später unter &quot;Einstellungen&quot; hinzufügen.
             </Alert>
           </Box>
         );
@@ -343,15 +343,15 @@ export default function FirstRunDialog({ open, onComplete }: FirstRunDialogProps
                 Nächste Schritte:
               </Typography>
               <Typography variant="body2" component="div" color="text.secondary">
-                1. Fügen Sie Ihre Skills unter "Profil" hinzu
+                1. Fügen Sie Ihre Skills unter &quot;Profil&quot; hinzu
                 <br />
-                2. Erfassen Sie Jobangebote unter "Jobs"
+                2. Erfassen Sie Jobangebote unter &quot;Jobs&quot;
                 <br />
                 3. Nutzen Sie das KI-Matching, um die besten Matches zu finden
                 {!apiKey && (
                   <>
                     <br />
-                    4. Richten Sie Ihren API-Key unter "Einstellungen" ein
+                    4. Richten Sie Ihren API-Key unter &quot;Einstellungen&quot; ein
                   </>
                 )}
               </Typography>

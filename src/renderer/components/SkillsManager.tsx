@@ -78,7 +78,7 @@ export const SkillsManager: React.FC = () => {
         name: skill.name,
         category: isCustomCategory ? 'Custom' : skill.category,
         customCategory: isCustomCategory ? skill.category : '',
-        level: skill.level,
+        level: skill.level as SkillLevel,
         yearsOfExperience: skill.yearsOfExperience
       });
     } else {
@@ -180,7 +180,7 @@ export const SkillsManager: React.FC = () => {
 
       {/* Grouped skills display */}
       {Object.keys(groupedSkills).length === 0 ? (
-        <Alert severity="info">No skills added yet. Click "Add Skill" to get started.</Alert>
+        <Alert severity="info">No skills added yet. Click &quot;Add Skill&quot; to get started.</Alert>
       ) : (
         Object.entries(groupedSkills).map(([category, categorySkills]) => (
           <Box key={category} sx={{ mb: 3 }}>

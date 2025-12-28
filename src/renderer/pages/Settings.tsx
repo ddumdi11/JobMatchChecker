@@ -238,7 +238,7 @@ export default function Settings() {
             <br />
             • Pro Job-Matching fallen ca. 0,01-0,03€ an (abhängig von der Komplexität)
             <br />
-            • Mit "Verifizieren" können Sie testen, ob der Key funktioniert
+            • Mit &quot;Verifizieren&quot; können Sie testen, ob der Key funktioniert
             <br />• Sie können den Key jederzeit ändern oder entfernen
           </Typography>
         </Box>

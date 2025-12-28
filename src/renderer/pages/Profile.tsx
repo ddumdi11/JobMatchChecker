@@ -111,8 +111,6 @@ function Profile() {
   const loadSkills = useProfileStore(state => state.loadSkills);
   const loadPreferences = useProfileStore(state => state.loadPreferences);
   const isLoadingProfile = useProfileStore(state => state.isLoadingProfile);
-  const isLoadingSkills = useProfileStore(state => state.isLoadingSkills);
-  const isLoadingPreferences = useProfileStore(state => state.isLoadingPreferences);
 
   // Only show loading if we're still loading the profile (most critical data)
   // Skills and preferences can be empty, so we don't block on them

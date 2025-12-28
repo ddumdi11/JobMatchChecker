@@ -680,7 +680,7 @@ export default function Import() {
             Noch keine Imports vorhanden
           </Typography>
           <Typography color="text.secondary">
-            Klicken Sie oben rechts auf "CSV-Datei auswählen", um Job-Angebote zu importieren.
+            Klicken Sie oben rechts auf &quot;CSV-Datei auswählen&quot;, um Job-Angebote zu importieren.
           </Typography>
         </Paper>
       )}

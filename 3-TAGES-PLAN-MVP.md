@@ -19,6 +19,7 @@
 **Feature 005 (Job Offer Management):** ✅ 100% KOMPLETT (Backend + UI)
 **Matching-Feature:** ✅ 100% KOMPLETT
 **UI Improvements:** ✅ BONUS - Dashboard, Filter, Keyboard Shortcuts
+**CSV Import Feature:** ✅ PR #27 (11.12.2025) - Bulk-Import von Jobs aus externen Quellen
 
 ---
 

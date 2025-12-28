@@ -74,7 +74,11 @@ export async function matchJob(jobId: number, apiKey: string): Promise<MatchingR
     });
 
     // 5. Parse Response
-    const result = parseMatchingResponse(response.content[0].text);
+    const firstBlock = response.content[0];
+    if (firstBlock.type !== 'text') {
+      throw new Error('Unexpected response type from Claude API');
+    }
+    const result = parseMatchingResponse(firstBlock.text);
 
     // 6. Save to matching_results table
     db.prepare(`

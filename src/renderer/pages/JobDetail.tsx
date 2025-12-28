@@ -41,7 +41,6 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   LocationOn as LocationIcon,
-  Business as CompanyIcon,
   CalendarToday as DateIcon,
   AttachMoney as SalaryIcon,
   Home as RemoteIcon,

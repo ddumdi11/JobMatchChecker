@@ -4,39 +4,49 @@
 
 interface Window {
   api: {
+    // Job operations
+    getJobs: (filters?: any, sort?: any, pagination?: any) => Promise<any>;
+    getJobById: (id: number) => Promise<any>;
     createJob: (data: any) => Promise<any>;
     updateJob: (id: number, data: any) => Promise<any>;
     deleteJob: (id: number) => Promise<void>;
-    getAllJobs: () => Promise<any[]>;
-    getJobs: (filters?: any, sort?: any, pagination?: any) => Promise<{ jobs: any[]; pagination: { page: number; limit: number; total: number } }>;
-    getJobById: (id: number) => Promise<any>;
+    getJobSources: () => Promise<Array<{ id: number; name: string }>>;
+    getJobStatusOptions: () => Promise<Array<{ value: string; label: string }>>;
+    extractJobFields: (text: string) => Promise<any>;
+    // Merge operations
+    createMergePreview: (existingJobId: number, newData: any) => Promise<any>;
+    mergeJobs: (existingJobId: number, fields: any[]) => Promise<any>;
+    // Profile operations
     createProfile: (data: any) => Promise<any>;
     updateProfile: (data: any) => Promise<any>;
+    deleteProfile: () => Promise<void>;
     getProfile: () => Promise<any>;
+    // Skills operations
     getAllSkills: () => Promise<any[]>;
     upsertSkill: (skill: any) => Promise<any>;
     deleteSkill: (id: number) => Promise<void>;
+    // Preferences operations
     getPreferences: () => Promise<any>;
     updatePreferences: (data: any) => Promise<any>;
     // Matching operations
     matchJob: (jobId: number) => Promise<any>;
     getMatchingHistory: (jobId: number) => Promise<any[]>;
-    // Merge operations (Issue #28)
-    createMergePreview: (existingJobId: number, newData: any) => Promise<any>;
-    mergeJobs: (existingJobId: number, fields: any[]) => Promise<any>;
     // API Key management
     saveApiKey: (apiKey: string) => Promise<any>;
     getApiKey: () => Promise<string | null>;
     verifyApiKey: (apiKey: string) => Promise<{ success: boolean; error?: string }>;
+    // Parser operations
     parseLatexCV: (content: string) => Promise<any>;
     parseJobText: (text: string) => Promise<any>;
     parsePDF: (filePath: string) => Promise<any>;
+    // Settings
     getSettings: (key: string) => Promise<any>;
     updateSettings: (key: string, value: any) => Promise<void>;
+    // Database
     backupDatabase: () => Promise<string>;
     restoreDatabase: (backupPath: string) => Promise<void>;
     migrateDatabase: () => Promise<void>;
-    // Import operations (CSV Import)
+    // Import operations
     importSelectCsvFile: () => Promise<{ canceled: boolean; filePath?: string; filename?: string; content?: string }>;
     importProcessCsv: (filename: string, csvContent: string) => Promise<any>;
     importGetSessions: () => Promise<any[]>;
