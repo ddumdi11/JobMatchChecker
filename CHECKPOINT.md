@@ -1,8 +1,89 @@
 # Job Match Checker - Entwicklungs-Checkpoint
 
-**Stand:** 2025-12-06, Session Ende
+**Stand:** 2025-12-26, Session Ende
 **Branch:** `main`
-**Status:** UI Improvements KOMPLETT ✅ - Dashboard, Filter, Keyboard Shortcuts
+**Status:** Merge Duplicates Feature implementiert ✅ - Alle PRs gemerged
+
+---
+
+## 🎉 Session 26.12.2025: Merge Duplicates Feature & Aufräumen
+
+### Was erreicht wurde (26.12.2025)
+
+**PR #29: Merge Feature for Duplicate Jobs** ✅ GEMERGED
+
+1. **Merge Duplicates Feature komplett:**
+   - `MergeDialog.tsx` Komponente für Side-by-Side Vergleich
+   - Smart-Merge Logik (bevorzugt non-empty values, neuere Daten)
+   - Backend: `createMergePreview()` und `mergeJobs()` in jobService.ts
+   - IPC Handler für Merge-Operationen
+   - Automatisches Marking als "imported" nach erfolgreichem Merge
+
+2. **CodeRabbit Review Fixes:**
+   - `handleMergeComplete`: Fehler werden jetzt dem User angezeigt + Early Return
+   - `handleOpenMerge`: Mehr Felder für Merge-Preview (postedDate, deadline, location, etc.)
+
+3. **Dokumentation:**
+   - CLAUDE.md mit Context Management Best Practices erweitert
+   - Summary Instructions für bessere Auto-Compact Ergebnisse
+
+### Git Status
+
+- ✅ PR #27 (CSV Import) - GEMERGED
+- ✅ PR #29 (Merge Duplicates) - GEMERGED
+- ⏳ Issue #12 (useUnsavedChangesContext) - OFFEN (für später)
+
+### Branch Status
+
+```bash
+Branch: main
+Status: Up to date with origin/main
+Uncommitted changes: 3-TAGES-PLAN-MVP.md, CHECKPOINT.md (Dokumentation)
+```
+
+---
+
+## 🎉 Session 11.12.2025: CSV Import Feature
+
+### Was erreicht wurde (11.12.2025)
+
+**PR #27: CSV Import with duplicate detection** (offen, wartet auf CodeRabbit Review)
+
+1. **CSV Import Feature komplett:**
+   - DB Migration für `import_sessions` und `import_staging` Tabellen
+   - `importService.ts` mit CSV-Parsing, Duplikat-Erkennung via URL
+   - `Import.tsx` Seite mit Session-Management, Bulk-Import, Status-Anzeige
+   - IPC Handler für alle Import-Operationen
+   - Navigation in Sidebar ("CSV Import")
+   - Route in App.tsx
+
+2. **AI Extraction verbessert:**
+   - Prompt erweitert für Arbeitsagentur-Format-Erkennung
+   - "Detailansicht des Stellenangebots" wird als Header erkannt (nicht als Titel)
+   - Deutsche Formate: "Arbeitgeber:", "60.000 € – 80.000 €/Jahr", "Vollzeit/unbefristet"
+
+3. **Pagination Bug behoben:**
+   - JobStore Limit von 20 auf 1000 erhöht (alle Jobs werden geladen)
+   - Client-side Pagination funktioniert jetzt korrekt
+
+### Bekannte Issues (für nächste Session)
+
+- **Company zeigt "Unknown":** Die AI-Extraktion findet teilweise keine Firma
+  - Muss untersucht werden: Welche Daten kommen aus dem Scraper-Projekt?
+  - Evtl. CSV-Export im anderen Projekt anpassen
+
+### Geänderte Dateien
+
+- `src/main/database/migrations/20251210000001_add_import_staging.js` (neu)
+- `src/main/services/importService.ts` (neu)
+- `src/renderer/pages/Import.tsx` (neu)
+- `src/main/ipc/handlers.ts` (Import-Handler)
+- `src/main/preload.ts` (Import-API Funktionen)
+- `src/main/services/aiExtractionService.ts` (verbesserter Prompt)
+- `src/renderer/App.tsx` (Import Route)
+- `src/renderer/components/Sidebar.tsx` (CSV Import Navigation)
+- `src/renderer/global.d.ts` (TypeScript Types)
+- `src/renderer/store/jobStore.ts` (Pagination Fix)
 
 ---
 
@@ -293,8 +374,11 @@ git push origin feature/[beschreibung]
 
 ---
 
-**Nächste Session:** Feature Branch für nächstes Feature erstellen
+**Nächste Session:**
+1. PR #27 mergen (nach CodeRabbit Review)
+2. "Unknown" Company Problem untersuchen (Scraper-Projekt)
+3. Ggf. weitere AI-Extraktion-Verbesserungen
 
-**Branch:** `main` (alle PRs gemerged, clean working tree)
+**Branch:** `feature/csv-import` (PR #27 offen)
 
-**Wichtigster Status:** MVP KOMPLETT ✅ - Alle Features funktionieren - Git Workflow korrekt!
+**Wichtigster Status:** MVP KOMPLETT ✅ + CSV Import Feature (PR offen)

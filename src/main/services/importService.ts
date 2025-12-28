@@ -10,7 +10,7 @@
  */
 
 import { getDatabase } from '../database/db';
-import { createJob, getJobSources } from './jobService';
+import { createJob } from './jobService';
 import { extractJobFields } from './aiExtractionService';
 import type { JobOfferInput } from '../../shared/types';
 
@@ -610,7 +610,7 @@ export async function importStagingRow(rowId: number): Promise<number> {
   if (row.csv_content) {
     try {
       const extraction = await extractJobFields(row.csv_content);
-      extractedFields = extraction;
+      extractedFields = extraction.fields || {};
 
       // Update staging row with extracted fields
       db.prepare(`
@@ -625,14 +625,14 @@ export async function importStagingRow(rowId: number): Promise<number> {
             extracted_deadline = ?
         WHERE id = ?
       `).run(
-        extraction.title || null,
-        extraction.company || null,
-        extraction.location || null,
-        extraction.remoteOption || null,
-        extraction.salaryRange || null,
-        extraction.contractType || null,
-        extraction.postedDate || null,
-        extraction.deadline || null,
+        extractedFields.title || null,
+        extractedFields.company || null,
+        extractedFields.location || null,
+        extractedFields.remoteOption || null,
+        extractedFields.salaryRange || null,
+        extractedFields.contractType || null,
+        extractedFields.postedDate || null,
+        extractedFields.deadline || null,
         rowId
       );
     } catch (error) {

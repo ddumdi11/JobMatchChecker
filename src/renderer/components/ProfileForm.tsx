@@ -16,7 +16,6 @@ export const ProfileForm: React.FC = () => {
   const updateProfile = useProfileStore((state) => state.updateProfile);
   const isLoading = useProfileStore((state) => state.isLoadingProfile);
   const profileError = useProfileStore((state) => state.profileError);
-  const hasUnsavedChanges = useProfileStore((state) => state.hasUnsavedProfileChanges);
   const resetErrors = useProfileStore((state) => state.resetErrors);
   const [formData, setFormData] = useState({
     firstName: profile?.firstName || '',

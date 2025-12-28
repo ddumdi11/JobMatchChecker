@@ -1,55 +1,19 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import type {
+  JobOffer as JobOfferType,
+  JobFilters,
+  JobSortConfig,
+  AIExtractionResult
+} from '../../shared/types';
+
+// Re-export for convenience
+export type { JobOfferType as JobOffer, JobFilters, JobSortConfig, AIExtractionResult };
 
 /**
  * Job Store - Zustand state management for job offers
  * Samstag Block 1 - Task 2.1
  */
-
-export interface JobOffer {
-  id?: number;
-  title: string;
-  company: string;
-  location?: string;
-  description?: string;
-  requirements?: string;
-  salary_min?: number;
-  salary_max?: number;
-  remote_percentage?: number;
-  source?: string;
-  source_url?: string;
-  status?: 'new' | 'reviewing' | 'applied' | 'rejected' | 'offer' | 'accepted';
-  match_score?: number;
-  matchScore?: number; // API returns camelCase
-  created_at?: Date;
-  updated_at?: Date;
-  postedDate?: Date;
-  salaryRange?: string;
-  remoteOption?: string;
-}
-
-export interface JobFilters {
-  status?: string;
-  minSalary?: number;
-  maxSalary?: number;
-  remotePercentage?: number;
-  searchTerm?: string;
-}
-
-export interface JobSortConfig {
-  field: 'created_at' | 'title' | 'company' | 'match_score' | 'matchScore' | 'salary_min' | 'status' | 'postedDate';
-  direction: 'asc' | 'desc';
-}
-
-// Import the shared type from backend
-export interface AIExtractionResult {
-  success: boolean;
-  fields: Partial<JobOffer>;
-  confidence: 'high' | 'medium' | 'low';
-  missingRequired: string[];
-  warnings?: string[];
-  error?: string;
-}
 
 export interface MatchingResult {
   matchScore: number;
@@ -74,8 +38,8 @@ export interface MatchingResult {
 
 interface JobState {
   // Data
-  jobs: JobOffer[];
-  currentJob: JobOffer | null;
+  jobs: JobOfferType[];
+  currentJob: JobOfferType | null;
 
   // Filters & Sort
   filters: JobFilters;
@@ -97,8 +61,8 @@ interface JobState {
   // Actions - CRUD
   fetchJobs: (filters?: JobFilters, sort?: JobSortConfig, page?: number) => Promise<void>;
   getJobById: (id: number) => Promise<void>;
-  createJob: (data: Partial<JobOffer>) => Promise<JobOffer>;
-  updateJob: (id: number, data: Partial<JobOffer>) => Promise<void>;
+  createJob: (data: Partial<JobOfferType>) => Promise<JobOfferType>;
+  updateJob: (id: number, data: Partial<JobOfferType>) => Promise<void>;
   deleteJob: (id: number) => Promise<void>;
 
   // Actions - AI Extraction
@@ -127,7 +91,7 @@ export const useJobStore = create<JobState>()(
       currentJob: null,
 
       filters: {},
-      sortConfig: { field: 'created_at', direction: 'desc' },
+      sortConfig: { sortBy: 'postedDate', sortOrder: 'desc' },
       pagination: { page: 1, limit: 1000, total: 0 },
 
       isLoading: false,
@@ -188,7 +152,7 @@ export const useJobStore = create<JobState>()(
         }
       },
 
-      createJob: async (data: Partial<JobOffer>) => {
+      createJob: async (data: Partial<JobOfferType>) => {
         set({ isLoading: true, error: null });
         try {
           // Transform frontend data to backend format
@@ -259,7 +223,7 @@ export const useJobStore = create<JobState>()(
         }
       },
 
-      updateJob: async (id: number, data: Partial<JobOffer>) => {
+      updateJob: async (id: number, data: Partial<JobOfferType>) => {
         set({ isLoading: true, error: null });
         try {
           await window.api.updateJob(id, data);
