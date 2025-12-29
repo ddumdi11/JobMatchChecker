@@ -25,6 +25,10 @@ interface Window {
     getAllSkills: () => Promise<any[]>;
     upsertSkill: (skill: any) => Promise<any>;
     deleteSkill: (id: number) => Promise<void>;
+    // Skills import operations
+    skillsSelectFile: () => Promise<{ canceled: boolean; filePath?: string; filename?: string; content?: string }>;
+    skillsImportFromCsv: (csvContent: string) => Promise<any>;
+    skillsImportFromJson: (jsonContent: string) => Promise<any>;
     // Preferences operations
     getPreferences: () => Promise<any>;
     updatePreferences: (data: any) => Promise<any>;

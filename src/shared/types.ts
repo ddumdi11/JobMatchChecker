@@ -8,6 +8,21 @@ export const MAX_SKILLS_PER_PROFILE = 500;
 // Skill level range (0-10 scale)
 export type SkillLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
+// Skill type classification (Future Skills Framework 2030 alignment)
+export type SkillType = 'technical' | 'transformative' | 'foundational' | 'digital' | 'community';
+
+// Future Skills categories based on Stifterverband Future Skills Framework 2030
+export type FutureSkillCategory =
+  | 'grundlegend'        // Foundational (critical thinking, communication, cooperation, etc.)
+  | 'transformativ'      // Transformative (innovation, sustainability competencies)
+  | 'gemeinschaft'       // Community-oriented (dialogue, democracy, participation, diversity)
+  | 'digital'            // Digital (AI literacy, data literacy, media competence)
+  | 'technologisch'      // Technological (AI expertise, cybersecurity, specialized tech)
+  | 'traditional';       // Traditional technical/domain skills (pre-Framework)
+
+// Assessment method for skill validation
+export type AssessmentMethod = 'self' | 'verified' | 'tested' | 'certified';
+
 // Remote work preference types
 export type RemoteWorkPreference = 'remote_only' | 'hybrid' | 'on_site' | 'flexible';
 
@@ -30,6 +45,14 @@ export interface HardSkill {
   category: string;
   level: SkillLevel; // 0-10 scale
   yearsOfExperience?: number;
+
+  // Future Skills Framework 2030 extensions
+  skillType?: SkillType;                    // Classification: technical/transformative/foundational/digital/community
+  futureSkillCategory?: FutureSkillCategory; // Specific Future Skills 2030 category
+  assessmentMethod?: AssessmentMethod;       // How the skill level was determined
+  certifications?: string;                   // JSON array or comma-separated certifications
+  lastAssessed?: Date;                       // When the skill was last evaluated
+  notes?: string;                            // Additional context, learning goals, etc.
 }
 
 export interface UserPreferences {

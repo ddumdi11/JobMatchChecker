@@ -24,6 +24,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { ProfileForm } from '../components/ProfileForm';
 import { SkillsManager } from '../components/SkillsManager';
+import { SkillsImport } from '../components/SkillsImport';
 import { PreferencesPanel } from '../components/PreferencesPanel';
 import { useProfileStore } from '../store/profileStore';
 
@@ -252,6 +253,7 @@ function Profile() {
 
               <TabPanel value={activeTab} index={1}>
                 <SkillsManager />
+                <SkillsImport />
               </TabPanel>
 
               <TabPanel value={activeTab} index={2}>

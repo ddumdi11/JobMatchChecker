@@ -1,0 +1,11 @@
+name,category,level,yearsOfExperience,skillType,futureSkillCategory,assessmentMethod,certifications,notes
+Python,Programming,9,10,technical,technologisch,self,"Python 3 Certified, Django Expert",Backend development and data science
+TypeScript,Programming,8,5,technical,technologisch,self,TypeScript Advanced,Frontend and backend development
+React,Frameworks,8,5,technical,technologisch,self,React Professional,Modern web applications
+Critical Thinking,Soft Skills,7,10,foundational,grundlegend,self,,Problem solving and analysis
+AI Literacy,Digital Skills,8,3,digital,digital,self,"Anthropic Claude API, OpenAI",Working with LLMs and AI systems
+Innovation Competency,Transformative Skills,7,8,transformative,transformativ,self,,Developing new solutions and approaches
+Communication,Soft Skills,8,15,foundational,grundlegend,self,,Team communication and presentations
+Data Literacy,Digital Skills,8,8,digital,digital,certified,"Data Science Certificate, SQL Advanced",Data analysis and visualization
+Sustainability Competency,Transformative Skills,6,5,transformative,transformativ,self,,Understanding sustainable business practices
+Dialogue Competency,Community Skills,7,10,community,gemeinschaft,self,,Facilitating discussions and building consensus
