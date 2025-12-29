@@ -20,6 +20,7 @@
 **Matching-Feature:** ✅ 100% KOMPLETT
 **UI Improvements:** ✅ BONUS - Dashboard, Filter, Keyboard Shortcuts
 **CSV Import Feature:** ✅ PR #27 (11.12.2025) - Bulk-Import von Jobs aus externen Quellen
+**Skills Import Feature:** ✅ PR bereit (29.12.2025) - CSV/JSON Import mit Future Skills Framework 2030
 
 ---
 

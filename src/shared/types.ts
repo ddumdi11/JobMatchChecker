@@ -240,3 +240,12 @@ export interface MergePreview {
   newData: Partial<JobOffer>;
   fields: MergeFieldComparison[];
 }
+
+// Skills Import types
+export interface SkillImportResult {
+  success: boolean;
+  imported: number;
+  updated: number;
+  skipped: number;
+  errors: Array<{ row: number; skill: string; error: string }>;
+}

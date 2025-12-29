@@ -10,7 +10,14 @@
  */
 
 import { getDatabase } from '../database/db';
-import type { HardSkill, SkillLevel, SkillType, FutureSkillCategory, AssessmentMethod } from '../../shared/types';
+import type {
+  HardSkill,
+  SkillLevel,
+  SkillType,
+  FutureSkillCategory,
+  AssessmentMethod,
+  SkillImportResult
+} from '../../shared/types';
 
 // =============================================================================
 // Types
@@ -28,14 +35,6 @@ export interface SkillImportRow {
   notes?: string;
 }
 
-export interface SkillImportResult {
-  success: boolean;
-  imported: number;
-  updated: number;
-  skipped: number;
-  errors: Array<{ row: number; skill: string; error: string }>;
-}
-
 // =============================================================================
 // CSV Parsing
 // =============================================================================
@@ -44,26 +43,27 @@ export interface SkillImportResult {
  * Parse CSV content into skill rows
  * Expected columns: name, category, level, yearsOfExperience, skillType, futureSkillCategory, assessmentMethod, certifications, notes
  * Minimum required: name, category, level
+ *
+ * Handles:
+ * - Multi-line quoted fields
+ * - Quoted fields with commas
+ * - Escaped quotes ("")
  */
 export function parseSkillsCsv(csvContent: string): SkillImportRow[] {
-  const lines = csvContent.split('\n').filter(line => line.trim());
-  if (lines.length < 2) return [];
+  const records = parseCsvContent(csvContent);
+  if (records.length < 2) return [];
 
-  // Parse header
-  const headerLine = lines[0];
-  const headers = headerLine.split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
-
+  // First record is header
+  const headers = records[0].map(h => h.trim().replace(/^["']|["']$/g, ''));
   const rows: SkillImportRow[] = [];
 
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-
-    const values = parseCsvLine(line);
+  // Process data records
+  for (let i = 1; i < records.length; i++) {
+    const values = records[i];
     const row: any = {};
 
     headers.forEach((header, index) => {
-      const value = values[index]?.trim();
+      const value = values[index]?.trim().replace(/^["']|["']$/g, '');
       if (value) {
         row[header] = value;
       }
@@ -79,32 +79,77 @@ export function parseSkillsCsv(csvContent: string): SkillImportRow[] {
 }
 
 /**
- * Parse a single CSV line, handling quoted fields
+ * Parse CSV content into records (array of arrays)
+ * Properly handles multi-line quoted fields and escaped quotes
  */
-function parseCsvLine(line: string): string[] {
-  const result: string[] = [];
-  let current = '';
+function parseCsvContent(content: string): string[][] {
+  const records: string[][] = [];
+  let currentRecord: string[] = [];
+  let currentField = '';
   let inQuotes = false;
+  let i = 0;
 
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    const nextChar = line[i + 1];
+  while (i < content.length) {
+    const char = content[i];
+    const nextChar = content[i + 1];
 
-    if (char === '"' && nextChar === '"') {
-      current += '"';
-      i++; // Skip next quote
-    } else if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      result.push(current);
-      current = '';
-    } else {
-      current += char;
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        // Escaped quote ("")
+        currentField += '"';
+        i += 2;
+        continue;
+      } else {
+        // Toggle quote state
+        inQuotes = !inQuotes;
+        i++;
+        continue;
+      }
+    }
+
+    if (!inQuotes) {
+      if (char === ',') {
+        // Field separator
+        currentRecord.push(currentField);
+        currentField = '';
+        i++;
+        continue;
+      }
+
+      if (char === '\n' || char === '\r') {
+        // Record separator
+        if (char === '\r' && nextChar === '\n') {
+          i++; // Skip \r in \r\n
+        }
+
+        // Complete current field and record
+        currentRecord.push(currentField);
+        currentField = '';
+
+        // Only add non-empty records
+        if (currentRecord.some(f => f.trim())) {
+          records.push(currentRecord);
+        }
+        currentRecord = [];
+        i++;
+        continue;
+      }
+    }
+
+    // Regular character (including newlines inside quotes)
+    currentField += char;
+    i++;
+  }
+
+  // Handle final field/record
+  if (currentField || currentRecord.length > 0) {
+    currentRecord.push(currentField);
+    if (currentRecord.some(f => f.trim())) {
+      records.push(currentRecord);
     }
   }
 
-  result.push(current);
-  return result;
+  return records;
 }
 
 // =============================================================================
@@ -276,8 +321,14 @@ export function importSkills(rows: SkillImportRow[]): SkillImportResult {
       const existing = findExistingSkill(row.name, categoryId);
 
       if (existing) {
-        // Update if new level is higher or if new data has additional fields
-        if (level > existing.level || row.skillType || row.futureSkillCategory || row.assessmentMethod) {
+        // Determine if we should update
+        const hasNewMetadata = row.skillType || row.futureSkillCategory || row.assessmentMethod;
+        const shouldUpdateLevel = level > existing.level;
+
+        if (shouldUpdateLevel || hasNewMetadata) {
+          // Only update level if new level is higher, otherwise keep existing level
+          const finalLevel = shouldUpdateLevel ? level : existing.level;
+
           db.prepare(`
             UPDATE skills
             SET level = ?,
@@ -291,7 +342,7 @@ export function importSkills(rows: SkillImportRow[]): SkillImportResult {
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
           `).run(
-            level,
+            finalLevel,
             yearsExp,
             row.skillType,
             row.futureSkillCategory,

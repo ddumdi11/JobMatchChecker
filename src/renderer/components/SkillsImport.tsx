@@ -23,18 +23,11 @@ import {
   CheckCircle as SuccessIcon,
   Error as ErrorIcon
 } from '@mui/icons-material';
-
-interface ImportResult {
-  success: boolean;
-  imported: number;
-  updated: number;
-  skipped: number;
-  errors: Array<{ row: number; skill: string; error: string }>;
-}
+import type { SkillImportResult } from '../../shared/types';
 
 export function SkillsImport() {
   const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<ImportResult | null>(null);
+  const [result, setResult] = useState<SkillImportResult | null>(null);
   const [filename, setFilename] = useState<string>('');
 
   const handleSelectAndImport = async () => {
@@ -83,27 +76,27 @@ export function SkillsImport() {
   return (
     <Paper sx={{ p: 3, mt: 2 }}>
       <Typography variant="h6" gutterBottom>
-        Skills Import
+        Fähigkeiten Import
       </Typography>
       <Typography variant="body2" color="text.secondary" paragraph>
-        Import skills in bulk from CSV or JSON files. Supports Future Skills Framework 2030.
+        Importieren Sie Fähigkeiten per CSV- oder JSON-Datei. Unterstützt Future Skills Framework 2030.
       </Typography>
 
       <Box sx={{ mb: 2 }}>
         <Typography variant="subtitle2" gutterBottom>
-          CSV Format (required columns):
+          CSV-Format (erforderliche Spalten):
         </Typography>
         <Typography variant="body2" color="text.secondary" component="pre" sx={{ fontSize: '0.75rem', overflowX: 'auto' }}>
           name, category, level, [yearsOfExperience], [skillType], [futureSkillCategory], [assessmentMethod], [certifications], [notes]
         </Typography>
         <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-          Level: 0-10 numeric or Beginner/Intermediate/Advanced/Expert
+          Level: 0-10 numerisch oder Anfänger/Fortgeschritten/Erfahren/Experte
         </Typography>
       </Box>
 
       <Box sx={{ mb: 2 }}>
         <Typography variant="subtitle2" gutterBottom>
-          Future Skills Framework Categories:
+          Future Skills Framework Kategorien:
         </Typography>
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
           <Chip label="grundlegend (Foundational)" size="small" />
@@ -122,14 +115,14 @@ export function SkillsImport() {
         disabled={importing}
         fullWidth
       >
-        {importing ? 'Importing...' : 'Select and Import File'}
+        {importing ? 'Importiere...' : 'Datei auswählen und importieren'}
       </Button>
 
       {importing && (
         <Box sx={{ mt: 2 }}>
           <LinearProgress />
           <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 1 }}>
-            Processing {filename}...
+            Verarbeite {filename}...
           </Typography>
         </Box>
       )}
@@ -138,26 +131,26 @@ export function SkillsImport() {
         <Box sx={{ mt: 3 }}>
           {result.success ? (
             <Alert severity="success" icon={<SuccessIcon />}>
-              <AlertTitle>Import Successful</AlertTitle>
+              <AlertTitle>Import erfolgreich</AlertTitle>
               <Typography variant="body2">
-                Imported: <strong>{result.imported}</strong> |
-                Updated: <strong>{result.updated}</strong> |
-                Skipped: <strong>{result.skipped}</strong>
+                Importiert: <strong>{result.imported}</strong> |
+                Aktualisiert: <strong>{result.updated}</strong> |
+                Übersprungen: <strong>{result.skipped}</strong>
               </Typography>
               {result.imported > 0 && (
                 <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                  Page will reload to show new skills...
+                  Seite wird neu geladen, um neue Fähigkeiten anzuzeigen...
                 </Typography>
               )}
             </Alert>
           ) : (
             <Alert severity="error" icon={<ErrorIcon />}>
-              <AlertTitle>Import Failed</AlertTitle>
+              <AlertTitle>Import fehlgeschlagen</AlertTitle>
               <Typography variant="body2">
-                Imported: {result.imported} |
-                Updated: {result.updated} |
-                Skipped: {result.skipped} |
-                Errors: <strong>{result.errors.length}</strong>
+                Importiert: {result.imported} |
+                Aktualisiert: {result.updated} |
+                Übersprungen: {result.skipped} |
+                Fehler: <strong>{result.errors.length}</strong>
               </Typography>
             </Alert>
           )}
@@ -165,14 +158,14 @@ export function SkillsImport() {
           {result.errors.length > 0 && (
             <Paper variant="outlined" sx={{ mt: 2, maxHeight: 300, overflow: 'auto' }}>
               <Typography variant="subtitle2" sx={{ p: 2, pb: 1 }}>
-                Error Details:
+                Fehlerdetails:
               </Typography>
               <Divider />
               <List dense>
                 {result.errors.map((err, idx) => (
                   <ListItem key={idx}>
                     <ListItemText
-                      primary={`Row ${err.row}: ${err.skill || 'Unknown skill'}`}
+                      primary={`Zeile ${err.row}: ${err.skill || 'Unbekannte Fähigkeit'}`}
                       secondary={err.error}
                     />
                   </ListItem>
@@ -185,8 +178,8 @@ export function SkillsImport() {
 
       <Alert severity="info" sx={{ mt: 3 }}>
         <Typography variant="body2">
-          <strong>Note:</strong> Duplicate skills (same name + category) will only be updated if the new level is higher.
-          Skills with additional Future Skills Framework data will also be updated.
+          <strong>Hinweis:</strong> Doppelte Fähigkeiten (gleicher Name + Kategorie) werden nur aktualisiert, wenn das neue Level höher ist.
+          Fähigkeiten mit zusätzlichen Future Skills Framework Daten werden ebenfalls aktualisiert.
         </Typography>
       </Alert>
     </Paper>
