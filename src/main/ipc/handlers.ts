@@ -10,6 +10,7 @@ import * as jobService from '../services/jobService';
 import * as aiExtractionService from '../services/aiExtractionService';
 import * as matchingService from '../services/matchingService';
 import * as importService from '../services/importService';
+import * as skillsImportService from '../services/skillsImportService';
 
 const store = new Store();
 
@@ -461,6 +462,55 @@ export function registerIpcHandlers() {
       return { success: true };
     } catch (error) {
       log.error('Error deleting skill:', error);
+      throw error;
+    }
+  });
+
+  // Skills import operations
+  ipcMain.handle('skills:selectFile', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        properties: ['openFile'],
+        filters: [
+          { name: 'CSV or JSON Files', extensions: ['csv', 'json'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return { canceled: true };
+      }
+
+      const filePath = result.filePaths[0];
+      const filename = filePath.split(/[\\/]/).pop() || '';
+      const content = fs.readFileSync(filePath, 'utf-8');
+
+      return {
+        canceled: false,
+        filePath,
+        filename,
+        content
+      };
+    } catch (error: any) {
+      log.error('Error selecting skills file:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('skills:importFromCsv', async (_, csvContent) => {
+    try {
+      return skillsImportService.importSkillsFromCsv(csvContent);
+    } catch (error: any) {
+      log.error('Error importing skills from CSV:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('skills:importFromJson', async (_, jsonContent) => {
+    try {
+      return skillsImportService.importSkillsFromJson(jsonContent);
+    } catch (error: any) {
+      log.error('Error importing skills from JSON:', error);
       throw error;
     }
   });

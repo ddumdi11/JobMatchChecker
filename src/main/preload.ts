@@ -31,6 +31,11 @@ contextBridge.exposeInMainWorld('api', {
   upsertSkill: (skill: any) => ipcRenderer.invoke(IPC_CHANNELS.SKILLS_UPSERT, skill),
   deleteSkill: (id: number) => ipcRenderer.invoke(IPC_CHANNELS.SKILLS_DELETE, id),
 
+  // Skills import operations
+  skillsSelectFile: () => ipcRenderer.invoke('skills:selectFile'),
+  skillsImportFromCsv: (csvContent: string) => ipcRenderer.invoke('skills:importFromCsv', csvContent),
+  skillsImportFromJson: (jsonContent: string) => ipcRenderer.invoke('skills:importFromJson', jsonContent),
+
   // Preferences operations
   getPreferences: () => ipcRenderer.invoke(IPC_CHANNELS.PREFERENCES_GET),
   updatePreferences: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.PREFERENCES_UPDATE, data),
