@@ -496,6 +496,17 @@ export function detectConflicts(rows: SkillImportRow[]): ConflictDetectionResult
     } else {
       // Check if there are any differences
       const newLevel = normalizeSkillLevel(row.level);
+
+      // Normalize yearsOfExperience for comparison
+      const newYearsExp = row.yearsOfExperience !== undefined && row.yearsOfExperience !== null
+        ? (typeof row.yearsOfExperience === 'number' ? row.yearsOfExperience : parseFloat(row.yearsOfExperience))
+        : undefined;
+
+      // Normalize certifications for comparison (handle array vs string)
+      const newCertifications = row.certifications
+        ? (Array.isArray(row.certifications) ? row.certifications.join(', ') : row.certifications)
+        : undefined;
+
       const hasDifferences =
         newLevel !== existing.level ||
         (row.notes && row.notes !== existing.notes) ||
@@ -503,7 +514,9 @@ export function detectConflicts(rows: SkillImportRow[]): ConflictDetectionResult
         (row.futureSkillCategory && row.futureSkillCategory !== existing.futureSkillCategory) ||
         (row.assessmentMethod && row.assessmentMethod !== existing.assessmentMethod) ||
         (row.confidence && row.confidence !== existing.confidence) ||
-        (row.marketRelevance && row.marketRelevance !== existing.marketRelevance);
+        (row.marketRelevance && row.marketRelevance !== existing.marketRelevance) ||
+        (newYearsExp !== undefined && !isNaN(newYearsExp) && newYearsExp !== existing.yearsOfExperience) ||
+        (newCertifications && newCertifications !== existing.certifications);
 
       if (hasDifferences) {
         result.conflicts.push({
