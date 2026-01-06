@@ -515,6 +515,38 @@ export function registerIpcHandlers() {
     }
   });
 
+  // Skills conflict detection
+  ipcMain.handle('skills:detectConflicts', async (_, csvContent) => {
+    try {
+      const rows = skillsImportService.parseSkillsCsv(csvContent);
+      return skillsImportService.detectConflicts(rows);
+    } catch (error: any) {
+      log.error('Error detecting skill conflicts:', error);
+      throw error;
+    }
+  });
+
+  // Apply skill conflict resolutions
+  ipcMain.handle('skills:applyResolutions', async (_, conflicts, resolutions) => {
+    try {
+      return skillsImportService.applyResolutions(conflicts, resolutions);
+    } catch (error: any) {
+      log.error('Error applying skill resolutions:', error);
+      throw error;
+    }
+  });
+
+  // Import only new skills (skip conflicts)
+  ipcMain.handle('skills:importNewOnly', async (_, csvContent) => {
+    try {
+      const rows = skillsImportService.parseSkillsCsv(csvContent);
+      return skillsImportService.importNewSkillsOnly(rows);
+    } catch (error: any) {
+      log.error('Error importing new skills only:', error);
+      throw error;
+    }
+  });
+
   // Preferences operations
   ipcMain.handle(IPC_CHANNELS.PREFERENCES_GET, async () => {
     try {

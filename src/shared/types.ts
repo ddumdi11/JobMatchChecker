@@ -23,6 +23,12 @@ export type FutureSkillCategory =
 // Assessment method for skill validation
 export type AssessmentMethod = 'self' | 'verified' | 'tested' | 'certified';
 
+// Confidence from Multi-LLM analysis (Skills Hub)
+export type SkillConfidence = 'very_likely' | 'possible';
+
+// Market relevance of the skill
+export type MarketRelevance = 'high' | 'medium' | 'low';
+
 // Remote work preference types
 export type RemoteWorkPreference = 'remote_only' | 'hybrid' | 'on_site' | 'flexible';
 
@@ -53,6 +59,10 @@ export interface HardSkill {
   certifications?: string;                   // JSON array or comma-separated certifications
   lastAssessed?: Date;                       // When the skill was last evaluated
   notes?: string;                            // Additional context, learning goals, etc.
+
+  // Skills Hub Multi-LLM analysis fields
+  confidence?: SkillConfidence;             // How certain the LLM analysis is (very_likely, possible)
+  marketRelevance?: MarketRelevance;        // Job market relevance (high, medium, low)
 }
 
 export interface UserPreferences {

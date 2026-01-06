@@ -29,6 +29,9 @@ interface Window {
     skillsSelectFile: () => Promise<{ canceled: boolean; filePath?: string; filename?: string; content?: string }>;
     skillsImportFromCsv: (csvContent: string) => Promise<any>;
     skillsImportFromJson: (jsonContent: string) => Promise<any>;
+    skillsDetectConflicts: (csvContent: string) => Promise<any>;
+    skillsApplyResolutions: (conflicts: any[], resolutions: any[]) => Promise<any>;
+    skillsImportNewOnly: (csvContent: string) => Promise<any>;
     // Preferences operations
     getPreferences: () => Promise<any>;
     updatePreferences: (data: any) => Promise<any>;

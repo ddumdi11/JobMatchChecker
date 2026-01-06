@@ -1,9 +1,10 @@
 /**
  * Skills Import Component - CSV/JSON Bulk Import
  * Supports Future Skills Framework 2030
+ * Includes conflict detection and resolution dialog
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Button,
@@ -16,24 +17,41 @@ import {
   ListItem,
   ListItemText,
   Divider,
-  Chip
+  Chip,
+  ButtonGroup
 } from '@mui/material';
 import {
   Upload as UploadIcon,
   CheckCircle as SuccessIcon,
-  Error as ErrorIcon
+  Error as ErrorIcon,
+  MergeType as MergeIcon,
+  SkipNext as SkipIcon
 } from '@mui/icons-material';
 import type { SkillImportResult } from '../../shared/types';
+import SkillConflictDialog from './SkillConflictDialog';
+
+interface ConflictDetectionResult {
+  newSkills: any[];
+  conflicts: any[];
+  identical: number;
+}
 
 export function SkillsImport() {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<SkillImportResult | null>(null);
   const [filename, setFilename] = useState<string>('');
+  const [csvContent, setCsvContent] = useState<string>('');
+  const [conflicts, setConflicts] = useState<any[]>([]);
+  const [conflictDialogOpen, setConflictDialogOpen] = useState(false);
+  const [detectionResult, setDetectionResult] = useState<ConflictDetectionResult | null>(null);
 
-  const handleSelectAndImport = async () => {
+  // Select file and detect conflicts
+  const handleSelectFile = async () => {
     try {
       setImporting(true);
       setResult(null);
+      setDetectionResult(null);
+      setConflicts([]);
 
       // Open file dialog
       const fileSelection = await window.api.skillsSelectFile();
@@ -44,22 +62,118 @@ export function SkillsImport() {
       }
 
       setFilename(fileSelection.filename || 'file');
+      setCsvContent(fileSelection.content);
 
-      // Determine file type and import
+      // Detect conflicts first
       const isJson = fileSelection.filename?.endsWith('.json');
-      const importResult = isJson
-        ? await window.api.skillsImportFromJson(fileSelection.content)
-        : await window.api.skillsImportFromCsv(fileSelection.content);
 
-      setResult(importResult);
+      if (isJson) {
+        // For JSON, just import directly (no conflict detection yet)
+        const importResult = await window.api.skillsImportFromJson(fileSelection.content);
+        setResult(importResult);
+        handleImportComplete(importResult);
+      } else {
+        // For CSV, detect conflicts
+        const detection = await window.api.skillsDetectConflicts(fileSelection.content);
+        setDetectionResult(detection);
 
-      // Reload skills in parent component (trigger re-render)
-      if (importResult.success && importResult.imported > 0) {
-        // Give a small delay for the parent component to refresh
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
+        if (detection.conflicts.length > 0) {
+          setConflicts(detection.conflicts);
+          // Don't open dialog automatically, let user decide
+        }
       }
+    } catch (error: any) {
+      setResult({
+        success: false,
+        imported: 0,
+        updated: 0,
+        skipped: 0,
+        errors: [{ row: 0, skill: '', error: error.message || 'Unknown error' }]
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Import only new skills, skip conflicts
+  const handleImportNewOnly = async () => {
+    try {
+      setImporting(true);
+      const importResult = await window.api.skillsImportNewOnly(csvContent);
+      setResult(importResult);
+      handleImportComplete(importResult);
+    } catch (error: any) {
+      setResult({
+        success: false,
+        imported: 0,
+        updated: 0,
+        skipped: 0,
+        errors: [{ row: 0, skill: '', error: error.message || 'Unknown error' }]
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Open conflict resolution dialog
+  const handleOpenConflictDialog = () => {
+    setConflictDialogOpen(true);
+  };
+
+  // Handle resolved conflicts
+  const handleConflictsResolved = async (resolutions: any[]) => {
+    setConflictDialogOpen(false);
+
+    try {
+      setImporting(true);
+
+      // First import new skills
+      const newResult = await window.api.skillsImportNewOnly(csvContent);
+
+      // Then apply resolutions
+      const resolveResult = await window.api.skillsApplyResolutions(conflicts, resolutions);
+
+      // Combine results
+      const combinedResult: SkillImportResult = {
+        success: newResult.success && resolveResult.success,
+        imported: newResult.imported,
+        updated: newResult.updated + resolveResult.updated,
+        skipped: newResult.skipped,
+        errors: [...newResult.errors, ...resolveResult.errors]
+      };
+
+      setResult(combinedResult);
+      handleImportComplete(combinedResult);
+    } catch (error: any) {
+      setResult({
+        success: false,
+        imported: 0,
+        updated: 0,
+        skipped: 0,
+        errors: [{ row: 0, skill: '', error: error.message || 'Unknown error' }]
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Common completion handler
+  const handleImportComplete = (importResult: SkillImportResult) => {
+    if (importResult.success && (importResult.imported > 0 || importResult.updated > 0)) {
+      // Give a small delay for the parent component to refresh
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    }
+  };
+
+  // Legacy direct import (for backwards compatibility)
+  const handleDirectImport = async () => {
+    try {
+      setImporting(true);
+      const importResult = await window.api.skillsImportFromCsv(csvContent);
+      setResult(importResult);
+      handleImportComplete(importResult);
     } catch (error: any) {
       setResult({
         success: false,
@@ -87,10 +201,10 @@ export function SkillsImport() {
           CSV-Format (erforderliche Spalten):
         </Typography>
         <Typography variant="body2" color="text.secondary" component="pre" sx={{ fontSize: '0.75rem', overflowX: 'auto' }}>
-          name, category, level, [yearsOfExperience], [skillType], [futureSkillCategory], [assessmentMethod], [certifications], [notes]
+          name, category, level, [yearsOfExperience], [skillType], [futureSkillCategory], [assessmentMethod], [certifications], [notes], [confidence], [marketRelevance]
         </Typography>
         <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-          Level: 0-10 numerisch oder Anfänger/Fortgeschritten/Erfahren/Experte
+          Level: 0-10 numerisch oder Anfänger/Fortgeschritten/Erfahren/Experte | Confidence: very_likely, possible | MarketRelevance: high, medium, low
         </Typography>
       </Box>
 
@@ -111,12 +225,67 @@ export function SkillsImport() {
       <Button
         variant="contained"
         startIcon={<UploadIcon />}
-        onClick={handleSelectAndImport}
+        onClick={handleSelectFile}
         disabled={importing}
         fullWidth
       >
-        {importing ? 'Importiere...' : 'Datei auswählen und importieren'}
+        {importing ? 'Analysiere...' : 'Datei auswählen'}
       </Button>
+
+      {/* Conflict detection results */}
+      {detectionResult && !result && (
+        <Box sx={{ mt: 3 }}>
+          <Alert severity={detectionResult.conflicts.length > 0 ? 'warning' : 'success'} sx={{ mb: 2 }}>
+            <AlertTitle>Analyse abgeschlossen</AlertTitle>
+            <Typography variant="body2">
+              <strong>{detectionResult.newSkills.length}</strong> neue Fähigkeiten |{' '}
+              <strong>{detectionResult.conflicts.length}</strong> Konflikte |{' '}
+              <strong>{detectionResult.identical}</strong> identisch
+            </Typography>
+          </Alert>
+
+          {detectionResult.conflicts.length > 0 ? (
+            <Box sx={{ display: 'flex', gap: 1, flexDirection: 'column' }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Es wurden {detectionResult.conflicts.length} Konflikte gefunden. Was möchten Sie tun?
+              </Typography>
+              <ButtonGroup variant="contained" fullWidth>
+                <Button
+                  startIcon={<MergeIcon />}
+                  onClick={handleOpenConflictDialog}
+                  color="primary"
+                >
+                  Konflikte lösen
+                </Button>
+                <Button
+                  startIcon={<SkipIcon />}
+                  onClick={handleImportNewOnly}
+                  color="secondary"
+                >
+                  Nur neue importieren
+                </Button>
+              </ButtonGroup>
+              <Button
+                variant="outlined"
+                onClick={handleDirectImport}
+                size="small"
+                sx={{ mt: 1 }}
+              >
+                Direkt importieren (Auto-Update)
+              </Button>
+            </Box>
+          ) : (
+            <Button
+              variant="contained"
+              color="success"
+              onClick={handleImportNewOnly}
+              fullWidth
+            >
+              {detectionResult.newSkills.length} neue Fähigkeiten importieren
+            </Button>
+          )}
+        </Box>
+      )}
 
       {importing && (
         <Box sx={{ mt: 2 }}>
@@ -182,6 +351,14 @@ export function SkillsImport() {
           Fähigkeiten mit zusätzlichen Future Skills Framework Daten werden ebenfalls aktualisiert.
         </Typography>
       </Alert>
+
+      {/* Conflict Resolution Dialog */}
+      <SkillConflictDialog
+        open={conflictDialogOpen}
+        conflicts={conflicts}
+        onClose={() => setConflictDialogOpen(false)}
+        onResolve={handleConflictsResolved}
+      />
     </Paper>
   );
 }
