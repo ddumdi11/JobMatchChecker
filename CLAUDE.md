@@ -104,4 +104,34 @@ React Components / Zustand Stores
 - Auto-compact triggers at 95% but may interrupt ongoing work
 - `/clear` starts fresh session but loses all conversation history
 
+## Session Resume File
+
+**Für schnelle Wiederaufnahme der Arbeit:** Siehe [RESUME.md](./RESUME.md)
+
+Diese Datei enthält:
+- Aktuellen Projektstatus
+- Offene PRs und bekannte Issues
+- Architektur-Übersicht
+- Nächste Schritte
+- Git-Workflow und Coding Conventions
+
+## Aktuelle Features (Stand 2026-01-06)
+
+### Implementiert & Gemerged
+- Profil-Management mit Skills
+- Job-Verwaltung (CRUD, Filter, Sortierung)
+- CSV-Import mit Duplikaterkennung
+- Merge-Dialog für Duplikate
+- Skills-Import mit Konfliktauflösung (PR #32)
+
+### In Review (PR #33)
+- Bulk Matching (Neue/Alle/Ausgewählte)
+- Selective Job Matching (Checkbox-Selektion)
+- Markdown-Export
+- PDF-Export
+
+### Bekannte Issues
+- Filter für "Jobs ohne Match-Score" funktioniert nicht korrekt
+- Vorbestehende TypeScript-Fehler (nicht runtime-kritisch)
+
 <!-- MANUAL ADDITIONS END -->
