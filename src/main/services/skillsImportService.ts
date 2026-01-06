@@ -16,7 +16,9 @@ import type {
   SkillType,
   FutureSkillCategory,
   AssessmentMethod,
-  SkillImportResult
+  SkillImportResult,
+  SkillConfidence,
+  MarketRelevance
 } from '../../shared/types';
 
 // =============================================================================
@@ -33,6 +35,16 @@ export interface SkillImportRow {
   assessmentMethod?: AssessmentMethod;
   certifications?: string | string[]; // Can be comma-separated string or array
   notes?: string;
+  // Skills Hub Multi-LLM analysis fields
+  confidence?: SkillConfidence;
+  marketRelevance?: MarketRelevance;
+}
+
+// Conflict information for a skill that already exists
+export interface SkillConflict {
+  existingSkill: HardSkill;
+  newSkill: SkillImportRow;
+  categoryId: number;
 }
 
 // =============================================================================
@@ -276,7 +288,9 @@ function rowToSkill(row: any): HardSkill {
     assessmentMethod: row.assessment_method,
     certifications: row.certifications,
     lastAssessed: row.last_assessed ? new Date(row.last_assessed) : undefined,
-    notes: row.notes
+    notes: row.notes,
+    confidence: row.confidence,
+    marketRelevance: row.market_relevance
   };
 }
 
@@ -322,7 +336,7 @@ export function importSkills(rows: SkillImportRow[]): SkillImportResult {
 
       if (existing) {
         // Determine if we should update
-        const hasNewMetadata = row.skillType || row.futureSkillCategory || row.assessmentMethod;
+        const hasNewMetadata = row.skillType || row.futureSkillCategory || row.assessmentMethod || row.confidence || row.marketRelevance;
         const shouldUpdateLevel = level > existing.level;
 
         if (shouldUpdateLevel || hasNewMetadata) {
@@ -338,6 +352,8 @@ export function importSkills(rows: SkillImportRow[]): SkillImportResult {
                 assessment_method = COALESCE(?, assessment_method),
                 certifications = COALESCE(?, certifications),
                 notes = COALESCE(?, notes),
+                confidence = COALESCE(?, confidence),
+                market_relevance = COALESCE(?, market_relevance),
                 last_assessed = CURRENT_TIMESTAMP,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
@@ -349,6 +365,8 @@ export function importSkills(rows: SkillImportRow[]): SkillImportResult {
             row.assessmentMethod,
             certificationsStr,
             row.notes,
+            row.confidence,
+            row.marketRelevance,
             existing.id
           );
           result.updated++;
@@ -361,9 +379,9 @@ export function importSkills(rows: SkillImportRow[]): SkillImportResult {
           INSERT INTO skills (
             name, category_id, level, years_experience,
             skill_type, future_skill_category, assessment_method,
-            certifications, notes, last_assessed,
-            created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            certifications, notes, confidence, market_relevance,
+            last_assessed, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         `).run(
           row.name,
           categoryId,
@@ -373,7 +391,9 @@ export function importSkills(rows: SkillImportRow[]): SkillImportResult {
           row.futureSkillCategory,
           row.assessmentMethod,
           certificationsStr,
-          row.notes
+          row.notes,
+          row.confidence,
+          row.marketRelevance
         );
         result.imported++;
       }
@@ -422,4 +442,213 @@ export function importSkillsFromJson(jsonContent: string): SkillImportResult {
     };
   }
   return importSkills(rows);
+}
+
+// =============================================================================
+// Conflict Detection & Resolution
+// =============================================================================
+
+/**
+ * Result of conflict detection
+ */
+export interface ConflictDetectionResult {
+  newSkills: SkillImportRow[];      // Skills that don't exist yet
+  conflicts: SkillConflict[];       // Skills that already exist with different data
+  identical: number;                 // Count of skills identical to existing ones
+}
+
+/**
+ * Detect conflicts before importing
+ * Returns skills that can be imported directly and skills with conflicts
+ */
+export function detectConflicts(rows: SkillImportRow[]): ConflictDetectionResult {
+  const result: ConflictDetectionResult = {
+    newSkills: [],
+    conflicts: [],
+    identical: 0
+  };
+
+  for (const row of rows) {
+    const categoryId = getCategoryId(row.category);
+    const existing = findExistingSkill(row.name, categoryId);
+
+    if (!existing) {
+      // New skill, no conflict
+      result.newSkills.push(row);
+    } else {
+      // Check if there are any differences
+      const newLevel = normalizeSkillLevel(row.level);
+      const hasDifferences =
+        newLevel !== existing.level ||
+        (row.notes && row.notes !== existing.notes) ||
+        (row.skillType && row.skillType !== existing.skillType) ||
+        (row.futureSkillCategory && row.futureSkillCategory !== existing.futureSkillCategory) ||
+        (row.assessmentMethod && row.assessmentMethod !== existing.assessmentMethod) ||
+        (row.confidence && row.confidence !== existing.confidence) ||
+        (row.marketRelevance && row.marketRelevance !== existing.marketRelevance);
+
+      if (hasDifferences) {
+        result.conflicts.push({
+          existingSkill: existing,
+          newSkill: row,
+          categoryId
+        });
+      } else {
+        result.identical++;
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Resolution choice for a single field
+ */
+export type FieldResolution = 'keep' | 'replace' | 'none';
+
+/**
+ * Resolution for a single skill conflict
+ */
+export interface SkillResolution {
+  skillName: string;
+  categoryId: number;
+  fields: {
+    level: FieldResolution;
+    notes: FieldResolution;
+    skillType: FieldResolution;
+    futureSkillCategory: FieldResolution;
+    assessmentMethod: FieldResolution;
+    certifications: FieldResolution;
+    confidence: FieldResolution;
+    marketRelevance: FieldResolution;
+    yearsOfExperience: FieldResolution;
+  };
+}
+
+/**
+ * Apply resolved conflicts to the database
+ */
+export function applyResolutions(
+  conflicts: SkillConflict[],
+  resolutions: SkillResolution[]
+): SkillImportResult {
+  const db = getDatabase();
+  const result: SkillImportResult = {
+    success: true,
+    imported: 0,
+    updated: 0,
+    skipped: 0,
+    errors: []
+  };
+
+  for (const resolution of resolutions) {
+    const conflict = conflicts.find(
+      c => c.existingSkill.name === resolution.skillName && c.categoryId === resolution.categoryId
+    );
+
+    if (!conflict) continue;
+
+    try {
+      const existing = conflict.existingSkill;
+      const newData = conflict.newSkill;
+
+      // Build the update values based on resolution
+      const finalLevel = resolution.fields.level === 'replace'
+        ? normalizeSkillLevel(newData.level)
+        : existing.level;
+
+      const finalNotes = resolution.fields.notes === 'replace'
+        ? newData.notes
+        : (resolution.fields.notes === 'none' ? null : existing.notes);
+
+      const finalSkillType = resolution.fields.skillType === 'replace'
+        ? newData.skillType
+        : (resolution.fields.skillType === 'none' ? null : existing.skillType);
+
+      const finalFutureSkillCategory = resolution.fields.futureSkillCategory === 'replace'
+        ? newData.futureSkillCategory
+        : (resolution.fields.futureSkillCategory === 'none' ? null : existing.futureSkillCategory);
+
+      const finalAssessmentMethod = resolution.fields.assessmentMethod === 'replace'
+        ? newData.assessmentMethod
+        : (resolution.fields.assessmentMethod === 'none' ? null : existing.assessmentMethod);
+
+      const finalCertifications = resolution.fields.certifications === 'replace'
+        ? (Array.isArray(newData.certifications) ? newData.certifications.join(', ') : newData.certifications)
+        : (resolution.fields.certifications === 'none' ? null : existing.certifications);
+
+      const finalConfidence = resolution.fields.confidence === 'replace'
+        ? newData.confidence
+        : (resolution.fields.confidence === 'none' ? null : existing.confidence);
+
+      const finalMarketRelevance = resolution.fields.marketRelevance === 'replace'
+        ? newData.marketRelevance
+        : (resolution.fields.marketRelevance === 'none' ? null : existing.marketRelevance);
+
+      const finalYearsExp = resolution.fields.yearsOfExperience === 'replace'
+        ? (typeof newData.yearsOfExperience === 'number' ? newData.yearsOfExperience : parseFloat(newData.yearsOfExperience || '0'))
+        : (resolution.fields.yearsOfExperience === 'none' ? null : existing.yearsOfExperience);
+
+      db.prepare(`
+        UPDATE skills
+        SET level = ?,
+            notes = ?,
+            skill_type = ?,
+            future_skill_category = ?,
+            assessment_method = ?,
+            certifications = ?,
+            confidence = ?,
+            market_relevance = ?,
+            years_experience = ?,
+            last_assessed = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(
+        finalLevel,
+        finalNotes,
+        finalSkillType,
+        finalFutureSkillCategory,
+        finalAssessmentMethod,
+        finalCertifications,
+        finalConfidence,
+        finalMarketRelevance,
+        finalYearsExp,
+        existing.id
+      );
+
+      result.updated++;
+    } catch (error: any) {
+      result.errors.push({
+        row: 0,
+        skill: resolution.skillName,
+        error: error.message || 'Unknown error'
+      });
+    }
+  }
+
+  result.success = result.errors.length === 0;
+  return result;
+}
+
+/**
+ * Import only new skills (without conflicts)
+ */
+export function importNewSkillsOnly(rows: SkillImportRow[]): SkillImportResult {
+  const detection = detectConflicts(rows);
+
+  // Only import new skills, skip conflicts
+  if (detection.newSkills.length === 0) {
+    return {
+      success: true,
+      imported: 0,
+      updated: 0,
+      skipped: detection.conflicts.length + detection.identical,
+      errors: []
+    };
+  }
+
+  const result = importSkills(detection.newSkills);
+  result.skipped += detection.conflicts.length + detection.identical;
+  return result;
 }

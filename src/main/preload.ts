@@ -35,6 +35,9 @@ contextBridge.exposeInMainWorld('api', {
   skillsSelectFile: () => ipcRenderer.invoke('skills:selectFile'),
   skillsImportFromCsv: (csvContent: string) => ipcRenderer.invoke('skills:importFromCsv', csvContent),
   skillsImportFromJson: (jsonContent: string) => ipcRenderer.invoke('skills:importFromJson', jsonContent),
+  skillsDetectConflicts: (csvContent: string) => ipcRenderer.invoke('skills:detectConflicts', csvContent),
+  skillsApplyResolutions: (conflicts: any[], resolutions: any[]) => ipcRenderer.invoke('skills:applyResolutions', conflicts, resolutions),
+  skillsImportNewOnly: (csvContent: string) => ipcRenderer.invoke('skills:importNewOnly', csvContent),
 
   // Preferences operations
   getPreferences: () => ipcRenderer.invoke(IPC_CHANNELS.PREFERENCES_GET),

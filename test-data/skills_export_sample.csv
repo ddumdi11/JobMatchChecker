@@ -1,0 +1,19 @@
+name,category,level,yearsOfExperience,skillType,futureSkillCategory,assessmentMethod,certifications,notes,confidence,marketRelevance
+Python,Hard Skills,8,5,technical,technologisch,verified,Python Institute PCAP,Hauptsprache für Backend und Data Science,very_likely,high
+Docker,Hard Skills,7,3,technical,technologisch,self,,Container-Orchestrierung,very_likely,high
+TypeScript,Hard Skills,7,4,technical,digital,verified,,Frontend und Backend,very_likely,high
+React,Hard Skills,6,3,technical,digital,self,,UI-Entwicklung,very_likely,high
+PostgreSQL,Hard Skills,6,4,technical,technologisch,self,,Relationale Datenbanken,very_likely,medium
+Git,Hard Skills,8,6,technical,digital,verified,,Versionskontrolle,very_likely,high
+Kritisches Denken,Future Skills,7,10,foundational,grundlegend,self,,Problemanalyse und Lösungsfindung,very_likely,high
+Systemisches Denken,Future Skills,6,8,transformative,transformativ,self,,Komplexe Zusammenhänge verstehen,possible,high
+Digitale Kollaboration,Future Skills,7,5,digital,digital,self,,Remote-Teamarbeit,very_likely,high
+Nachhaltigkeitskompetenz,Future Skills,5,3,transformative,transformativ,self,,Umweltbewusste Entscheidungen,possible,medium
+Analytisches Denken,Soft Skills,8,10,foundational,grundlegend,self,,Datenbasierte Entscheidungen,very_likely,high
+Kommunikation,Soft Skills,7,10,community,gemeinschaft,self,,Mündlich und schriftlich,very_likely,high
+Problemlösung,Soft Skills,8,10,foundational,grundlegend,self,,Kreative Lösungsansätze,very_likely,high
+Teamarbeit,Soft Skills,7,10,community,gemeinschaft,self,,Agile Teams,very_likely,medium
+Kubernetes,Hard Skills,5,2,technical,technologisch,self,CKA in Vorbereitung,Container-Orchestrierung auf Cluster-Ebene,possible,high
+Machine Learning,Hard Skills,4,1,technical,technologisch,self,,Grundlagen und erste Projekte,possible,high
+AWS,Hard Skills,5,2,technical,technologisch,verified,AWS Solutions Architect Associate,Cloud-Infrastruktur,very_likely,high
+Agile Methoden,Soft Skills,7,5,transformative,transformativ,verified,Scrum Master Zertifikat,Scrum und Kanban,very_likely,medium
