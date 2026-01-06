@@ -102,6 +102,9 @@ export default function JobList() {
   const [bulkMatchDialogOpen, setBulkMatchDialogOpen] = useState(false);
   const [unmatchedCount, setUnmatchedCount] = useState<number>(0);
 
+  // Selection state for selective matching
+  const [selectedJobIds, setSelectedJobIds] = useState<Set<number>>(new Set());
+
   // Check if any extended filters are active
   const hasActiveExtendedFilters =
     matchScoreRange[0] > 0 ||
@@ -162,6 +165,78 @@ export default function JobList() {
     };
     loadUnmatchedCount();
   }, [jobs]); // Refresh when jobs change
+
+  // Selection handlers
+  const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.checked) {
+      // Select all visible (filtered) jobs
+      const allIds = new Set(filteredJobs.map(job => job.id).filter((id): id is number => id !== undefined));
+      setSelectedJobIds(allIds);
+    } else {
+      setSelectedJobIds(new Set());
+    }
+  };
+
+  const handleSelectJob = (jobId: number, checked: boolean) => {
+    setSelectedJobIds(prev => {
+      const next = new Set(prev);
+      if (checked) {
+        next.add(jobId);
+      } else {
+        next.delete(jobId);
+      }
+      return next;
+    });
+  };
+
+  // Handle matching selected jobs
+  const handleMatchSelected = async () => {
+    // Check if API key is configured
+    const apiKey = await window.api.getApiKey();
+    if (!apiKey) {
+      if (window.confirm('Kein API-Key hinterlegt. Zu Einstellungen wechseln?')) {
+        navigate('/settings');
+      }
+      return;
+    }
+
+    const jobIds = Array.from(selectedJobIds);
+    if (jobIds.length === 0) {
+      alert('Keine Jobs ausgewählt.');
+      return;
+    }
+
+    const confirmMsg = `${jobIds.length} ausgewählte Jobs matchen? Dies kostet API-Tokens für jeden Job.`;
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
+
+    setIsBulkMatching(true);
+    setBulkMatchProgress({ current: 0, total: jobIds.length });
+    setBulkMatchResult(null);
+
+    try {
+      const result = await window.api.matchSelectedJobs(jobIds);
+
+      if (result.success) {
+        setBulkMatchResult(result.data);
+        setBulkMatchDialogOpen(true);
+        // Clear selection after successful matching
+        setSelectedJobIds(new Set());
+        // Refresh jobs to show new match scores
+        await fetchJobs();
+        // Update unmatched count
+        const newCount = await window.api.getUnmatchedJobCount();
+        setUnmatchedCount(newCount);
+      }
+    } catch (error: any) {
+      console.error('Selected jobs matching failed:', error);
+      alert(`Matching fehlgeschlagen: ${error.message}`);
+    } finally {
+      setIsBulkMatching(false);
+      setBulkMatchProgress(null);
+    }
+  };
 
   // Handle bulk match
   const handleBulkMatch = async (rematchAll: boolean = false) => {
@@ -273,6 +348,11 @@ export default function JobList() {
     const startIndex = page * rowsPerPage;
     return filteredJobs.slice(startIndex, startIndex + rowsPerPage);
   }, [filteredJobs, page, rowsPerPage]);
+
+  // Check if all visible jobs are selected (must be after filteredJobs is defined)
+  const allVisibleSelected = filteredJobs.length > 0 &&
+    filteredJobs.every(job => job.id !== undefined && selectedJobIds.has(job.id));
+  const someVisibleSelected = filteredJobs.some(job => job.id !== undefined && selectedJobIds.has(job.id));
 
   // Reset focused row when paginated jobs change
   useEffect(() => {
@@ -538,6 +618,22 @@ export default function JobList() {
           </Tooltip>
         </Box>
         <Stack direction="row" spacing={1}>
+          {/* Match Selected Button */}
+          {selectedJobIds.size > 0 && (
+            <Tooltip title={`${selectedJobIds.size} ausgewählte Jobs matchen`}>
+              <span>
+                <Button
+                  variant="contained"
+                  startIcon={isBulkMatching ? <CircularProgress size={18} /> : <AutoAwesomeIcon />}
+                  onClick={handleMatchSelected}
+                  disabled={isBulkMatching}
+                  color="success"
+                >
+                  Ausgewählte matchen ({selectedJobIds.size})
+                </Button>
+              </span>
+            </Tooltip>
+          )}
           {/* Bulk Match Buttons */}
           <Tooltip title={`${unmatchedCount} Jobs ohne Match-Score matchen`}>
             <span>
@@ -745,6 +841,7 @@ export default function JobList() {
             <Table>
               <TableHead>
                 <TableRow>
+                  <TableCell padding="checkbox"></TableCell>
                   <TableCell>Titel</TableCell>
                   <TableCell>Firma</TableCell>
                   <TableCell>Standort</TableCell>
@@ -759,6 +856,7 @@ export default function JobList() {
               <TableBody>
                 {[1, 2, 3, 4, 5].map((i) => (
                   <TableRow key={i}>
+                    <TableCell padding="checkbox"><Skeleton variant="rectangular" width={24} height={24} /></TableCell>
                     <TableCell><Skeleton width={180} /></TableCell>
                     <TableCell><Skeleton width={120} /></TableCell>
                     <TableCell><Skeleton width={100} /></TableCell>
@@ -823,6 +921,14 @@ export default function JobList() {
               <Table stickyHeader>
                 <TableHead>
                   <TableRow>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        indeterminate={someVisibleSelected && !allVisibleSelected}
+                        checked={allVisibleSelected}
+                        onChange={handleSelectAll}
+                        inputProps={{ 'aria-label': 'Alle auswählen' }}
+                      />
+                    </TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
                            onClick={() => handleSortChange('title')}>
@@ -881,6 +987,13 @@ export default function JobList() {
                       }}
                       onClick={() => job.id && handleView(job.id)}
                     >
+                      <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={job.id !== undefined && selectedJobIds.has(job.id)}
+                          onChange={(e) => job.id !== undefined && handleSelectJob(job.id, e.target.checked)}
+                          inputProps={{ 'aria-label': `Job ${job.title} auswählen` }}
+                        />
+                      </TableCell>
                       <TableCell>
                         <Typography variant="body2" fontWeight="medium">
                           {job.title}

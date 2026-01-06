@@ -281,6 +281,23 @@ export function registerIpcHandlers() {
     }
   });
 
+  // Match selected jobs by ID
+  ipcMain.handle('matchSelectedJobs', async (_, jobIds: number[]) => {
+    try {
+      const apiKey = store.get('anthropic_api_key') as string;
+
+      if (!apiKey) {
+        throw new Error('Anthropic API-Key nicht konfiguriert. Bitte in Einstellungen hinterlegen.');
+      }
+
+      const result = await matchingService.matchSelectedJobs(apiKey, jobIds);
+      return { success: true, data: result };
+    } catch (error: any) {
+      log.error('Error in matchSelectedJobs:', error);
+      throw error;
+    }
+  });
+
   // Get count of unmatched jobs
   ipcMain.handle('getUnmatchedJobCount', async () => {
     try {

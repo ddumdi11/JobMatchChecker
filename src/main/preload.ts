@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld('api', {
   matchJob: (jobId: number) => ipcRenderer.invoke('matchJob', jobId),
   getMatchingHistory: (jobId: number) => ipcRenderer.invoke('getMatchingHistory', jobId),
   bulkMatchJobs: (rematchAll: boolean) => ipcRenderer.invoke('bulkMatchJobs', rematchAll),
+  matchSelectedJobs: (jobIds: number[]) => ipcRenderer.invoke('matchSelectedJobs', jobIds),
   getUnmatchedJobCount: () => ipcRenderer.invoke('getUnmatchedJobCount'),
 
   // API Key management

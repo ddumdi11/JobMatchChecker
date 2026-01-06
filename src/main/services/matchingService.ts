@@ -334,6 +334,76 @@ export async function bulkMatchJobs(
 }
 
 /**
+ * Match specific jobs by their IDs
+ * @param apiKey - Anthropic API key
+ * @param jobIds - Array of job IDs to match
+ * @param onProgress - Callback for progress updates
+ * @returns Summary of matching results
+ */
+export async function matchSelectedJobs(
+  apiKey: string,
+  jobIds: number[],
+  onProgress?: (current: number, total: number, jobTitle: string) => void
+): Promise<{ matched: number; failed: number; skipped: number; errors: string[] }> {
+  const db = getDatabase();
+
+  try {
+    if (jobIds.length === 0) {
+      return { matched: 0, failed: 0, skipped: 0, errors: [] };
+    }
+
+    // Get job details for selected IDs
+    const placeholders = jobIds.map(() => '?').join(',');
+    const jobs = db.prepare(`
+      SELECT id, title FROM job_offers
+      WHERE id IN (${placeholders})
+      AND full_text IS NOT NULL AND full_text != ''
+      ORDER BY created_at DESC
+    `).all(...jobIds) as any[];
+
+    const total = jobs.length;
+    let matched = 0;
+    let failed = 0;
+    const skipped = jobIds.length - jobs.length; // Jobs without full_text
+    const errors: string[] = [];
+
+    log.info(`Starting selective matching for ${total} jobs (${skipped} skipped due to missing text)`);
+
+    for (let i = 0; i < jobs.length; i++) {
+      const job = jobs[i];
+
+      if (onProgress) {
+        onProgress(i + 1, total, job.title);
+      }
+
+      try {
+        await matchJob(job.id, apiKey);
+        matched++;
+        log.info(`Matched job ${i + 1}/${total}: ${job.title}`);
+      } catch (error: any) {
+        failed++;
+        const errorMsg = `Job "${job.title}": ${error.message || 'Unknown error'}`;
+        errors.push(errorMsg);
+        log.error(`Failed to match job ${job.id}:`, error);
+      }
+
+      // Small delay between API calls to avoid rate limiting
+      if (i < jobs.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    log.info(`Selective matching completed: ${matched} matched, ${failed} failed, ${skipped} skipped`);
+
+    return { matched, failed, skipped, errors };
+
+  } catch (error: any) {
+    log.error('Error in matchSelectedJobs:', error);
+    throw error;
+  }
+}
+
+/**
  * Get count of jobs without match score (for UI display)
  */
 export function getUnmatchedJobCount(): number {

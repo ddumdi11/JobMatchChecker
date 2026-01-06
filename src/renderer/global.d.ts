@@ -39,6 +39,7 @@ interface Window {
     matchJob: (jobId: number) => Promise<any>;
     getMatchingHistory: (jobId: number) => Promise<any[]>;
     bulkMatchJobs: (rematchAll: boolean) => Promise<{ success: boolean; data: { matched: number; failed: number; skipped: number; errors: string[] } }>;
+    matchSelectedJobs: (jobIds: number[]) => Promise<{ success: boolean; data: { matched: number; failed: number; skipped: number; errors: string[] } }>;
     getUnmatchedJobCount: () => Promise<number>;
     // API Key management
     saveApiKey: (apiKey: string) => Promise<any>;
