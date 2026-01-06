@@ -251,6 +251,16 @@ export function getCategoryId(categoryName: string): number {
   return result.lastInsertRowid as number;
 }
 
+/**
+ * Read-only category lookup (does not create new categories)
+ * Returns category ID if exists, null otherwise
+ */
+export function findCategoryId(categoryName: string): number | null {
+  const db = getDatabase();
+  const existing = db.prepare('SELECT id FROM skill_categories WHERE name = ?').get(categoryName) as { id: number } | undefined;
+  return existing ? existing.id : null;
+}
+
 // =============================================================================
 // Duplicate Detection
 // =============================================================================
@@ -469,7 +479,15 @@ export function detectConflicts(rows: SkillImportRow[]): ConflictDetectionResult
   };
 
   for (const row of rows) {
-    const categoryId = getCategoryId(row.category);
+    // Use read-only lookup to avoid creating categories during detection
+    const categoryId = findCategoryId(row.category);
+
+    // If category doesn't exist, this is definitely a new skill
+    if (categoryId === null) {
+      result.newSkills.push(row);
+      continue;
+    }
+
     const existing = findExistingSkill(row.name, categoryId);
 
     if (!existing) {
@@ -586,9 +604,27 @@ export function applyResolutions(
         ? newData.marketRelevance
         : (resolution.fields.marketRelevance === 'none' ? null : existing.marketRelevance);
 
-      const finalYearsExp = resolution.fields.yearsOfExperience === 'replace'
-        ? (typeof newData.yearsOfExperience === 'number' ? newData.yearsOfExperience : parseFloat(newData.yearsOfExperience || '0'))
-        : (resolution.fields.yearsOfExperience === 'none' ? null : existing.yearsOfExperience);
+      // Handle yearsOfExperience carefully: only replace if newData has a valid value
+      let finalYearsExp: number | null | undefined;
+      if (resolution.fields.yearsOfExperience === 'replace') {
+        // Only replace if newData.yearsOfExperience is defined and valid
+        if (newData.yearsOfExperience !== undefined && newData.yearsOfExperience !== null && newData.yearsOfExperience !== '') {
+          finalYearsExp = typeof newData.yearsOfExperience === 'number'
+            ? newData.yearsOfExperience
+            : parseFloat(newData.yearsOfExperience);
+          // If parse failed (NaN), keep existing value
+          if (isNaN(finalYearsExp)) {
+            finalYearsExp = existing.yearsOfExperience;
+          }
+        } else {
+          // newData has no value, keep existing
+          finalYearsExp = existing.yearsOfExperience;
+        }
+      } else if (resolution.fields.yearsOfExperience === 'none') {
+        finalYearsExp = null;
+      } else {
+        finalYearsExp = existing.yearsOfExperience;
+      }
 
       db.prepare(`
         UPDATE skills
