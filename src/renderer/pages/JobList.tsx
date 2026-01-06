@@ -47,8 +47,11 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   Clear as ClearIcon,
-  Keyboard as KeyboardIcon
+  Keyboard as KeyboardIcon,
+  AutoAwesome as AutoAwesomeIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
+import { CircularProgress, LinearProgress } from '@mui/material';
 import { useJobStore } from '../store/jobStore';
 
 /**
@@ -91,6 +94,13 @@ export default function JobList() {
   const [focusedRowIndex, setFocusedRowIndex] = useState<number>(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  // Bulk matching state
+  const [isBulkMatching, setIsBulkMatching] = useState(false);
+  const [_bulkMatchProgress, setBulkMatchProgress] = useState<{ current: number; total: number } | null>(null);
+  const [bulkMatchResult, setBulkMatchResult] = useState<{ matched: number; failed: number; errors: string[] } | null>(null);
+  const [bulkMatchDialogOpen, setBulkMatchDialogOpen] = useState(false);
+  const [unmatchedCount, setUnmatchedCount] = useState<number>(0);
 
   // Check if any extended filters are active
   const hasActiveExtendedFilters =
@@ -139,6 +149,69 @@ export default function JobList() {
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
+
+  // Fetch unmatched job count
+  useEffect(() => {
+    const loadUnmatchedCount = async () => {
+      try {
+        const count = await window.api.getUnmatchedJobCount();
+        setUnmatchedCount(count);
+      } catch (error) {
+        console.error('Failed to load unmatched job count:', error);
+      }
+    };
+    loadUnmatchedCount();
+  }, [jobs]); // Refresh when jobs change
+
+  // Handle bulk match
+  const handleBulkMatch = async (rematchAll: boolean = false) => {
+    // Check if API key is configured
+    const apiKey = await window.api.getApiKey();
+    if (!apiKey) {
+      if (window.confirm('Kein API-Key hinterlegt. Zu Einstellungen wechseln?')) {
+        navigate('/settings');
+      }
+      return;
+    }
+
+    const jobCount = rematchAll ? jobs.length : unmatchedCount;
+    if (jobCount === 0) {
+      alert(rematchAll ? 'Keine Jobs zum Matchen vorhanden.' : 'Alle Jobs haben bereits einen Match-Score.');
+      return;
+    }
+
+    const confirmMsg = rematchAll
+      ? `Alle ${jobCount} Jobs neu matchen? Dies kostet API-Tokens für jeden Job.`
+      : `${jobCount} Jobs ohne Match-Score matchen? Dies kostet API-Tokens für jeden Job.`;
+
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
+
+    setIsBulkMatching(true);
+    setBulkMatchProgress({ current: 0, total: jobCount });
+    setBulkMatchResult(null);
+
+    try {
+      const result = await window.api.bulkMatchJobs(rematchAll);
+
+      if (result.success) {
+        setBulkMatchResult(result.data);
+        setBulkMatchDialogOpen(true);
+        // Refresh jobs to show new match scores
+        await fetchJobs();
+        // Update unmatched count
+        const newCount = await window.api.getUnmatchedJobCount();
+        setUnmatchedCount(newCount);
+      }
+    } catch (error: any) {
+      console.error('Bulk matching failed:', error);
+      alert(`Bulk-Matching fehlgeschlagen: ${error.message}`);
+    } finally {
+      setIsBulkMatching(false);
+      setBulkMatchProgress(null);
+    }
+  };
 
   // Reset page when filters change
   useEffect(() => {
@@ -464,14 +537,56 @@ export default function JobList() {
             </Box>
           </Tooltip>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate('/jobs/add')}
-        >
-          Neuen Job hinzufügen
-        </Button>
+        <Stack direction="row" spacing={1}>
+          {/* Bulk Match Buttons */}
+          <Tooltip title={`${unmatchedCount} Jobs ohne Match-Score matchen`}>
+            <span>
+              <Button
+                variant="outlined"
+                startIcon={isBulkMatching ? <CircularProgress size={18} /> : <AutoAwesomeIcon />}
+                onClick={() => handleBulkMatch(false)}
+                disabled={isBulkMatching || unmatchedCount === 0}
+                color="secondary"
+              >
+                {unmatchedCount > 0 ? `Neue matchen (${unmatchedCount})` : 'Alle gematcht'}
+              </Button>
+            </span>
+          </Tooltip>
+          <Tooltip title="Alle Jobs neu matchen (kostet API-Tokens)">
+            <span>
+              <Button
+                variant="outlined"
+                startIcon={isBulkMatching ? <CircularProgress size={18} /> : <RefreshIcon />}
+                onClick={() => handleBulkMatch(true)}
+                disabled={isBulkMatching || jobs.length === 0}
+                color="warning"
+              >
+                Alle neu matchen
+              </Button>
+            </span>
+          </Tooltip>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/jobs/add')}
+          >
+            Neuen Job hinzufügen
+          </Button>
+        </Stack>
       </Box>
+
+      {/* Bulk Matching Progress */}
+      {isBulkMatching && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <CircularProgress size={20} />
+            <Typography>
+              Matching läuft... Bitte warten Sie, bis alle Jobs verarbeitet wurden.
+            </Typography>
+          </Box>
+          <LinearProgress sx={{ mt: 1 }} />
+        </Alert>
+      )}
 
       {/* Filters */}
       <Paper sx={{ p: 2, mb: 3 }}>
@@ -873,6 +988,55 @@ export default function JobList() {
           </Button>
           <Button onClick={handleDeleteConfirm} color="error" variant="contained">
             Löschen
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Match Result Dialog */}
+      <Dialog
+        open={bulkMatchDialogOpen}
+        onClose={() => setBulkMatchDialogOpen(false)}
+        aria-labelledby="bulk-match-result-title"
+      >
+        <DialogTitle id="bulk-match-result-title">
+          Bulk-Matching abgeschlossen
+        </DialogTitle>
+        <DialogContent>
+          {bulkMatchResult && (
+            <Box>
+              <Typography variant="body1" gutterBottom>
+                <strong>{bulkMatchResult.matched}</strong> Jobs erfolgreich gematcht
+              </Typography>
+              {bulkMatchResult.failed > 0 && (
+                <Typography variant="body1" color="error" gutterBottom>
+                  <strong>{bulkMatchResult.failed}</strong> Jobs fehlgeschlagen
+                </Typography>
+              )}
+              {bulkMatchResult.errors.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Fehler:
+                  </Typography>
+                  <Box sx={{ maxHeight: 200, overflow: 'auto', bgcolor: 'grey.100', p: 1, borderRadius: 1 }}>
+                    {bulkMatchResult.errors.slice(0, 10).map((err, idx) => (
+                      <Typography key={idx} variant="body2" color="error" sx={{ fontSize: '0.75rem' }}>
+                        {err}
+                      </Typography>
+                    ))}
+                    {bulkMatchResult.errors.length > 10 && (
+                      <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
+                        ... und {bulkMatchResult.errors.length - 10} weitere Fehler
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkMatchDialogOpen(false)} variant="contained">
+            Schließen
           </Button>
         </DialogActions>
       </Dialog>

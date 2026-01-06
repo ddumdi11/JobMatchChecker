@@ -50,7 +50,10 @@ import {
   Refresh as RefreshIcon,
   CheckCircle as CheckCircleIcon,
   Lightbulb as LightbulbIcon,
-  ExpandMore as ExpandMoreIcon
+  ExpandMore as ExpandMoreIcon,
+  Download as DownloadIcon,
+  PictureAsPdf as PdfIcon,
+  Code as MarkdownIcon
 } from '@mui/icons-material';
 import { useJobStore } from '../store/jobStore';
 
@@ -82,6 +85,12 @@ export default function JobDetail() {
   const [deletionError, setDeletionError] = useState<string | null>(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [matchSnackbarOpen, setMatchSnackbarOpen] = useState(false);
+
+  // Export state
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportSnackbarOpen, setExportSnackbarOpen] = useState(false);
+  const [exportSnackbarMessage, setExportSnackbarMessage] = useState('');
+  const [exportSnackbarSeverity, setExportSnackbarSeverity] = useState<'success' | 'error'>('success');
 
   // Fetch job on mount
   useEffect(() => {
@@ -118,6 +127,54 @@ export default function JobDetail() {
   const handleReMatch = () => {
     if (window.confirm('Erneutes Matching kostet zusätzliche API-Tokens. Fortfahren?')) {
       handleMatch();
+    }
+  };
+
+  // Handle export to Markdown
+  const handleExportMarkdown = async () => {
+    if (!currentJob?.id) return;
+
+    setIsExporting(true);
+    try {
+      const result = await window.api.exportToMarkdown(currentJob.id);
+      if (result.success) {
+        setExportSnackbarMessage('Markdown-Export erfolgreich erstellt');
+        setExportSnackbarSeverity('success');
+      } else {
+        setExportSnackbarMessage(result.error || 'Export fehlgeschlagen');
+        setExportSnackbarSeverity('error');
+      }
+      setExportSnackbarOpen(true);
+    } catch (error: any) {
+      setExportSnackbarMessage(error.message || 'Export fehlgeschlagen');
+      setExportSnackbarSeverity('error');
+      setExportSnackbarOpen(true);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Handle export to PDF
+  const handleExportPdf = async () => {
+    if (!currentJob?.id) return;
+
+    setIsExporting(true);
+    try {
+      const result = await window.api.exportToPdf(currentJob.id);
+      if (result.success) {
+        setExportSnackbarMessage('PDF-Export erfolgreich erstellt');
+        setExportSnackbarSeverity('success');
+      } else {
+        setExportSnackbarMessage(result.error || 'Export fehlgeschlagen');
+        setExportSnackbarSeverity('error');
+      }
+      setExportSnackbarOpen(true);
+    } catch (error: any) {
+      setExportSnackbarMessage(error.message || 'Export fehlgeschlagen');
+      setExportSnackbarSeverity('error');
+      setExportSnackbarOpen(true);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -558,6 +615,35 @@ export default function JobDetail() {
             </Stack>
           </Paper>
 
+          {/* Export Actions */}
+          <Paper sx={{ p: 3, mt: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              <DownloadIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
+              Exportieren
+            </Typography>
+            <Stack spacing={2}>
+              <Button
+                variant="outlined"
+                startIcon={isExporting ? <CircularProgress size={18} /> : <MarkdownIcon />}
+                onClick={handleExportMarkdown}
+                disabled={isExporting}
+                fullWidth
+              >
+                Als Markdown
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={isExporting ? <CircularProgress size={18} /> : <PdfIcon />}
+                onClick={handleExportPdf}
+                disabled={isExporting}
+                color="primary"
+                fullWidth
+              >
+                Als PDF
+              </Button>
+            </Stack>
+          </Paper>
+
           {/* Matching Section */}
           <Box sx={{ mt: 4 }}>
             <Typography variant="h5" gutterBottom>
@@ -782,6 +868,18 @@ export default function JobDetail() {
       >
         <Alert onClose={handleSnackbarClose} severity="error" sx={{ width: '100%' }}>
           {deletionError || 'Ein Fehler ist aufgetreten'}
+        </Alert>
+      </Snackbar>
+
+      {/* Export Snackbar */}
+      <Snackbar
+        open={exportSnackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setExportSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setExportSnackbarOpen(false)} severity={exportSnackbarSeverity} sx={{ width: '100%' }}>
+          {exportSnackbarMessage}
         </Alert>
       </Snackbar>
     </Container>
