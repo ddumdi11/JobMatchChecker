@@ -186,6 +186,22 @@ function escapeHtml(str: string | undefined | null): string {
 }
 
 /**
+ * Escape pipe characters for Markdown table cells
+ */
+function escapePipes(str: string | undefined | null): string {
+  if (!str) return '';
+  return str.replace(/\|/g, '\\|');
+}
+
+/**
+ * Sanitize filename and provide fallback if empty
+ */
+function sanitizeFilename(value: string, fallback: string): string {
+  const sanitized = value.replace(/[^a-zA-Z0-9äöüÄÖÜß\s-]/g, '').replace(/\s+/g, '_').trim();
+  return sanitized || fallback;
+}
+
+/**
  * Generate Markdown content from job export data
  */
 export function generateMarkdown(data: JobExportData): string {
@@ -212,14 +228,14 @@ export function generateMarkdown(data: JobExportData): string {
   lines.push('');
   lines.push(`| Feld | Wert |`);
   lines.push(`|------|------|`);
-  if (data.location) lines.push(`| Standort | ${data.location} |`);
-  if (data.remoteOption) lines.push(`| Remote | ${data.remoteOption} |`);
-  if (data.salaryRange) lines.push(`| Gehalt | ${data.salaryRange} |`);
-  if (data.contractType) lines.push(`| Vertragsart | ${data.contractType} |`);
+  if (data.location) lines.push(`| Standort | ${escapePipes(data.location)} |`);
+  if (data.remoteOption) lines.push(`| Remote | ${escapePipes(data.remoteOption)} |`);
+  if (data.salaryRange) lines.push(`| Gehalt | ${escapePipes(data.salaryRange)} |`);
+  if (data.contractType) lines.push(`| Vertragsart | ${escapePipes(data.contractType)} |`);
   lines.push(`| Veröffentlicht | ${formatDate(data.postedDate)} |`);
   if (data.deadline) lines.push(`| Bewerbungsfrist | ${formatDate(data.deadline)} |`);
-  if (data.sourceName) lines.push(`| Quelle | ${data.sourceName} |`);
-  if (data.url) lines.push(`| URL | ${data.url} |`);
+  if (data.sourceName) lines.push(`| Quelle | ${escapePipes(data.sourceName)} |`);
+  if (data.url) lines.push(`| URL | ${escapePipes(data.url)} |`);
   lines.push('');
 
   // Matching Analysis
@@ -243,7 +259,7 @@ export function generateMarkdown(data: JobExportData): string {
       lines.push(`| Skill | Benötigt | Vorhanden | Lücke |`);
       lines.push(`|-------|----------|-----------|-------|`);
       data.matching.missingSkills.forEach(gap => {
-        lines.push(`| ${gap.skill} | ${gap.requiredLevel}/10 | ${gap.currentLevel}/10 | ${gap.gap} Level |`);
+        lines.push(`| ${escapePipes(gap.skill)} | ${gap.requiredLevel}/10 | ${gap.currentLevel}/10 | ${gap.gap} Level |`);
       });
     } else {
       lines.push('_Keine Skill-Lücken identifiziert_');
@@ -257,7 +273,7 @@ export function generateMarkdown(data: JobExportData): string {
       lines.push(`| Bereich | Benötigt | Vorhanden |`);
       lines.push(`|---------|----------|-----------|`);
       data.matching.experienceGaps.forEach(gap => {
-        lines.push(`| ${gap.area} | ${gap.requiredYears} Jahre | ${gap.actualYears} Jahre |`);
+        lines.push(`| ${escapePipes(gap.area)} | ${gap.requiredYears} Jahre | ${gap.actualYears} Jahre |`);
       });
       lines.push('');
     }
@@ -475,9 +491,9 @@ export async function exportToMarkdown(jobId: number): Promise<{ success: boolea
     const data = getJobExportData(jobId);
     const markdown = generateMarkdown(data);
 
-    // Sanitize filename
-    const sanitizedTitle = data.title.replace(/[^a-zA-Z0-9äöüÄÖÜß\s-]/g, '').replace(/\s+/g, '_');
-    const sanitizedCompany = data.company.replace(/[^a-zA-Z0-9äöüÄÖÜß\s-]/g, '').replace(/\s+/g, '_');
+    // Sanitize filename with fallbacks for empty values
+    const sanitizedTitle = sanitizeFilename(data.title, 'Unbenannt');
+    const sanitizedCompany = sanitizeFilename(data.company, 'Unbekannt');
     const defaultFilename = `${sanitizedTitle}_${sanitizedCompany}.md`;
 
     // Show save dialog
@@ -517,9 +533,9 @@ export async function exportToPdf(jobId: number): Promise<{ success: boolean; fi
   try {
     const data = getJobExportData(jobId);
 
-    // Sanitize filename
-    const sanitizedTitle = data.title.replace(/[^a-zA-Z0-9äöüÄÖÜß\s-]/g, '').replace(/\s+/g, '_');
-    const sanitizedCompany = data.company.replace(/[^a-zA-Z0-9äöüÄÖÜß\s-]/g, '').replace(/\s+/g, '_');
+    // Sanitize filename with fallbacks for empty values
+    const sanitizedTitle = sanitizeFilename(data.title, 'Unbenannt');
+    const sanitizedCompany = sanitizeFilename(data.company, 'Unbekannt');
     const defaultFilename = `${sanitizedTitle}_${sanitizedCompany}.pdf`;
 
     // Show save dialog
