@@ -557,42 +557,50 @@ export async function exportToPdf(jobId: number): Promise<{ success: boolean; fi
       }
     });
 
-    // Set up load completion promise before loading
-    const loadComplete = new Promise<void>((resolve) => {
-      printWindow.webContents.once('did-finish-load', () => {
-        // Small delay after load to ensure styles are fully applied
-        setTimeout(resolve, 100);
-      });
-    });
-
-    // Load HTML and wait for completion
-    printWindow.loadFile(tempHtmlPath);
-    await loadComplete;
-
-    // Generate PDF
-    const pdfData = await printWindow.webContents.printToPDF({
-      printBackground: true,
-      pageSize: 'A4',
-      margins: {
-        top: 0.5,
-        bottom: 0.5,
-        left: 0.5,
-        right: 0.5
-      }
-    });
-
-    // Write PDF file
-    fs.writeFileSync(result.filePath, pdfData);
-
-    // Cleanup
-    printWindow.close();
     try {
-      fs.unlinkSync(tempHtmlPath);
-    } catch (cleanupError) {
-      log.warn(`Failed to delete temp file ${tempHtmlPath}:`, cleanupError);
-    }
+      // Set up load completion promise with timeout before loading
+      const LOAD_TIMEOUT_MS = 30000; // 30 seconds timeout
+      const loadComplete = new Promise<void>((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          reject(new Error('PDF-Export: Timeout beim Laden der HTML-Seite'));
+        }, LOAD_TIMEOUT_MS);
 
-    log.info(`Exported job ${jobId} to PDF: ${result.filePath}`);
+        printWindow.webContents.once('did-finish-load', () => {
+          clearTimeout(timeoutId);
+          // Small delay after load to ensure styles are fully applied
+          setTimeout(resolve, 100);
+        });
+      });
+
+      // Load HTML and wait for completion
+      printWindow.loadFile(tempHtmlPath);
+      await loadComplete;
+
+      // Generate PDF
+      const pdfData = await printWindow.webContents.printToPDF({
+        printBackground: true,
+        pageSize: 'A4',
+        margins: {
+          top: 0.5,
+          bottom: 0.5,
+          left: 0.5,
+          right: 0.5
+        }
+      });
+
+      // Write PDF file
+      fs.writeFileSync(result.filePath, pdfData);
+
+      log.info(`Exported job ${jobId} to PDF: ${result.filePath}`);
+    } finally {
+      // Always cleanup BrowserWindow and temp file
+      printWindow.close();
+      try {
+        fs.unlinkSync(tempHtmlPath);
+      } catch (cleanupError) {
+        log.warn(`Failed to delete temp file ${tempHtmlPath}:`, cleanupError);
+      }
+    }
 
     // Open file location
     shell.showItemInFolder(result.filePath);
