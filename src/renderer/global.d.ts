@@ -38,6 +38,9 @@ interface Window {
     // Matching operations
     matchJob: (jobId: number) => Promise<any>;
     getMatchingHistory: (jobId: number) => Promise<any[]>;
+    bulkMatchJobs: (rematchAll: boolean) => Promise<{ success: boolean; data: { matched: number; failed: number; skipped: number; errors: string[] } }>;
+    matchSelectedJobs: (jobIds: number[]) => Promise<{ success: boolean; data: { matched: number; failed: number; skipped: number; errors: string[] } }>;
+    getUnmatchedJobCount: () => Promise<number>;
     // API Key management
     saveApiKey: (apiKey: string) => Promise<any>;
     getApiKey: () => Promise<string | null>;
@@ -64,5 +67,8 @@ interface Window {
     importSkipRow: (rowId: number) => Promise<{ success: boolean }>;
     importUpdateRowStatus: (rowId: number, status: string) => Promise<{ success: boolean }>;
     importDeleteSession: (sessionId: number) => Promise<{ success: boolean }>;
+    // Export operations
+    exportToMarkdown: (jobId: number) => Promise<{ success: boolean; filePath?: string; error?: string }>;
+    exportToPdf: (jobId: number) => Promise<{ success: boolean; filePath?: string; error?: string }>;
   };
 }

@@ -260,6 +260,163 @@ function parseMatchingResponse(text: string): MatchingResult {
 }
 
 /**
+ * Bulk match all jobs that don't have a match score yet (or rematch all)
+ * @param apiKey - Anthropic API key
+ * @param rematchAll - If true, rematch all jobs including those with existing scores
+ * @param onProgress - Callback for progress updates
+ * @returns Summary of bulk matching results
+ */
+export async function bulkMatchJobs(
+  apiKey: string,
+  rematchAll: boolean = false,
+  onProgress?: (current: number, total: number, jobTitle: string) => void
+): Promise<{ matched: number; failed: number; skipped: number; errors: string[] }> {
+  const db = getDatabase();
+
+  try {
+    // Get jobs to match
+    let jobs: any[];
+    if (rematchAll) {
+      jobs = db.prepare(`
+        SELECT id, title FROM job_offers
+        WHERE full_text IS NOT NULL AND full_text != ''
+        ORDER BY created_at DESC
+      `).all();
+    } else {
+      jobs = db.prepare(`
+        SELECT id, title FROM job_offers
+        WHERE match_score IS NULL
+        AND full_text IS NOT NULL AND full_text != ''
+        ORDER BY created_at DESC
+      `).all();
+    }
+
+    const total = jobs.length;
+    let matched = 0;
+    let failed = 0;
+    // Note: skipped is always 0 here since SQL query already filters out jobs without full_text
+    const errors: string[] = [];
+
+    log.info(`Starting bulk matching for ${total} jobs (rematchAll: ${rematchAll})`);
+
+    for (let i = 0; i < jobs.length; i++) {
+      const job = jobs[i];
+
+      if (onProgress) {
+        onProgress(i + 1, total, job.title);
+      }
+
+      try {
+        await matchJob(job.id, apiKey);
+        matched++;
+        log.info(`Matched job ${i + 1}/${total}: ${job.title}`);
+      } catch (error: any) {
+        failed++;
+        const errorMsg = `Job "${job.title}": ${error.message || 'Unknown error'}`;
+        errors.push(errorMsg);
+        log.error(`Failed to match job ${job.id}:`, error);
+      }
+
+      // Small delay between API calls to avoid rate limiting
+      if (i < jobs.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    log.info(`Bulk matching completed: ${matched} matched, ${failed} failed`);
+
+    return { matched, failed, skipped: 0, errors };
+
+  } catch (error: any) {
+    log.error('Error in bulkMatchJobs:', error);
+    throw error;
+  }
+}
+
+/**
+ * Match specific jobs by their IDs
+ * @param apiKey - Anthropic API key
+ * @param jobIds - Array of job IDs to match
+ * @param onProgress - Callback for progress updates
+ * @returns Summary of matching results
+ */
+export async function matchSelectedJobs(
+  apiKey: string,
+  jobIds: number[],
+  onProgress?: (current: number, total: number, jobTitle: string) => void
+): Promise<{ matched: number; failed: number; skipped: number; errors: string[] }> {
+  const db = getDatabase();
+
+  try {
+    if (jobIds.length === 0) {
+      return { matched: 0, failed: 0, skipped: 0, errors: [] };
+    }
+
+    // Get job details for selected IDs
+    const placeholders = jobIds.map(() => '?').join(',');
+    const jobs = db.prepare(`
+      SELECT id, title FROM job_offers
+      WHERE id IN (${placeholders})
+      AND full_text IS NOT NULL AND full_text != ''
+      ORDER BY created_at DESC
+    `).all(...jobIds) as any[];
+
+    const total = jobs.length;
+    let matched = 0;
+    let failed = 0;
+    const skipped = jobIds.length - jobs.length; // Jobs without full_text
+    const errors: string[] = [];
+
+    log.info(`Starting selective matching for ${total} jobs (${skipped} skipped due to missing text)`);
+
+    for (let i = 0; i < jobs.length; i++) {
+      const job = jobs[i];
+
+      if (onProgress) {
+        onProgress(i + 1, total, job.title);
+      }
+
+      try {
+        await matchJob(job.id, apiKey);
+        matched++;
+        log.info(`Matched job ${i + 1}/${total}: ${job.title}`);
+      } catch (error: any) {
+        failed++;
+        const errorMsg = `Job "${job.title}": ${error.message || 'Unknown error'}`;
+        errors.push(errorMsg);
+        log.error(`Failed to match job ${job.id}:`, error);
+      }
+
+      // Small delay between API calls to avoid rate limiting
+      if (i < jobs.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    log.info(`Selective matching completed: ${matched} matched, ${failed} failed, ${skipped} skipped`);
+
+    return { matched, failed, skipped, errors };
+
+  } catch (error: any) {
+    log.error('Error in matchSelectedJobs:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get count of jobs without match score (for UI display)
+ */
+export function getUnmatchedJobCount(): number {
+  const db = getDatabase();
+  const result = db.prepare(`
+    SELECT COUNT(*) as count FROM job_offers
+    WHERE match_score IS NULL
+    AND full_text IS NOT NULL AND full_text != ''
+  `).get() as { count: number };
+  return result.count;
+}
+
+/**
  * Get matching history for a job
  * @param jobId - ID of the job
  * @returns Array of previous matching results

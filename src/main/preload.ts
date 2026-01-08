@@ -46,6 +46,9 @@ contextBridge.exposeInMainWorld('api', {
   // Matching operations
   matchJob: (jobId: number) => ipcRenderer.invoke('matchJob', jobId),
   getMatchingHistory: (jobId: number) => ipcRenderer.invoke('getMatchingHistory', jobId),
+  bulkMatchJobs: (rematchAll: boolean) => ipcRenderer.invoke('bulkMatchJobs', rematchAll),
+  matchSelectedJobs: (jobIds: number[]) => ipcRenderer.invoke('matchSelectedJobs', jobIds),
+  getUnmatchedJobCount: () => ipcRenderer.invoke('getUnmatchedJobCount'),
 
   // API Key management
   saveApiKey: (apiKey: string) => ipcRenderer.invoke('saveApiKey', apiKey),
@@ -76,5 +79,9 @@ contextBridge.exposeInMainWorld('api', {
   importAllNew: (sessionId: number) => ipcRenderer.invoke('import:importAllNew', sessionId),
   importSkipRow: (rowId: number) => ipcRenderer.invoke('import:skipRow', rowId),
   importUpdateRowStatus: (rowId: number, status: string) => ipcRenderer.invoke('import:updateRowStatus', rowId, status),
-  importDeleteSession: (sessionId: number) => ipcRenderer.invoke('import:deleteSession', sessionId)
+  importDeleteSession: (sessionId: number) => ipcRenderer.invoke('import:deleteSession', sessionId),
+
+  // Export operations
+  exportToMarkdown: (jobId: number) => ipcRenderer.invoke('export:toMarkdown', jobId),
+  exportToPdf: (jobId: number) => ipcRenderer.invoke('export:toPdf', jobId)
 });

@@ -11,6 +11,7 @@ import * as aiExtractionService from '../services/aiExtractionService';
 import * as matchingService from '../services/matchingService';
 import * as importService from '../services/importService';
 import * as skillsImportService from '../services/skillsImportService';
+import * as exportService from '../services/exportService';
 
 const store = new Store();
 
@@ -258,6 +259,50 @@ export function registerIpcHandlers() {
       return matchingService.getMatchingHistory(jobId);
     } catch (error: any) {
       log.error('Error getting matching history:', error);
+      throw error;
+    }
+  });
+
+  // Bulk match all jobs
+  ipcMain.handle('bulkMatchJobs', async (_, rematchAll: boolean) => {
+    try {
+      const apiKey = store.get('anthropic_api_key') as string;
+
+      if (!apiKey) {
+        throw new Error('Anthropic API-Key nicht konfiguriert. Bitte in Einstellungen hinterlegen.');
+      }
+
+      const result = await matchingService.bulkMatchJobs(apiKey, rematchAll);
+      return { success: true, data: result };
+    } catch (error: any) {
+      log.error('Error in bulkMatchJobs:', error);
+      throw error;
+    }
+  });
+
+  // Match selected jobs by ID
+  ipcMain.handle('matchSelectedJobs', async (_, jobIds: number[]) => {
+    try {
+      const apiKey = store.get('anthropic_api_key') as string;
+
+      if (!apiKey) {
+        throw new Error('Anthropic API-Key nicht konfiguriert. Bitte in Einstellungen hinterlegen.');
+      }
+
+      const result = await matchingService.matchSelectedJobs(apiKey, jobIds);
+      return { success: true, data: result };
+    } catch (error: any) {
+      log.error('Error in matchSelectedJobs:', error);
+      throw error;
+    }
+  });
+
+  // Get count of unmatched jobs
+  ipcMain.handle('getUnmatchedJobCount', async () => {
+    try {
+      return matchingService.getUnmatchedJobCount();
+    } catch (error: any) {
+      log.error('Error getting unmatched job count:', error);
       throw error;
     }
   });
@@ -815,6 +860,30 @@ export function registerIpcHandlers() {
       return { success: true };
     } catch (error: any) {
       log.error('Error deleting import session:', error);
+      throw error;
+    }
+  });
+
+  // ==========================================================================
+  // Export operations (Markdown & PDF)
+  // ==========================================================================
+
+  // Export job to Markdown
+  ipcMain.handle('export:toMarkdown', async (_, jobId: number) => {
+    try {
+      return await exportService.exportToMarkdown(jobId);
+    } catch (error: any) {
+      log.error('Error exporting to Markdown:', error);
+      throw error;
+    }
+  });
+
+  // Export job to PDF
+  ipcMain.handle('export:toPdf', async (_, jobId: number) => {
+    try {
+      return await exportService.exportToPdf(jobId);
+    } catch (error: any) {
+      log.error('Error exporting to PDF:', error);
       throw error;
     }
   });
