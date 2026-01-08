@@ -173,6 +173,19 @@ function getStatusLabel(status: string): string {
 }
 
 /**
+ * Escape HTML special characters to prevent XSS
+ */
+function escapeHtml(str: string | undefined | null): string {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
  * Generate Markdown content from job export data
  */
 export function generateMarkdown(data: JobExportData): string {
@@ -291,7 +304,7 @@ export function generateHtml(data: JobExportData): string {
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <title>${data.title} - ${data.company}</title>
+  <title>${escapeHtml(data.title)} - ${escapeHtml(data.company)}</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -365,15 +378,15 @@ export function generateHtml(data: JobExportData): string {
 <body>`);
 
   // Header
-  html.push(`<h1>${data.title}</h1>`);
-  html.push(`<p class="meta"><strong>Firma:</strong> ${data.company} | <strong>Status:</strong> ${getStatusLabel(data.status)}</p>`);
+  html.push(`<h1>${escapeHtml(data.title)}</h1>`);
+  html.push(`<p class="meta"><strong>Firma:</strong> ${escapeHtml(data.company)} | <strong>Status:</strong> ${escapeHtml(getStatusLabel(data.status))}</p>`);
 
   // Match Score
   if (data.matchScore !== undefined && data.matchScore !== null) {
     const scoreClass = data.matchScore >= 70 ? 'high' : data.matchScore >= 40 ? 'medium' : 'low';
     html.push(`<div class="score-badge ${scoreClass}">${Math.round(data.matchScore)}%</div>`);
     if (data.matching) {
-      html.push(`<span class="category">${getCategoryLabel(data.matching.matchCategory)}</span>`);
+      html.push(`<span class="category">${escapeHtml(getCategoryLabel(data.matching.matchCategory))}</span>`);
     }
   }
 
@@ -381,14 +394,14 @@ export function generateHtml(data: JobExportData): string {
   html.push(`<h2>Job-Details</h2>`);
   html.push(`<table>`);
   html.push(`<tr><th style="width:150px;">Feld</th><th>Wert</th></tr>`);
-  if (data.location) html.push(`<tr><td>Standort</td><td>${data.location}</td></tr>`);
-  if (data.remoteOption) html.push(`<tr><td>Remote</td><td>${data.remoteOption}</td></tr>`);
-  if (data.salaryRange) html.push(`<tr><td>Gehalt</td><td>${data.salaryRange}</td></tr>`);
-  if (data.contractType) html.push(`<tr><td>Vertragsart</td><td>${data.contractType}</td></tr>`);
+  if (data.location) html.push(`<tr><td>Standort</td><td>${escapeHtml(data.location)}</td></tr>`);
+  if (data.remoteOption) html.push(`<tr><td>Remote</td><td>${escapeHtml(data.remoteOption)}</td></tr>`);
+  if (data.salaryRange) html.push(`<tr><td>Gehalt</td><td>${escapeHtml(data.salaryRange)}</td></tr>`);
+  if (data.contractType) html.push(`<tr><td>Vertragsart</td><td>${escapeHtml(data.contractType)}</td></tr>`);
   html.push(`<tr><td>Veröffentlicht</td><td>${formatDate(data.postedDate)}</td></tr>`);
   if (data.deadline) html.push(`<tr><td>Bewerbungsfrist</td><td>${formatDate(data.deadline)}</td></tr>`);
-  if (data.sourceName) html.push(`<tr><td>Quelle</td><td>${data.sourceName}</td></tr>`);
-  if (data.url) html.push(`<tr><td>URL</td><td><a href="${data.url}">${data.url}</a></td></tr>`);
+  if (data.sourceName) html.push(`<tr><td>Quelle</td><td>${escapeHtml(data.sourceName)}</td></tr>`);
+  if (data.url) html.push(`<tr><td>URL</td><td><a href="${escapeHtml(data.url)}">${escapeHtml(data.url)}</a></td></tr>`);
   html.push(`</table>`);
 
   // Matching Analysis
@@ -397,7 +410,7 @@ export function generateHtml(data: JobExportData): string {
     html.push(`<h2>Stärken</h2>`);
     if (data.matching.strengths.length > 0) {
       data.matching.strengths.forEach(strength => {
-        html.push(`<p class="strength">${strength}</p>`);
+        html.push(`<p class="strength">${escapeHtml(strength)}</p>`);
       });
     } else {
       html.push(`<p><em>Keine Stärken identifiziert</em></p>`);
@@ -410,7 +423,7 @@ export function generateHtml(data: JobExportData): string {
       html.push(`<tr><th>Skill</th><th>Benötigt</th><th>Vorhanden</th><th>Lücke</th></tr>`);
       data.matching.missingSkills.forEach(gap => {
         const gapClass = gap.gap > 5 ? 'gap-high' : 'gap-medium';
-        html.push(`<tr><td>${gap.skill}</td><td>${gap.requiredLevel}/10</td><td>${gap.currentLevel}/10</td><td class="${gapClass}">${gap.gap} Level</td></tr>`);
+        html.push(`<tr><td>${escapeHtml(gap.skill)}</td><td>${gap.requiredLevel}/10</td><td>${gap.currentLevel}/10</td><td class="${gapClass}">${gap.gap} Level</td></tr>`);
       });
       html.push(`</table>`);
     } else {
@@ -423,7 +436,7 @@ export function generateHtml(data: JobExportData): string {
       html.push(`<table>`);
       html.push(`<tr><th>Bereich</th><th>Benötigt</th><th>Vorhanden</th></tr>`);
       data.matching.experienceGaps.forEach(gap => {
-        html.push(`<tr><td>${gap.area}</td><td>${gap.requiredYears} Jahre</td><td>${gap.actualYears} Jahre</td></tr>`);
+        html.push(`<tr><td>${escapeHtml(gap.area)}</td><td>${gap.requiredYears} Jahre</td><td>${gap.actualYears} Jahre</td></tr>`);
       });
       html.push(`</table>`);
     }
@@ -431,20 +444,20 @@ export function generateHtml(data: JobExportData): string {
     // AI Reasoning
     if (data.matching.reasoning) {
       html.push(`<h2>KI-Analyse</h2>`);
-      html.push(`<p>${data.matching.reasoning}</p>`);
+      html.push(`<p>${escapeHtml(data.matching.reasoning)}</p>`);
     }
   }
 
   // Job Description
   if (data.fullText) {
     html.push(`<h2>Stellenbeschreibung</h2>`);
-    html.push(`<div class="description">${data.fullText}</div>`);
+    html.push(`<div class="description">${escapeHtml(data.fullText)}</div>`);
   }
 
   // Notes
   if (data.notes) {
     html.push(`<h2>Notizen</h2>`);
-    html.push(`<p>${data.notes}</p>`);
+    html.push(`<p>${escapeHtml(data.notes)}</p>`);
   }
 
   // Footer
