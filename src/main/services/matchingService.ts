@@ -38,8 +38,21 @@ export async function matchJob(jobId: number, apiKey: string): Promise<MatchingR
   try {
     // 1. Load User Profile
     const profile = db.prepare('SELECT * FROM user_profile WHERE id = 1').get() as any;
-    const skills = db.prepare('SELECT * FROM skills WHERE user_profile_id = 1').all() as any[];
+    // Note: user_profile_id may be NULL for older skills, so we load all skills
+    // TODO: Migrate existing skills to have user_profile_id = 1
+    const skills = db.prepare(`
+      SELECT s.*, sc.name as category_name
+      FROM skills s
+      LEFT JOIN skill_categories sc ON s.category_id = sc.id
+      ORDER BY sc.sort_order, s.name
+    `).all() as any[];
     const preferences = db.prepare('SELECT * FROM user_preferences WHERE id = 1').get() as any;
+
+    log.info(`Loaded profile: ${profile?.first_name} ${profile?.last_name}`);
+    log.info(`Loaded ${skills.length} skills from database`);
+    if (skills.length > 0) {
+      log.info(`First skill: ${JSON.stringify(skills[0])}`);
+    }
 
     if (!profile) {
       throw new Error('Kein Profil gefunden. Bitte erstelle zuerst ein Profil.');
@@ -132,7 +145,7 @@ function buildMatchingPrompt(profile: any, skills: any[], preferences: any, job:
   const skillsText = Object.entries(skillsByCategory)
     .map(([category, categorySkills]) => {
       const skillsList = categorySkills
-        .map(s => `  - ${s.name} (Level ${s.level}/10${s.years_experience ? `, ${s.years_experience} Jahre Erfahrung` : ''})`)
+        .map(s => `  - ${s.name} (Level ${s.level}/10${s.years_of_experience ? `, ${s.years_of_experience} Jahre Erfahrung` : ''})`)
         .join('\n');
       return `${category}:\n${skillsList}`;
     })
@@ -194,10 +207,28 @@ Gib eine strukturierte Analyse als JSON zurück mit folgenden Feldern:
 - Standort/Remote-Match (15%): Passen Standort und Remote-Optionen?
 - Gehalts-Match (15%): Liegt das Gehalt im gewünschten Bereich?
 
-**Wichtig:**
+**Wichtig für Skill-Matching (SEMANTISCH interpretieren!):**
+- Interpretiere Skills SEMANTISCH, nicht nur nach exaktem Namen oder Schreibweise
+- Ignoriere Unterschiede in Groß/Kleinschreibung, Leerzeichen, Bindestriche (z.B. "Softwaretesting" = "Software Testing" = "Software-Testing")
+- Wenn der Job "Programmiersprache" fordert und der Kandidat "Python", "TypeScript" oder "Java" hat → das ERFÜLLT die Anforderung
+- "Softwareentwicklung" wird durch konkrete Programmiersprachen + Frameworks erfüllt
+- "Datenbanken" wird durch "SQL", "PostgreSQL", "MySQL", "MongoDB" etc. erfüllt
+- "Webtechnologien" wird durch "React", "Angular", "Vue", "HTML/CSS", "JavaScript" erfüllt
+- "Testing & Qualitätssicherung" wird durch "Softwaretesting", "Testautomatisierung", "QA", "Unit Testing", "Jest", "Selenium" etc. erfüllt
+- "Technische Affinität" / "Logisches Denken" / "Strukturierte Analyse" wird durch vorhandene technische Skills + Soft Skills wie "Analytisches Denken", "Critical Thinking" impliziert
+- Bewerte nach dem BESTEN passenden Skill des Kandidaten, nicht nach Namens-Match
+- Bei "current_level" im Gap-Report: Verwende das Level des am besten passenden vorhandenen Skills
+
+**Wichtig für Erfahrungs-Lücken:**
+- Leite Erfahrungsjahre aus den Skill-Jahren ab!
+- Wenn Kandidat "Softwaretesting 3 Jahre" oder "Testautomatisierung 3 Jahre" hat → "Software Testing: 3 Jahre" Erfahrung
+- Wenn Kandidat "Python 10 Jahre" hat → "Softwareentwicklung/Programmierung: 10 Jahre" Erfahrung
+- Nimm das MAXIMUM der relevanten Skill-Jahre für einen Erfahrungsbereich
+- Nur Erfahrungslücken angeben wenn wirklich KEINE relevanten Skill-Jahre vorhanden sind
+
+**Allgemeine Regeln:**
 - Sei objektiv und ehrlich
-- Bei fehlenden Skills: Gib konkrete Level-Gaps an
-- Bei Erfahrungslücken: Nenne die Bereiche
+- Bei fehlenden Skills: Gib konkrete Level-Gaps an (nur wenn wirklich KEIN semantisch passender Skill vorhanden)
 - Empfehlungen sollen konkret und umsetzbar sein
 - Das Reasoning sollte die wichtigsten Punkte zusammenfassen
 
