@@ -294,7 +294,7 @@ export async function bulkMatchJobs(
     const total = jobs.length;
     let matched = 0;
     let failed = 0;
-    let skipped = 0;
+    // Note: skipped is always 0 here since SQL query already filters out jobs without full_text
     const errors: string[] = [];
 
     log.info(`Starting bulk matching for ${total} jobs (rematchAll: ${rematchAll})`);
@@ -323,9 +323,9 @@ export async function bulkMatchJobs(
       }
     }
 
-    log.info(`Bulk matching completed: ${matched} matched, ${failed} failed, ${skipped} skipped`);
+    log.info(`Bulk matching completed: ${matched} matched, ${failed} failed`);
 
-    return { matched, failed, skipped, errors };
+    return { matched, failed, skipped: 0, errors };
 
   } catch (error: any) {
     log.error('Error in bulkMatchJobs:', error);

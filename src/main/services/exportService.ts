@@ -7,6 +7,7 @@ import { getDatabase } from '../database/db';
 import * as log from 'electron-log';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import { dialog, shell } from 'electron';
 
 /**
@@ -499,7 +500,7 @@ export async function exportToMarkdown(jobId: number): Promise<{ success: boolea
  * Export job to PDF file
  * Uses HTML-to-PDF via Electron's print-to-pdf functionality
  */
-export async function exportToPdf(jobId: number, _webContents: Electron.WebContents): Promise<{ success: boolean; filePath?: string; error?: string }> {
+export async function exportToPdf(jobId: number): Promise<{ success: boolean; filePath?: string; error?: string }> {
   try {
     const data = getJobExportData(jobId);
 
@@ -525,8 +526,8 @@ export async function exportToPdf(jobId: number, _webContents: Electron.WebConte
     // Generate HTML
     const html = generateHtml(data);
 
-    // Create temporary HTML file
-    const tempDir = path.join(process.env.TEMP || '/tmp', 'jobmatchchecker-export');
+    // Create temporary HTML file (use os.tmpdir() for cross-platform compatibility)
+    const tempDir = path.join(os.tmpdir(), 'jobmatchchecker-export');
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
@@ -565,7 +566,11 @@ export async function exportToPdf(jobId: number, _webContents: Electron.WebConte
 
     // Cleanup
     printWindow.close();
-    fs.unlinkSync(tempHtmlPath);
+    try {
+      fs.unlinkSync(tempHtmlPath);
+    } catch (cleanupError) {
+      log.warn(`Failed to delete temp file ${tempHtmlPath}:`, cleanupError);
+    }
 
     log.info(`Exported job ${jobId} to PDF: ${result.filePath}`);
 

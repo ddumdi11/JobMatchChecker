@@ -12,7 +12,6 @@ import * as matchingService from '../services/matchingService';
 import * as importService from '../services/importService';
 import * as skillsImportService from '../services/skillsImportService';
 import * as exportService from '../services/exportService';
-import { BrowserWindow } from 'electron';
 
 const store = new Store();
 
@@ -880,13 +879,9 @@ export function registerIpcHandlers() {
   });
 
   // Export job to PDF
-  ipcMain.handle('export:toPdf', async (event, jobId: number) => {
+  ipcMain.handle('export:toPdf', async (_, jobId: number) => {
     try {
-      const window = BrowserWindow.fromWebContents(event.sender);
-      if (!window) {
-        throw new Error('No window found');
-      }
-      return await exportService.exportToPdf(jobId, window.webContents);
+      return await exportService.exportToPdf(jobId);
     } catch (error: any) {
       log.error('Error exporting to PDF:', error);
       throw error;
