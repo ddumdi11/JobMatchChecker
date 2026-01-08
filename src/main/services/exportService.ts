@@ -557,10 +557,17 @@ export async function exportToPdf(jobId: number): Promise<{ success: boolean; fi
       }
     });
 
-    await printWindow.loadFile(tempHtmlPath);
+    // Set up load completion promise before loading
+    const loadComplete = new Promise<void>((resolve) => {
+      printWindow.webContents.once('did-finish-load', () => {
+        // Small delay after load to ensure styles are fully applied
+        setTimeout(resolve, 100);
+      });
+    });
 
-    // Wait for content to render
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Load HTML and wait for completion
+    printWindow.loadFile(tempHtmlPath);
+    await loadComplete;
 
     // Generate PDF
     const pdfData = await printWindow.webContents.printToPDF({
