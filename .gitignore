@@ -140,6 +140,17 @@ archive/
 # Session checkpoint (local only, changes too frequently)
 CHECKPOINT.md
 
+# Local environment
+venv/
+
+# Stack dumps
+bash.exe.stackdump
+*.stackdump
+
+# Local archives and test artifacts
+kopie.7z
+testdata/
+
 # Keep empty directories
 !.gitkeep
 !backups/.gitkeep
