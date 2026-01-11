@@ -30,6 +30,7 @@ import {
 } from '@mui/icons-material';
 import { SkillLevel, MAX_SKILLS_PER_PROFILE } from '../../shared/types';
 import { useProfileStore, Skill } from '../store/profileStore';
+import { useUnsavedChangesContext } from './Layout';
 
 const PREDEFINED_CATEGORIES = [
   'Programming Languages',
@@ -42,6 +43,9 @@ const PREDEFINED_CATEGORIES = [
 ];
 
 export const SkillsManager: React.FC = () => {
+  // Unsaved changes context (Issue #12)
+  const { setIsDirty, setOnSave } = useUnsavedChangesContext();
+
   // Store hooks
   const skills = useProfileStore(state => state.skills);
   const isLoading = useProfileStore(state => state.isLoadingSkills);
@@ -69,6 +73,20 @@ export const SkillsManager: React.FC = () => {
   useEffect(() => {
     loadSkills();
   }, [loadSkills]);
+
+  // Sync dirty state with UnsavedChangesContext (Issue #12)
+  useEffect(() => {
+    // Dialog is open AND form has content = unsaved changes
+    const hasUnsavedChanges = dialogOpen && skillForm.name.trim() !== '';
+    setIsDirty(hasUnsavedChanges);
+
+    // Provide save action only when there are changes to save
+    if (hasUnsavedChanges) {
+      setOnSave(handleAddOrUpdateSkill);
+    } else {
+      setOnSave(undefined);
+    }
+  }, [dialogOpen, skillForm.name, setIsDirty, setOnSave]);
 
   const handleOpenDialog = (skill?: Skill) => {
     if (skill) {
