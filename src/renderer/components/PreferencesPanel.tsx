@@ -19,6 +19,7 @@ import {
   isValidRemoteWorkRange
 } from '../../shared/types';
 import { useProfileStore, Preferences } from '../store/profileStore';
+import { useUnsavedChangesContext } from './Layout';
 
 const REMOTE_WORK_OPTIONS: { value: RemoteWorkPreference; label: string }[] = [
   { value: 'remote_only', label: 'Remote Only' },
@@ -28,6 +29,9 @@ const REMOTE_WORK_OPTIONS: { value: RemoteWorkPreference; label: string }[] = [
 ];
 
 export const PreferencesPanel: React.FC = () => {
+  // Unsaved changes context (Issue #12)
+  const { setIsDirty, setOnSave } = useUnsavedChangesContext();
+
   // Store hooks
   const preferences = useProfileStore(state => state.preferences);
   const isLoading = useProfileStore(state => state.isLoadingPreferences);
@@ -49,6 +53,7 @@ export const PreferencesPanel: React.FC = () => {
 
   const [success, setSuccess] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [initialFormData, setInitialFormData] = useState(formData);
 
   // Load preferences on mount
   useEffect(() => {
@@ -58,7 +63,7 @@ export const PreferencesPanel: React.FC = () => {
   // Sync preferences from store to form
   useEffect(() => {
     if (preferences) {
-      setFormData({
+      const loadedData = {
         minSalary: preferences.minSalary ?? undefined,
         maxSalary: preferences.maxSalary ?? undefined,
         preferredLocations: preferences.preferredLocations ?? [],
@@ -67,7 +72,9 @@ export const PreferencesPanel: React.FC = () => {
         preferredRemotePercentage: preferences.preferredRemotePercentage ?? 50,
         acceptableRemoteMin: preferences.acceptableRemoteMin ?? 0,
         acceptableRemoteMax: preferences.acceptableRemoteMax ?? 100
-      });
+      };
+      setFormData(loadedData);
+      setInitialFormData(loadedData);
       setValidationError(null);
     }
   }, [preferences]);
@@ -86,6 +93,19 @@ export const PreferencesPanel: React.FC = () => {
       setValidationError(null);
     }
   }, [formData.acceptableRemoteMin, formData.preferredRemotePercentage, formData.acceptableRemoteMax]);
+
+  // Sync dirty state with UnsavedChangesContext (Issue #12)
+  useEffect(() => {
+    const hasChanges = JSON.stringify(formData) !== JSON.stringify(initialFormData);
+    setIsDirty(hasChanges);
+
+    // Provide save action only if form is valid and has changes
+    if (hasChanges && !validationError) {
+      setOnSave(handleSave);
+    } else {
+      setOnSave(undefined);
+    }
+  }, [formData, initialFormData, validationError, setIsDirty, setOnSave]);
 
   const handleSalaryChange = (field: 'minSalary' | 'maxSalary') => (
     event: React.ChangeEvent<HTMLInputElement>
@@ -140,6 +160,7 @@ export const PreferencesPanel: React.FC = () => {
       };
 
       await updatePreferences(preferencesToSave);
+      setInitialFormData(formData); // Reset dirty state (Issue #12)
       setSuccess(true);
     } catch (err) {
       // Error is handled by store
