@@ -79,7 +79,7 @@ export const ProfileForm: React.FC = () => {
 
     // Provide save action if there are unsaved changes
     if (hasPendingChanges && !emailError) {
-      setOnSave(() => handleAutoSave);
+      setOnSave(handleAutoSave);
     } else {
       setOnSave(undefined);
     }

@@ -140,7 +140,7 @@ export default function JobAdd() {
 
     // Provide save action only if form is valid
     if (hasUnsavedChanges && showForm && formData.title && formData.company) {
-      setOnSave(() => handleSave);
+      setOnSave(handleSave);
     } else {
       setOnSave(undefined);
     }
