@@ -191,6 +191,7 @@ export const PreferencesPanel: React.FC = () => {
 
       await updatePreferences(preferencesToSave);
       setInitialFormData(formData); // Reset dirty state (Issue #12)
+      setIsDirty(false); // Immediately clear dirty flag to prevent re-trigger
       setSuccess(true);
     } catch (err) {
       // Error is handled by store
