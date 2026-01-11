@@ -28,6 +28,26 @@ const REMOTE_WORK_OPTIONS: { value: RemoteWorkPreference; label: string }[] = [
   { value: 'flexible', label: 'Flexible' }
 ];
 
+// Helper: Extract only persistent preferences (exclude UI-only locationInput)
+const getPreferencesPayload = (data: {
+  minSalary?: number;
+  maxSalary?: number;
+  preferredLocations: string[];
+  locationInput: string;
+  remoteWorkPreference: RemoteWorkPreference;
+  preferredRemotePercentage: number;
+  acceptableRemoteMin: number;
+  acceptableRemoteMax: number;
+}) => ({
+  minSalary: data.minSalary,
+  maxSalary: data.maxSalary,
+  preferredLocations: data.preferredLocations,
+  remoteWorkPreference: data.remoteWorkPreference,
+  preferredRemotePercentage: data.preferredRemotePercentage,
+  acceptableRemoteMin: data.acceptableRemoteMin,
+  acceptableRemoteMax: data.acceptableRemoteMax
+});
+
 export const PreferencesPanel: React.FC = () => {
   // Unsaved changes context (Issue #12)
   const { setIsDirty, setOnSave } = useUnsavedChangesContext();
@@ -73,8 +93,15 @@ export const PreferencesPanel: React.FC = () => {
         acceptableRemoteMin: preferences.acceptableRemoteMin ?? 0,
         acceptableRemoteMax: preferences.acceptableRemoteMax ?? 100
       };
-      setFormData(loadedData);
-      setInitialFormData(loadedData);
+
+      // Only update if data actually changed (avoid overwriting after save)
+      const currentPayload = getPreferencesPayload(formData);
+      const loadedPayload = getPreferencesPayload(loadedData);
+
+      if (JSON.stringify(currentPayload) !== JSON.stringify(loadedPayload)) {
+        setFormData(loadedData);
+        setInitialFormData(loadedData);
+      }
       setValidationError(null);
     }
   }, [preferences]);
@@ -93,17 +120,6 @@ export const PreferencesPanel: React.FC = () => {
       setValidationError(null);
     }
   }, [formData.acceptableRemoteMin, formData.preferredRemotePercentage, formData.acceptableRemoteMax]);
-
-  // Helper: Extract only persistent preferences (exclude UI-only locationInput)
-  const getPreferencesPayload = (data: typeof formData) => ({
-    minSalary: data.minSalary,
-    maxSalary: data.maxSalary,
-    preferredLocations: data.preferredLocations,
-    remoteWorkPreference: data.remoteWorkPreference,
-    preferredRemotePercentage: data.preferredRemotePercentage,
-    acceptableRemoteMin: data.acceptableRemoteMin,
-    acceptableRemoteMax: data.acceptableRemoteMax
-  });
 
   // Sync dirty state with UnsavedChangesContext (Issue #12)
   useEffect(() => {
