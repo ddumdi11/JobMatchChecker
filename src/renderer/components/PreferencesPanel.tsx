@@ -94,9 +94,23 @@ export const PreferencesPanel: React.FC = () => {
     }
   }, [formData.acceptableRemoteMin, formData.preferredRemotePercentage, formData.acceptableRemoteMax]);
 
+  // Helper: Extract only persistent preferences (exclude UI-only locationInput)
+  const getPreferencesPayload = (data: typeof formData) => ({
+    minSalary: data.minSalary,
+    maxSalary: data.maxSalary,
+    preferredLocations: data.preferredLocations,
+    remoteWorkPreference: data.remoteWorkPreference,
+    preferredRemotePercentage: data.preferredRemotePercentage,
+    acceptableRemoteMin: data.acceptableRemoteMin,
+    acceptableRemoteMax: data.acceptableRemoteMax
+  });
+
   // Sync dirty state with UnsavedChangesContext (Issue #12)
   useEffect(() => {
-    const hasChanges = JSON.stringify(formData) !== JSON.stringify(initialFormData);
+    // Compare only persistent preferences (locationInput is UI-only)
+    const currentPayload = getPreferencesPayload(formData);
+    const initialPayload = getPreferencesPayload(initialFormData);
+    const hasChanges = JSON.stringify(currentPayload) !== JSON.stringify(initialPayload);
     setIsDirty(hasChanges);
 
     // Provide save action only if form is valid and has changes
