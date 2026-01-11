@@ -53,13 +53,14 @@ export interface SkillConflict {
 
 /**
  * Parse CSV content into skill rows
- * Expected columns: name, category, level, yearsOfExperience, skillType, futureSkillCategory, assessmentMethod, certifications, notes
+ * Expected columns: name, category, level, yearsOfExperience, skillType, futureSkillCategory, assessmentMethod, certifications, notes, confidence, marketRelevance
  * Minimum required: name, category, level
  *
  * Handles:
  * - Multi-line quoted fields
  * - Quoted fields with commas
  * - Escaped quotes ("")
+ * - Strict value validation for confidence and marketRelevance with minimal normalizing
  */
 export function parseSkillsCsv(csvContent: string): SkillImportRow[] {
   const records = parseCsvContent(csvContent);
@@ -83,11 +84,59 @@ export function parseSkillsCsv(csvContent: string): SkillImportRow[] {
 
     // Validate minimum required fields
     if (row.name && row.category) {
+      // Normalize confidence and marketRelevance fields with strict validation
+      row.confidence = normalizeConfidence(row.confidence, row.name, i + 1);
+      row.marketRelevance = normalizeMarketRelevance(row.marketRelevance, row.name, i + 1);
+
       rows.push(row as SkillImportRow);
     }
   }
 
   return rows;
+}
+
+/**
+ * Normalize confidence value from CSV
+ * Strategy: Strict values + minimal normalizing (trim, lowercase, - → _)
+ * Valid values: 'very_likely', 'possible'
+ * Invalid/empty → null (with warning log)
+ */
+function normalizeConfidence(value: string | undefined, skillName: string, row: number): SkillConfidence | undefined {
+  if (!value || value.trim() === '') return undefined;
+
+  // Normalize: trim + lowercase + replace - with _
+  const normalized = value.trim().toLowerCase().replace(/-/g, '_');
+
+  // Strict validation
+  if (normalized === 'very_likely' || normalized === 'possible') {
+    return normalized as SkillConfidence;
+  }
+
+  // Invalid value → warning + null
+  console.warn(`[Skills Import] Row ${row} (${skillName}): Invalid confidence value "${value}" - expected 'very_likely' or 'possible'. Field set to null.`);
+  return undefined;
+}
+
+/**
+ * Normalize marketRelevance value from CSV
+ * Strategy: Strict values + minimal normalizing (trim, lowercase)
+ * Valid values: 'high', 'medium', 'low'
+ * Invalid/empty → null (with warning log)
+ */
+function normalizeMarketRelevance(value: string | undefined, skillName: string, row: number): MarketRelevance | undefined {
+  if (!value || value.trim() === '') return undefined;
+
+  // Normalize: trim + lowercase
+  const normalized = value.trim().toLowerCase();
+
+  // Strict validation
+  if (normalized === 'high' || normalized === 'medium' || normalized === 'low') {
+    return normalized as MarketRelevance;
+  }
+
+  // Invalid value → warning + null
+  console.warn(`[Skills Import] Row ${row} (${skillName}): Invalid marketRelevance value "${value}" - expected 'high', 'medium', or 'low'. Field set to null.`);
+  return undefined;
 }
 
 /**
