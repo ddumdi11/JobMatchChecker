@@ -9,6 +9,7 @@ import {
   Snackbar
 } from '@mui/material';
 import { useProfileStore } from '../store/profileStore';
+import { useUnsavedChangesContext } from './Layout';
 
 export const ProfileForm: React.FC = () => {
   // Use Zustand store instead of props
@@ -17,6 +18,9 @@ export const ProfileForm: React.FC = () => {
   const isLoading = useProfileStore((state) => state.isLoadingProfile);
   const profileError = useProfileStore((state) => state.profileError);
   const resetErrors = useProfileStore((state) => state.resetErrors);
+
+  // Unsaved changes context (Issue #12)
+  const { setIsDirty: setContextDirty, setOnSave } = useUnsavedChangesContext();
   const [formData, setFormData] = useState({
     firstName: profile?.firstName || '',
     lastName: profile?.lastName || '',
@@ -67,6 +71,19 @@ export const ProfileForm: React.FC = () => {
       formData.location !== initialData.location
     );
   };
+
+  // Sync dirty state with UnsavedChangesContext (Issue #12)
+  useEffect(() => {
+    const hasPendingChanges = isDirty && hasChanges();
+    setContextDirty(hasPendingChanges);
+
+    // Provide save action if there are unsaved changes
+    if (hasPendingChanges && !emailError) {
+      setOnSave(() => handleAutoSave);
+    } else {
+      setOnSave(undefined);
+    }
+  }, [isDirty, formData, emailError, setContextDirty, setOnSave]);
 
   // Debounced auto-save (2 seconds) - only if dirty, valid, and not already saving
   useEffect(() => {

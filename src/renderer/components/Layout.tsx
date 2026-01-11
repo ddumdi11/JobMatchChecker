@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import {
   Box,
@@ -36,6 +36,23 @@ export const Layout: React.FC = () => {
   // Re-enabled after migrating to createBrowserRouter (fixes #9)
   const { blocker, handleSave, handleDiscard, handleCancel } = useUnsavedChanges(isDirty, onSave);
 
+  // Guard against browser reload/close (Issue #12)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        // Chrome requires returnValue to be set
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isDirty]);
+
   const contextValue: UnsavedChangesContextValue = {
     isDirty,
     setIsDirty,
@@ -44,6 +61,7 @@ export const Layout: React.FC = () => {
   };
 
   const isBlocked = blocker.state === 'blocked';
+  const hasSaveAction = onSave !== undefined;
 
   return (
     <UnsavedChangesContext.Provider value={contextValue}>
@@ -62,22 +80,26 @@ export const Layout: React.FC = () => {
 
       {/* Unsaved Changes Dialog */}
       <Dialog open={isBlocked} onClose={handleCancel}>
-        <DialogTitle>Unsaved Changes</DialogTitle>
+        <DialogTitle>Ungespeicherte Änderungen</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            You have unsaved changes. Do you want to save them before leaving this page?
+            {hasSaveAction
+              ? 'Sie haben ungespeicherte Änderungen. Möchten Sie diese speichern, bevor Sie die Seite verlassen?'
+              : 'Sie haben ungespeicherte Änderungen. Möchten Sie diese verwerfen?'}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCancel} color="secondary">
-            Cancel
+          <Button onClick={handleCancel}>
+            Abbrechen
           </Button>
           <Button onClick={handleDiscard} color="error">
-            Discard
+            Verwerfen
           </Button>
-          <Button onClick={handleSave} color="primary" variant="contained">
-            Save
-          </Button>
+          {hasSaveAction && (
+            <Button onClick={handleSave} color="primary" variant="contained">
+              Speichern
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </UnsavedChangesContext.Provider>

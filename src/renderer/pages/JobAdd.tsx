@@ -19,6 +19,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useJobStore } from '../store/jobStore';
+import { useUnsavedChangesContext } from '../components/Layout';
 
 /**
  * JobAdd Page - Add new job offers with AI extraction
@@ -38,6 +39,9 @@ export default function JobAdd() {
 
   // Determine if we're in edit mode
   const isEditMode = !!id;
+
+  // Unsaved changes context (Issue #12)
+  const { setIsDirty, setOnSave } = useUnsavedChangesContext();
 
   // Store hooks
   const extractJobFromText = useJobStore(state => state.extractJobFromText);
@@ -70,6 +74,10 @@ export default function JobAdd() {
     status: 'new' as const
   });
 
+  // Track initial data to detect changes (Issue #12)
+  const [initialFormData, setInitialFormData] = useState(formData);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
   // Load job data in edit mode, or reset form in add mode
   useEffect(() => {
     if (isEditMode && id) {
@@ -100,8 +108,7 @@ export default function JobAdd() {
   // Populate form when job is loaded (edit mode)
   useEffect(() => {
     if (isEditMode && currentJob) {
-      setShowForm(true);
-      setFormData({
+      const loadedData = {
         title: currentJob.title || '',
         company: currentJob.company || '',
         location: currentJob.location || '',
@@ -113,9 +120,31 @@ export default function JobAdd() {
         source: currentJob.source || '',
         source_url: currentJob.source_url || (currentJob as any).url || '',
         status: (currentJob.status || 'new') as 'new'
-      });
+      };
+      setShowForm(true);
+      setFormData(loadedData);
+      setInitialFormData(loadedData); // Track initial state (Issue #12)
+      setHasUnsavedChanges(false);
     }
   }, [isEditMode, currentJob]);
+
+  // Detect form changes (Issue #12)
+  useEffect(() => {
+    const hasChanges = JSON.stringify(formData) !== JSON.stringify(initialFormData);
+    setHasUnsavedChanges(hasChanges);
+  }, [formData, initialFormData]);
+
+  // Sync with UnsavedChangesContext (Issue #12)
+  useEffect(() => {
+    setIsDirty(hasUnsavedChanges && showForm);
+
+    // Provide save action only if form is valid
+    if (hasUnsavedChanges && showForm && formData.title && formData.company) {
+      setOnSave(() => handleSave);
+    } else {
+      setOnSave(undefined);
+    }
+  }, [hasUnsavedChanges, showForm, formData.title, formData.company, setIsDirty, setOnSave]);
 
   // Handle paste from clipboard
   const handlePaste = async () => {
@@ -267,6 +296,11 @@ export default function JobAdd() {
         // Create new job
         await createJob(formData);
       }
+
+      // Reset dirty state after successful save (Issue #12)
+      setInitialFormData(formData);
+      setHasUnsavedChanges(false);
+
       // Navigate to jobs list on success
       navigate('/jobs');
     } catch (err) {
