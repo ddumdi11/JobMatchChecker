@@ -343,7 +343,7 @@ export const useJobStore = create<JobState>()(
       },
 
       clearMatchingResult: () => {
-        set({ currentMatching: null, matchingError: null });
+        set({ currentMatching: null, currentMatchingJobId: null, matchingError: null });
       },
 
       // Filters

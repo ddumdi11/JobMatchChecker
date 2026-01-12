@@ -154,7 +154,11 @@ function buildMatchingPrompt(profile: any, skills: any[], preferences: any, job:
           // Add confidence and market relevance metadata for AI weighting
           const metadata: string[] = [];
           if (s.confidence) {
-            metadata.push(`Konfidenz: ${s.confidence === 'very_likely' ? 'sehr sicher' : 'möglich'}`);
+            const confidenceLabels: Record<string, string> = {
+              'very_likely': 'sehr sicher',
+              'possible': 'möglich'
+            };
+            metadata.push(`Konfidenz: ${confidenceLabels[s.confidence] || s.confidence}`);
           }
           if (s.market_relevance) {
             const relevanceLabels: Record<string, string> = {
