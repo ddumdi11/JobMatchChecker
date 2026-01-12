@@ -34,7 +34,8 @@ import {
   Slider,
   FormControlLabel,
   Checkbox,
-  Divider
+  Divider,
+  Snackbar
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -49,7 +50,8 @@ import {
   Clear as ClearIcon,
   Keyboard as KeyboardIcon,
   AutoAwesome as AutoAwesomeIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  PictureAsPdf as PdfIcon
 } from '@mui/icons-material';
 import { CircularProgress, LinearProgress } from '@mui/material';
 import { useJobStore } from '../store/jobStore';
@@ -104,6 +106,12 @@ export default function JobList() {
 
   // Selection state for selective matching
   const [selectedJobIds, setSelectedJobIds] = useState<Set<number>>(new Set());
+
+  // Bulk export state
+  const [isBulkExporting, setIsBulkExporting] = useState(false);
+  const [exportSnackbarOpen, setExportSnackbarOpen] = useState(false);
+  const [exportSnackbarMessage, setExportSnackbarMessage] = useState('');
+  const [exportSnackbarSeverity, setExportSnackbarSeverity] = useState<'success' | 'error'>('success');
 
   // Check if any extended filters are active
   const hasActiveExtendedFilters =
@@ -285,6 +293,38 @@ export default function JobList() {
     } finally {
       setIsBulkMatching(false);
       setBulkMatchProgress(null);
+    }
+  };
+
+  // Handle bulk export to PDF
+  const handleBulkExport = async () => {
+    const jobIds = Array.from(selectedJobIds);
+    if (jobIds.length === 0) {
+      setExportSnackbarMessage('Keine Jobs ausgewählt');
+      setExportSnackbarSeverity('error');
+      setExportSnackbarOpen(true);
+      return;
+    }
+
+    setIsBulkExporting(true);
+    try {
+      const result = await window.api.exportBulkToPdf(jobIds);
+      if (result.success) {
+        setExportSnackbarMessage(`${result.exportedCount} Jobs erfolgreich als PDF exportiert`);
+        setExportSnackbarSeverity('success');
+        setSelectedJobIds(new Set()); // Clear selection after successful export
+      } else {
+        setExportSnackbarMessage(result.error || 'Export fehlgeschlagen');
+        setExportSnackbarSeverity('error');
+      }
+      setExportSnackbarOpen(true);
+    } catch (error: any) {
+      console.error('Bulk export failed:', error);
+      setExportSnackbarMessage(error.message || 'Export fehlgeschlagen');
+      setExportSnackbarSeverity('error');
+      setExportSnackbarOpen(true);
+    } finally {
+      setIsBulkExporting(false);
     }
   };
 
@@ -618,6 +658,22 @@ export default function JobList() {
           </Tooltip>
         </Box>
         <Stack direction="row" spacing={1}>
+          {/* Bulk Export Button */}
+          {selectedJobIds.size > 0 && (
+            <Tooltip title={`${selectedJobIds.size} ausgewählte Jobs als PDF exportieren`}>
+              <span>
+                <Button
+                  variant="outlined"
+                  startIcon={isBulkExporting ? <CircularProgress size={18} /> : <PdfIcon />}
+                  onClick={handleBulkExport}
+                  disabled={isBulkExporting}
+                  color="primary"
+                >
+                  Bulk exportieren ({selectedJobIds.size})
+                </Button>
+              </span>
+            </Tooltip>
+          )}
           {/* Match Selected Button */}
           {selectedJobIds.size > 0 && (
             <Tooltip title={`${selectedJobIds.size} ausgewählte Jobs matchen`}>
@@ -1153,6 +1209,18 @@ export default function JobList() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Export Snackbar */}
+      <Snackbar
+        open={exportSnackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setExportSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setExportSnackbarOpen(false)} severity={exportSnackbarSeverity} sx={{ width: '100%' }}>
+          {exportSnackbarMessage}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }

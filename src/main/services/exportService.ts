@@ -526,6 +526,239 @@ export async function exportToMarkdown(jobId: number): Promise<{ success: boolea
 }
 
 /**
+ * Generate compact HTML for bulk export (one job per page)
+ * Focused on: Title, Company, Match-Score, Top-Skills, Fazit
+ */
+export function generateCompactHtml(data: JobExportData): string {
+  const html: string[] = [];
+
+  // Header - Title & Company
+  html.push(`<h1 style="color: #1976d2; margin-bottom: 5px; font-size: 22px;">${escapeHtml(data.title)}</h1>`);
+  html.push(`<p style="color: #666; margin-bottom: 15px;"><strong>Firma:</strong> ${escapeHtml(data.company)} | <strong>Status:</strong> ${escapeHtml(getStatusLabel(data.status))}</p>`);
+
+  // Match Score (prominent)
+  if (data.matchScore !== undefined && data.matchScore !== null) {
+    const scoreColor = data.matchScore >= 70 ? '#4caf50' : data.matchScore >= 40 ? '#ff9800' : '#f44336';
+    html.push(`<div style="text-align: center; margin: 20px 0;">`);
+    html.push(`<span style="display: inline-block; background: ${scoreColor}; color: white; padding: 15px 30px; border-radius: 50px; font-size: 28px; font-weight: bold;">${Math.round(data.matchScore)}%</span>`);
+    if (data.matching) {
+      html.push(`<span style="display: inline-block; background: #e3f2fd; color: #1976d2; padding: 6px 16px; border-radius: 20px; font-size: 14px; margin-left: 15px;">${escapeHtml(getCategoryLabel(data.matching.matchCategory))}</span>`);
+    }
+    html.push(`</div>`);
+  }
+
+  // Job Details (compact table)
+  html.push(`<h2 style="font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 5px; margin-top: 20px;">Job-Details</h2>`);
+  html.push(`<table style="width: 100%; border-collapse: collapse; font-size: 13px;">`);
+  if (data.location) html.push(`<tr><td style="padding: 5px; border-bottom: 1px solid #eee; width: 120px;"><strong>Standort</strong></td><td style="padding: 5px; border-bottom: 1px solid #eee;">${escapeHtml(data.location)}</td></tr>`);
+  if (data.remoteOption) html.push(`<tr><td style="padding: 5px; border-bottom: 1px solid #eee;"><strong>Remote</strong></td><td style="padding: 5px; border-bottom: 1px solid #eee;">${escapeHtml(data.remoteOption)}</td></tr>`);
+  html.push(`<tr><td style="padding: 5px; border-bottom: 1px solid #eee;"><strong>Veröffentlicht</strong></td><td style="padding: 5px; border-bottom: 1px solid #eee;">${formatDate(data.postedDate)}</td></tr>`);
+  if (data.sourceName) html.push(`<tr><td style="padding: 5px; border-bottom: 1px solid #eee;"><strong>Quelle</strong></td><td style="padding: 5px; border-bottom: 1px solid #eee;">${escapeHtml(data.sourceName)}</td></tr>`);
+  html.push(`</table>`);
+
+  // Top Strengths (Skills with confidence + marketRelevance)
+  if (data.matching && data.matching.strengths.length > 0) {
+    html.push(`<h2 style="font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 5px; margin-top: 20px;">Top-Skills / Stärken</h2>`);
+    const topStrengths = data.matching.strengths.slice(0, 6); // Max 6 for compact view
+    topStrengths.forEach(strength => {
+      html.push(`<p style="color: #4caf50; padding: 3px 0; margin: 0; font-size: 13px;">✓ ${escapeHtml(strength)}</p>`);
+    });
+  }
+
+  // Skill Gaps (compact)
+  if (data.matching && data.matching.missingSkills.length > 0) {
+    html.push(`<h2 style="font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 5px; margin-top: 20px;">Skill-Lücken</h2>`);
+    html.push(`<table style="width: 100%; border-collapse: collapse; font-size: 12px;">`);
+    html.push(`<tr style="background: #f5f5f5;"><th style="padding: 6px; text-align: left;">Skill</th><th style="padding: 6px;">Benötigt</th><th style="padding: 6px;">Vorhanden</th><th style="padding: 6px;">Lücke</th></tr>`);
+    data.matching.missingSkills.slice(0, 5).forEach(gap => {
+      const gapColor = gap.gap > 5 ? '#f44336' : '#ff9800';
+      html.push(`<tr><td style="padding: 6px; border-bottom: 1px solid #eee;">${escapeHtml(gap.skill)}</td><td style="padding: 6px; border-bottom: 1px solid #eee; text-align: center;">${gap.requiredLevel}/10</td><td style="padding: 6px; border-bottom: 1px solid #eee; text-align: center;">${gap.currentLevel}/10</td><td style="padding: 6px; border-bottom: 1px solid #eee; text-align: center; color: ${gapColor};">${gap.gap} Level</td></tr>`);
+    });
+    html.push(`</table>`);
+  }
+
+  // AI Fazit (shortened)
+  if (data.matching && data.matching.reasoning) {
+    html.push(`<h2 style="font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 5px; margin-top: 20px;">KI-Analyse</h2>`);
+    // Truncate reasoning if too long
+    const maxLength = 600;
+    let reasoning = data.matching.reasoning;
+    if (reasoning.length > maxLength) {
+      reasoning = reasoning.substring(0, maxLength) + '...';
+    }
+    html.push(`<p style="font-size: 13px; line-height: 1.5;">${escapeHtml(reasoning)}</p>`);
+  }
+
+  return html.join('\n');
+}
+
+/**
+ * Export multiple jobs to a single PDF (one job per page)
+ * Bulk Export Feature
+ */
+export async function exportMultipleToPdf(jobIds: number[]): Promise<{ success: boolean; filePath?: string; error?: string; exportedCount?: number }> {
+  const MAX_BULK_EXPORT = 100;
+
+  try {
+    if (jobIds.length === 0) {
+      return { success: false, error: 'Keine Jobs ausgewählt' };
+    }
+
+    if (jobIds.length > MAX_BULK_EXPORT) {
+      return { success: false, error: `Maximal ${MAX_BULK_EXPORT} Jobs können gleichzeitig exportiert werden` };
+    }
+
+    // Get export data for all jobs
+    const jobsData: JobExportData[] = [];
+    for (const jobId of jobIds) {
+      try {
+        const data = getJobExportData(jobId);
+        jobsData.push(data);
+      } catch (err: any) {
+        log.warn(`Skipping job ${jobId}: ${err.message}`);
+      }
+    }
+
+    if (jobsData.length === 0) {
+      return { success: false, error: 'Keine exportierbaren Jobs gefunden' };
+    }
+
+    // Generate default filename
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const defaultFilename = `JobMatchChecker_Bulk_Export_${dateStr}_${jobsData.length}_Jobs.pdf`;
+
+    // Show save dialog
+    const result = await dialog.showSaveDialog({
+      title: 'Bulk PDF exportieren',
+      defaultPath: defaultFilename,
+      filters: [
+        { name: 'PDF', extensions: ['pdf'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (result.canceled || !result.filePath) {
+      return { success: false, error: 'Export abgebrochen' };
+    }
+
+    // Generate combined HTML with page breaks
+    const htmlParts: string[] = [];
+    htmlParts.push(`<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Bulk Export - ${jobsData.length} Jobs</title>
+  <style>
+    @page { size: A4; margin: 1.5cm; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    .job-page {
+      page-break-after: always;
+      padding: 10px 0;
+    }
+    .job-page:last-child {
+      page-break-after: avoid;
+    }
+    .page-footer {
+      position: relative;
+      bottom: 0;
+      margin-top: 30px;
+      padding-top: 10px;
+      border-top: 1px solid #e0e0e0;
+      color: #999;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>`);
+
+    // Add each job as a page
+    jobsData.forEach((data, index) => {
+      htmlParts.push(`<div class="job-page">`);
+      htmlParts.push(generateCompactHtml(data));
+      htmlParts.push(`<div class="page-footer">Job ${index + 1} von ${jobsData.length} | Exportiert am ${formatDate(new Date())} mit JobMatchChecker</div>`);
+      htmlParts.push(`</div>`);
+    });
+
+    htmlParts.push(`</body></html>`);
+    const html = htmlParts.join('\n');
+
+    // Create temporary HTML file
+    const tempDir = path.join(os.tmpdir(), 'jobmatchchecker-export');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    const tempHtmlPath = path.join(tempDir, `bulk_export_${Date.now()}.html`);
+    fs.writeFileSync(tempHtmlPath, html, 'utf-8');
+
+    // Load HTML in hidden window and print to PDF
+    const { BrowserWindow } = require('electron');
+    const printWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    });
+
+    try {
+      const LOAD_TIMEOUT_MS = 60000; // 60 seconds for bulk
+      const loadComplete = new Promise<void>((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          reject(new Error('PDF-Export: Timeout beim Laden'));
+        }, LOAD_TIMEOUT_MS);
+
+        printWindow.webContents.once('did-finish-load', () => {
+          clearTimeout(timeoutId);
+          setTimeout(resolve, 200); // Slightly longer delay for multiple pages
+        });
+      });
+
+      printWindow.loadFile(tempHtmlPath);
+      await loadComplete;
+
+      // Generate PDF
+      const pdfData = await printWindow.webContents.printToPDF({
+        printBackground: true,
+        pageSize: 'A4',
+        margins: {
+          top: 0.4,
+          bottom: 0.4,
+          left: 0.4,
+          right: 0.4
+        }
+      });
+
+      // Write PDF file
+      fs.writeFileSync(result.filePath, pdfData);
+
+      log.info(`Bulk exported ${jobsData.length} jobs to PDF: ${result.filePath}`);
+    } finally {
+      printWindow.close();
+      try {
+        fs.unlinkSync(tempHtmlPath);
+      } catch (cleanupError) {
+        log.warn(`Failed to delete temp file ${tempHtmlPath}:`, cleanupError);
+      }
+    }
+
+    // Open file location
+    shell.showItemInFolder(result.filePath);
+
+    return { success: true, filePath: result.filePath, exportedCount: jobsData.length };
+
+  } catch (error: any) {
+    log.error('Error in bulk PDF export:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Export job to PDF file
  * Uses HTML-to-PDF via Electron's print-to-pdf functionality
  */
