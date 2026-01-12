@@ -658,28 +658,41 @@ export default function JobDetail() {
 
             {/* Match Button */}
             <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
-              <Button
-                variant="contained"
-                color="primary"
-                size="large"
-                onClick={handleMatch}
-                disabled={isMatching}
-                startIcon={isMatching ? <CircularProgress size={20} /> : <AutoAwesomeIcon />}
-              >
-                {isMatching ? 'Matching läuft...' : 'Job matchen'}
-              </Button>
+              {/* Determine if job already has a match result */}
+              {(() => {
+                const hasExistingMatch = currentJob.matchScore !== null && currentJob.matchScore !== undefined;
+                return (
+                  <>
+                    <Tooltip title={hasExistingMatch ? 'Bereits gematcht – nutze Erneut matchen' : ''}>
+                      <span>
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          size="large"
+                          onClick={handleMatch}
+                          disabled={isMatching || hasExistingMatch}
+                          startIcon={isMatching ? <CircularProgress size={20} /> : <AutoAwesomeIcon />}
+                        >
+                          {isMatching ? 'Matching läuft...' : 'Job matchen'}
+                        </Button>
+                      </span>
+                    </Tooltip>
 
-              {displayedMatching && (
-                <Tooltip title="Erneut matchen (kostet API-Tokens)">
-                  <Button
-                    variant="outlined"
-                    onClick={handleReMatch}
-                    startIcon={<RefreshIcon />}
-                  >
-                    Erneut matchen
-                  </Button>
-                </Tooltip>
-              )}
+                    {hasExistingMatch && (
+                      <Tooltip title="Erneut matchen (kostet API-Tokens)">
+                        <Button
+                          variant="outlined"
+                          onClick={handleReMatch}
+                          disabled={isMatching}
+                          startIcon={isMatching ? <CircularProgress size={20} /> : <RefreshIcon />}
+                        >
+                          Erneut matchen
+                        </Button>
+                      </Tooltip>
+                    )}
+                  </>
+                );
+              })()}
             </Box>
 
             {matchingError && (
