@@ -1,100 +1,107 @@
 # Aktuelle Aufgabe: Skills-Import Erweiterung
 
-**Stand:** 2026-01-06
-**Status:** Bereit zur Implementierung
+**Stand:** 2026-01-11
+**Status:** ✅ ERLEDIGT (PR #37 gemerged)
 
 ---
 
-## Kontext
+## ✅ Erledigte Aufgaben
+
+### Skills Metadata Import (PR #37)
 
 Das Skills Hub Projekt exportiert jetzt CSV-Dateien mit zwei neuen Spalten:
 - `confidence` (very_likely, possible) - Multi-LLM-Analyse Konfidenz
 - `marketRelevance` (high, medium, low) - Marktrelevanz des Skills
 
-Diese Felder sollen in JobMatchChecker importiert und später beim Matching genutzt werden.
+**Implementiert:**
+- ✅ DB-Migration `20260106000001_add_skills_confidence_relevance.js`
+- ✅ Types erweitert: `SkillConfidence`, `MarketRelevance` in `src/shared/types.ts`
+- ✅ CSV Validation: `normalizeConfidence()` und `normalizeMarketRelevance()` in `skillsImportService.ts`
+- ✅ Mapping-Regeln: Strict values + minimal normalizing (trim, lowercase, - → _)
+- ✅ Unknown values: Warning log + set to null (kein Abort)
+- ✅ Smoke Test erfolgreich mit `test-data/skills_export_sample.csv`
+
+**Ergebnis:**
+- CSV-Import funktioniert einwandfrei
+- Daten werden korrekt in DB persistiert (INSERT + UPDATE)
+- Keine Fehler, keine Abbrüche
 
 ---
 
-## Implementierungsplan
+## 📋 Nächste Aufgaben (Vorschlag)
+
+### 1. **PreferencesPanel: Location Deletion (Mini-Issue)** 🔴 PRIO
+
+**Beschreibung:**
+Aktuell können Locations in PreferencesPanel nicht entfernt werden. Chips zeigen keine Delete-Funktion.
+
+**DoD (Definition of Done):**
+- [ ] Location Chips haben `onDelete` Handler
+- [ ] Click auf X-Button entfernt Location aus `formData.preferredLocations`
+- [ ] Dirty-State wird korrekt getriggert
+- [ ] Save speichert aktualisierte Location-Liste
+
+**Dateien:**
+- `src/renderer/components/PreferencesPanel.tsx` (ca. Zeile 264-271)
+
+**Zeitaufwand:** 15-30 Minuten
+
+---
+
+### 2. **Matching-Algorithmus: Skills Metadata Integration** 🟡 WICHTIG
+
+**Beschreibung:**
+Confidence + MarketRelevance beim Matching berücksichtigen, um präzisere Match-Scores zu erzeugen.
+
+**Implementierungsplan:**
 
 | # | Aufgabe | Details |
 |---|---------|---------|
-| 1 | Feature-Branch | `feature/skills-import-conflict-resolution` |
-| 2 | DB-Migration | `confidence` (TEXT), `market_relevance` (TEXT) |
-| 3 | Types erweitern | `HardSkill` + `SkillImportRow` + neue Enums |
-| 4 | SkillConflictDialog.tsx | Radio-Buttons pro Feld (Alt / Neu / Keins), "Smart Merge" Button |
-| 5 | Import-Service | Konflikte erkennen, Dialog-Daten vorbereiten |
-| 6 | Test-CSV | `test-data/skills_export_sample.csv` |
-| 7 | PR erstellen | Nach erfolgreichem Test |
+| 1 | Matching-Service erweitern | `matchingService.ts` - Skills mit Metadata laden |
+| 2 | Prompt anpassen | Skill-Kategorien-Priorisierung: Hard > Future > Soft |
+| 3 | Gewichtung implementieren | `very_likely` + `high` → höheres Gewicht |
+| 4 | Test mit echten Daten | Match-Scores mit/ohne Metadata vergleichen |
 
----
-
-## Konflikt-Dialog Konzept
-
-- Pro Skill mit Konflikt: Tabelle mit Feldern nebeneinander (Alt vs. Neu)
-- Radio-Buttons: ⚪ Alt | ⚪ Neu | ⚪ Keins (für jedes Feld)
-- "Smart Merge" Button: Automatisch höheres Level + neue Metadaten wählen
-- "Alle übernehmen" / "Alle behalten" Schnelloptionen
-
----
-
-## Skill-Kategorien Priorisierung (für Matching)
-
+**Skill-Kategorien Priorisierung:**
 1. **Hard Skills** (höchste Priorität) - Technische Fähigkeiten
 2. **Future Skills** (zweite Priorität) - Transformative, digitale, gemeinschaftliche Skills
 3. **Soft Skills** (dritte Priorität) - Zusätzliche persönliche Eigenschaften
 
-Die Kategorien werden über `skill_categories` Tabelle unterschieden:
-- "Hard Skills", "Soft Skills", "Future Skills" als Kategorienamen
+**DoD:**
+- [ ] Skills mit `confidence='very_likely'` + `marketRelevance='high'` höher gewichtet
+- [ ] Matching-Prompt enthält Skill-Kategorien-Priorisierung
+- [ ] Match-Scores sind präziser als vorher (Smoke Test)
 
-**Hinweis für AI-Matching:** Diese Priorisierung sollte dem Modell mitgegeben werden, falls der aktuelle Prompt das nicht automatisch erkennt.
+**Dateien:**
+- `src/main/services/matchingService.ts`
+- Evtl. `src/main/services/profileService.ts` (Skills laden)
 
----
-
-## DB-Schema Überblick
-
-**Tabelle `skills`:**
-- Basis: `id`, `name`, `category_id`, `level`, `years_experience`, `verified`, `notes`, `source`
-- Future Skills: `skill_type`, `future_skill_category`, `assessment_method`, `certifications`, `last_assessed`
-- **NEU:** `confidence`, `market_relevance`
-
-**Tabelle `skill_categories`:**
-- `id`, `name`, `parent_id`, `sort_order`
-- Enthält: "Hard Skills", "Soft Skills", "Future Skills"
+**Zeitaufwand:** 2-3 Stunden
 
 ---
 
-## Neue Felder Details
+### 3. **Filter-Bug: Jobs ohne Match-Score** 🟢 OPTIONAL
 
-```typescript
-// Confidence aus Multi-LLM-Analyse
-export type SkillConfidence = 'very_likely' | 'possible';
+**Beschreibung:**
+"Jobs ohne Match-Score" Filter funktioniert nicht korrekt. Match-Score-Range-Slider filtert Jobs mit `null` Match-Score unbeabsichtigt aus.
 
-// Marktrelevanz des Skills
-export type MarketRelevance = 'high' | 'medium' | 'low';
+**DoD:**
+- [ ] "Nur Jobs mit Match-Score" Checkbox funktioniert korrekt
+- [ ] Jobs ohne Match-Score werden angezeigt wenn Checkbox deaktiviert
+- [ ] Match-Score-Range-Slider ignoriert Jobs mit `null` Match-Score
 
-// Erweiterung HardSkill Interface
-export interface HardSkill {
-  // ... bestehende Felder ...
-  confidence?: SkillConfidence;
-  marketRelevance?: MarketRelevance;
-}
-```
+**Dateien:**
+- `src/renderer/pages/JobList.tsx`
+- `src/main/services/jobService.ts` (Filter-Logik)
 
----
-
-## Test-CSV Vorhanden
-
-Export aus Skills Hub mit 94 Skills:
-- Hard Skills (Python, Docker, etc.)
-- Soft Skills (Analytisches Denken, etc.)
-- Future Skills (Kritisches Denken, Systemisches Denken, etc.)
-- Enthält: `confidence` und `marketRelevance` Spalten
+**Zeitaufwand:** 1-2 Stunden
 
 ---
 
-## Nächste Schritte nach dieser Aufgabe
+## Empfehlung für nächste Session
 
-1. Matching-Prompt prüfen: Skill-Priorisierung (Hard > Future > Soft)
-2. Confidence + MarketRelevance beim Matching berücksichtigen
-3. Skills mit `very_likely` + `high` relevance höher gewichten
+**Start mit:** Mini-Issue "PreferencesPanel: Location Deletion" (schneller Quick-Win)
+
+**Dann:** Matching-Algorithmus erweitern (bringt den größten Business Value)
+
+**Optional:** Filter-Bug fixen (falls Zeit übrig)

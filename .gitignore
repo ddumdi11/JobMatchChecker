@@ -140,6 +140,12 @@ archive/
 # Session checkpoint (local only, changes too frequently)
 CHECKPOINT.md
 
+# Alternative/backup documentation files (local only)
+*_alt.md
+neurodivergent-work-patterns.md
+pause_*.md
+WICHTIGE_ZWISCHENAUFGABE.md
+
 # Local environment
 venv/
 

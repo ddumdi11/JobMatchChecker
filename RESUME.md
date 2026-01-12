@@ -1,7 +1,7 @@
 # JobMatchChecker - Wiederaufnahme-Datei
 
-> **Letzte Aktualisierung:** 2026-01-06
-> **Status:** MVP funktionsfähig, PR #33 offen für Review
+> **Letzte Aktualisierung:** 2026-01-11
+> **Status:** MVP funktionsfähig, Issue #12 + Skills Metadata Import komplett
 
 ## Schnellstart für neue Session
 
@@ -25,20 +25,9 @@ npx tsc --noEmit
 - **CSV-Import** - Jobs aus CSV importieren mit Duplikaterkennung
 - **Merge-Funktion** - Doppelte Jobs zusammenführen (Smart-Merge)
 - **Skills-Import** - Skills aus CSV mit Konfliktauflösung (PR #32, gemerged)
-
-### PR #33 - Bulk Matching & Export (offen)
-**Branch:** `feature/bulk-matching-and-export`
-
-Neue Features:
-1. **Bulk Matching**
-   - "Neue matchen (X)" - Nur Jobs ohne Match-Score
-   - "Alle neu matchen" - Alle Jobs rematchen
-   - "Ausgewählte matchen (X)" - Checkbox-Selektion für gezieltes Matching
-
-2. **Export-Funktionen**
-   - Markdown-Export mit vollständiger Matching-Analyse
-   - PDF-Export (professionelles Layout)
-   - Beide über JobDetail-Seite erreichbar
+- **Skills Metadata** - confidence + marketRelevance Import (PR #37, gemerged)
+- **Unsaved Changes** - Dirty-State-Tracking mit Confirmation-Dialog (PR #36, gemerged)
+- **Bulk Matching & Export** - Selective Matching + MD/PDF Export (PR #33, gemerged)
 
 ### Bekannte Issues (nicht kritisch)
 
@@ -51,6 +40,35 @@ Neue Features:
    - `JobSortConfig` Type-Fehler in JobList.tsx
    - `JobStatus` Type-Mismatches in Dashboard.tsx
    - Beeinträchtigen Runtime nicht, nur tsc --noEmit
+
+3. **UX-Issue: PreferencesPanel Location Deletion**
+   - Locations können aktuell nicht entfernt werden
+   - Chip hat kein `onDelete` Handler
+   - Issue dokumentiert (siehe unten)
+
+## Nächste Schritte
+
+### Kurzfristig (nächste Session)
+
+- **PreferencesPanel: Location Deletion (Mini-Issue)**
+  - Location Chips mit `onDelete` Handler ausstatten
+  - Locations aus Array entfernen können
+  - DoD: User kann Location mit X-Button löschen, formData aktualisiert sich, Dirty-State wird korrekt getriggert
+
+- **Matching-Algorithmus erweitern (Skills Metadata nutzen)**
+  - Confidence + MarketRelevance beim Matching berücksichtigen
+  - Skills mit `very_likely` + `high` relevance höher gewichten
+  - Skill-Kategorien-Priorisierung: Hard Skills > Future Skills > Soft Skills
+
+- **Optional: Filter-Bug für ungematchte Jobs fixen**
+  - Match-Score-Filter überarbeiten: null-Werte korrekt handhaben
+  - "Jobs ohne Match-Score" Checkbox richtig implementieren
+
+### Mittelfristig
+
+- Bulk-Export (mehrere Jobs gleichzeitig exportieren)
+- Matching-Ergebnisse detaillierter im Dialog anzeigen
+- Dashboard mit Statistiken erweitern
 
 ## Architektur-Kurzübersicht
 
@@ -68,8 +86,12 @@ src/
 │   ├── pages/             # Route-Komponenten
 │   │   ├── JobList.tsx    # Hauptliste mit Bulk-Matching
 │   │   ├── JobDetail.tsx  # Detailansicht mit Export
-│   │   └── SkillsImport.tsx # Skills-Import UI
-│   └── components/        # Wiederverwendbare UI
+│   │   ├── SkillsImport.tsx # Skills-Import UI
+│   │   └── PreferencesPanel.tsx # Preferences mit UnsavedChanges
+│   ├── components/        # Wiederverwendbare UI
+│   │   ├── Layout.tsx     # UnsavedChangesContext Provider
+│   │   └── SkillConflictDialog.tsx # Konfliktauflösung
+│   └── store/             # Zustand State Management
 ├── shared/
 │   └── types.ts           # SINGLE SOURCE OF TRUTH für Types
 ```
@@ -81,19 +103,8 @@ src/
 | Job Matching | `matchingService.ts`, `JobList.tsx`, `JobDetail.tsx` |
 | Export | `exportService.ts`, `JobDetail.tsx` |
 | Skills Import | `skillsImportService.ts`, `SkillsImport.tsx`, `SkillConflictDialog.tsx` |
+| Unsaved Changes | `Layout.tsx` (Context), `PreferencesPanel.tsx`, `ProfileForm.tsx`, etc. |
 | IPC | `handlers.ts`, `preload.ts`, `global.d.ts` |
-
-## Nächste Schritte
-
-### Kurzfristig
-- [ ] CodeRabbit Review für PR #33 abwarten und Findings addressieren
-- [ ] PR #33 mergen nach Review
-- [ ] Filter-Bug für ungematchte Jobs fixen (optional)
-
-### Mittelfristig
-- [ ] Bulk-Export (mehrere Jobs gleichzeitig exportieren)
-- [ ] Matching-Ergebnisse detaillierter im Dialog anzeigen
-- [ ] Dashboard mit Statistiken erweitern
 
 ## Git-Workflow
 
@@ -119,6 +130,7 @@ git push -u origin feature/neue-funktion
 - **TS-Properties:** camelCase (`matchScore`, `postedDate`)
 - **Konvertierung:** In Service-Layer via `rowToJobOffer()`
 - **Types:** IMMER aus `src/shared/types.ts` importieren
+- **Dirty-State:** Nur persistente Felder vergleichen (nie UI-only Felder!)
 
 ## Kontakt zum CodeRabbit
 
