@@ -1,7 +1,24 @@
 # JobMatchChecker - Wiederaufnahme-Datei
 
-> **Letzte Aktualisierung:** 2026-01-11
-> **Status:** MVP funktionsfähig, Issue #12 + Skills Metadata Import komplett
+> **Letzte Aktualisierung:** 2026-01-12
+> **Status:** MVP funktionsfähig, Bulk-Export + UX-Verbesserungen komplett
+
+## Session 12.01.2026 - Zusammenfassung
+
+### Erledigte Features
+
+**PR #42: Bulk-Export (Issue #34 Block 1)** ✅
+
+- Mehrere Jobs als ein PDF exportieren (ein Job pro Seite)
+- UI: Checkboxes in Job-Liste + "Bulk exportieren" Button
+- Inhalt: Titel, Firma, Match-Score, Top-Skills, KI-Fazit
+- Max-Limit: 100 Jobs, Selection wird nach Export zurückgesetzt
+
+**PR #43: UX-Fix Matchen-Button (Issue #40)** ✅
+
+- "Matchen" Button ist disabled wenn Job bereits Match-Score hat
+- Tooltip: "Bereits gematcht – nutze Erneut matchen"
+- "Erneut matchen" Button nur bei gematchten Jobs sichtbar
 
 ## Schnellstart für neue Session
 

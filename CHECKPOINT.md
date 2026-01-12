@@ -1,10 +1,26 @@
 # Job Match Checker - Entwicklungs-Checkpoint
 
-**Stand:** 2026-01-11, Session Ende
+**Stand:** 2026-01-12, Session Ende
 **Branch:** `main`
-**Status:** Skills Metadata Import ✅ + Unsaved Changes Mechanism ✅
+**Status:** Bulk-Export ✅ + UX-Fix Matchen-Button ✅
 
 ---
+
+## 🔒 Aktueller Stabilitätsstatus (Stand: 2026-01-12)
+
+- PR #42 gemerged: Bulk-Export für mehrere Jobs als PDF
+- PR #43 gemerged: "Matchen"-Button disabled wenn bereits gematcht
+- Alle Core Features stabil und funktionsfähig
+
+### Erledigte Issues (diese Session)
+
+- ✅ #34 Bulk-Export (Block 1: PDF-only) - PR #42
+- ✅ #40 UX: „Matchen"-Button deaktivieren - PR #43
+
+### Offene Themen
+
+- #34 Block 2: Markdown-Export + Format-Dropdown (optional, kann als neues Issue angelegt werden)
+- Filter-Bug für "Jobs ohne Match-Score"
 
 ## 🎉 Session 11.01.2026: Unsaved Changes + Skills Metadata Import
 

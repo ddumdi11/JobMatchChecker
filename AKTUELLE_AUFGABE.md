@@ -1,30 +1,26 @@
-# Aktuelle Aufgabe: Skills-Import Erweiterung
+# Aktuelle Aufgabe: Session 12.01.2026
 
-**Stand:** 2026-01-11
-**Status:** ✅ ERLEDIGT (PR #37 gemerged)
+**Stand:** 2026-01-12
+**Status:** ✅ ERLEDIGT - Bulk-Export + UX-Fix
 
 ---
 
-## ✅ Erledigte Aufgaben
+## ✅ Erledigte Aufgaben (12.01.2026)
 
-### Skills Metadata Import (PR #37)
+### Bulk-Export (Issue #34, PR #42)
 
-Das Skills Hub Projekt exportiert jetzt CSV-Dateien mit zwei neuen Spalten:
-- `confidence` (very_likely, possible) - Multi-LLM-Analyse Konfidenz
-- `marketRelevance` (high, medium, low) - Marktrelevanz des Skills
+- ✅ Mehrere Jobs als ein PDF exportieren (ein Job pro Seite)
+- ✅ UI: Checkboxes in Job-Liste + "Bulk exportieren" Button
+- ✅ Inhalt: Titel, Firma, Match-Score, Top-Skills, KI-Fazit
+- ✅ Max-Limit: 100 Jobs (CodeRabbit Nitpick)
+- ✅ Selection wird nach Export zurückgesetzt (CodeRabbit Nitpick)
 
-**Implementiert:**
-- ✅ DB-Migration `20260106000001_add_skills_confidence_relevance.js`
-- ✅ Types erweitert: `SkillConfidence`, `MarketRelevance` in `src/shared/types.ts`
-- ✅ CSV Validation: `normalizeConfidence()` und `normalizeMarketRelevance()` in `skillsImportService.ts`
-- ✅ Mapping-Regeln: Strict values + minimal normalizing (trim, lowercase, - → _)
-- ✅ Unknown values: Warning log + set to null (kein Abort)
-- ✅ Smoke Test erfolgreich mit `test-data/skills_export_sample.csv`
+### UX-Fix Matchen-Button (Issue #40, PR #43)
 
-**Ergebnis:**
-- CSV-Import funktioniert einwandfrei
-- Daten werden korrekt in DB persistiert (INSERT + UPDATE)
-- Keine Fehler, keine Abbrüche
+- ✅ "Matchen" Button disabled wenn Job bereits Match-Score hat
+- ✅ Tooltip: "Bereits gematcht – nutze Erneut matchen"
+- ✅ "Erneut matchen" Button nur bei gematchten Jobs sichtbar
+- ✅ Span-Wrapper für Tooltip bei disabled Button (CodeRabbit Fix)
 
 ---
 
