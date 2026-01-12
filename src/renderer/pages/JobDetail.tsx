@@ -680,14 +680,16 @@ export default function JobDetail() {
 
                     {hasExistingMatch && (
                       <Tooltip title="Erneut matchen (kostet API-Tokens)">
-                        <Button
-                          variant="outlined"
-                          onClick={handleReMatch}
-                          disabled={isMatching}
-                          startIcon={isMatching ? <CircularProgress size={20} /> : <RefreshIcon />}
-                        >
-                          Erneut matchen
-                        </Button>
+                        <span>
+                          <Button
+                            variant="outlined"
+                            onClick={handleReMatch}
+                            disabled={isMatching}
+                            startIcon={isMatching ? <CircularProgress size={20} /> : <RefreshIcon />}
+                          >
+                            Erneut matchen
+                          </Button>
+                        </span>
                       </Tooltip>
                     )}
                   </>
