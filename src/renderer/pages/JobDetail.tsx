@@ -75,7 +75,9 @@ export default function JobDetail() {
   // Matching state
   const matchJob = useJobStore(state => state.matchJob);
   const currentMatching = useJobStore(state => state.currentMatching);
+  const currentMatchingJobId = useJobStore(state => state.currentMatchingJobId);
   const matchingHistory = useJobStore(state => state.matchingHistory);
+  const matchingHistoryJobId = useJobStore(state => state.matchingHistoryJobId);
   const getMatchingHistory = useJobStore(state => state.getMatchingHistory);
   const isMatching = useJobStore(state => state.isMatching);
   const matchingError = useJobStore(state => state.matchingError);
@@ -257,7 +259,11 @@ export default function JobDetail() {
   };
 
   // Get the matching result to display (current or latest from history)
-  const displayedMatching = currentMatching || (matchingHistory.length > 0 ? matchingHistory[0] : null);
+  // Only show matching data if it belongs to the current job (prevents stale data from previous job)
+  const currentJobId = currentJob?.id;
+  const validCurrentMatching = (currentMatching && currentMatchingJobId === currentJobId) ? currentMatching : null;
+  const validMatchingHistory = (matchingHistoryJobId === currentJobId && matchingHistory.length > 0) ? matchingHistory[0] : null;
+  const displayedMatching = validCurrentMatching || validMatchingHistory;
 
   // Get status display
   const getStatusInfo = (status: string) => {

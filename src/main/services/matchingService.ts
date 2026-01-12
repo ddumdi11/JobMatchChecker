@@ -145,7 +145,35 @@ function buildMatchingPrompt(profile: any, skills: any[], preferences: any, job:
   const skillsText = Object.entries(skillsByCategory)
     .map(([category, categorySkills]) => {
       const skillsList = categorySkills
-        .map(s => `  - ${s.name} (Level ${s.level}/10${s.years_of_experience ? `, ${s.years_of_experience} Jahre Erfahrung` : ''})`)
+        .map(s => {
+          // Build skill description with metadata
+          let desc = `  - ${s.name} (Level ${s.level}/10`;
+          if (s.years_of_experience) {
+            desc += `, ${s.years_of_experience} Jahre Erfahrung`;
+          }
+          // Add confidence and market relevance metadata for AI weighting
+          const metadata: string[] = [];
+          if (s.confidence) {
+            const confidenceLabels: Record<string, string> = {
+              'very_likely': 'sehr sicher',
+              'possible': 'möglich'
+            };
+            metadata.push(`Konfidenz: ${confidenceLabels[s.confidence] || s.confidence}`);
+          }
+          if (s.market_relevance) {
+            const relevanceLabels: Record<string, string> = {
+              'high': 'hoch',
+              'medium': 'mittel',
+              'low': 'niedrig'
+            };
+            metadata.push(`Marktrelevanz: ${relevanceLabels[s.market_relevance] || s.market_relevance}`);
+          }
+          if (metadata.length > 0) {
+            desc += ` [${metadata.join(', ')}]`;
+          }
+          desc += ')';
+          return desc;
+        })
         .join('\n');
       return `${category}:\n${skillsList}`;
     })
@@ -206,6 +234,21 @@ Gib eine strukturierte Analyse als JSON zurück mit folgenden Feldern:
 - Erfahrungs-Match (30%): Passt das Erfahrungslevel?
 - Standort/Remote-Match (15%): Passen Standort und Remote-Optionen?
 - Gehalts-Match (15%): Liegt das Gehalt im gewünschten Bereich?
+
+**Skill-Gewichtung nach Metadata:**
+Bei manchen Skills sind Konfidenz und Marktrelevanz angegeben. Nutze diese zur Gewichtung:
+- Marktrelevanz "hoch" → Skill ist besonders wertvoll (Faktor 1.2)
+- Marktrelevanz "mittel" → Skill ist normal wertvoll (Faktor 1.0)
+- Marktrelevanz "niedrig" → Skill ist weniger relevant (Faktor 0.8)
+- Konfidenz "sehr sicher" → Skill ist verlässlich nachgewiesen (Faktor 1.1)
+- Konfidenz "möglich" → Skill ist wahrscheinlich vorhanden (Faktor 1.0)
+- Fehlende Werte → neutral (Faktor 1.0)
+Skills mit hoher Marktrelevanz UND sicherer Konfidenz sollten stärker positiv in den Match-Score einfließen.
+
+**Skill-Kategorien-Priorisierung:**
+1. Hard Skills (höchste Priorität) - Technische Fähigkeiten sind am wichtigsten für den Job-Match
+2. Future Skills (zweite Priorität) - Transformative, digitale, gemeinschaftliche Skills
+3. Soft Skills (dritte Priorität) - Zusätzliche persönliche Eigenschaften
 
 **Wichtig für Skill-Matching (SEMANTISCH interpretieren!):**
 - Interpretiere Skills SEMANTISCH, nicht nur nach exaktem Namen oder Schreibweise
