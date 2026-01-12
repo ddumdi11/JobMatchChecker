@@ -312,6 +312,7 @@ export default function JobList() {
       if (result.success) {
         setExportSnackbarMessage(`${result.exportedCount} Jobs erfolgreich als PDF exportiert`);
         setExportSnackbarSeverity('success');
+        setSelectedJobIds(new Set()); // Clear selection after successful export
       } else {
         setExportSnackbarMessage(result.error || 'Export fehlgeschlagen');
         setExportSnackbarSeverity('error');

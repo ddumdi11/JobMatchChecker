@@ -597,9 +597,15 @@ export function generateCompactHtml(data: JobExportData): string {
  * Bulk Export Feature
  */
 export async function exportMultipleToPdf(jobIds: number[]): Promise<{ success: boolean; filePath?: string; error?: string; exportedCount?: number }> {
+  const MAX_BULK_EXPORT = 100;
+
   try {
     if (jobIds.length === 0) {
       return { success: false, error: 'Keine Jobs ausgewählt' };
+    }
+
+    if (jobIds.length > MAX_BULK_EXPORT) {
+      return { success: false, error: `Maximal ${MAX_BULK_EXPORT} Jobs können gleichzeitig exportiert werden` };
     }
 
     // Get export data for all jobs
