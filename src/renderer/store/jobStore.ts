@@ -54,7 +54,9 @@ interface JobState {
 
   // Matching State
   currentMatching: MatchingResult | null;
+  currentMatchingJobId: number | null;
   matchingHistory: any[];
+  matchingHistoryJobId: number | null;
   isMatching: boolean;
   matchingError: string | null;
 
@@ -101,7 +103,9 @@ export const useJobStore = create<JobState>()(
 
       // Matching State
       currentMatching: null,
+      currentMatchingJobId: null,
       matchingHistory: [],
+      matchingHistoryJobId: null,
       isMatching: false,
       matchingError: null,
 
@@ -299,6 +303,7 @@ export const useJobStore = create<JobState>()(
           if (result.success) {
             set({
               currentMatching: result.data,
+              currentMatchingJobId: jobId,
               isMatching: false
             });
 
@@ -329,9 +334,11 @@ export const useJobStore = create<JobState>()(
       getMatchingHistory: async (jobId: number) => {
         try {
           const history = await window.api.getMatchingHistory(jobId);
-          set({ matchingHistory: history });
+          set({ matchingHistory: history, matchingHistoryJobId: jobId });
         } catch (error: any) {
           console.error('Failed to load matching history:', error);
+          // On error, clear history for this job to prevent stale data
+          set({ matchingHistory: [], matchingHistoryJobId: jobId });
         }
       },
 
