@@ -58,6 +58,8 @@ export default function JobAdd() {
   // Local state
   const [jobText, setJobText] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // Prevent double-save
+  const [saveSuccessful, setSaveSuccessful] = useState(false); // Track successful save for navigation
 
   // Form state (initialized from extraction or empty)
   const [formData, setFormData] = useState({
@@ -135,16 +137,18 @@ export default function JobAdd() {
   }, [formData, initialFormData]);
 
   // Sync with UnsavedChangesContext (Issue #12)
+  // Don't mark as dirty if save was successful (prevents blocker during navigation)
   useEffect(() => {
-    setIsDirty(hasUnsavedChanges && showForm);
+    const shouldBeDirty = hasUnsavedChanges && showForm && !saveSuccessful;
+    setIsDirty(shouldBeDirty);
 
     // Provide save action only if form is valid
-    if (hasUnsavedChanges && showForm && formData.title && formData.company) {
+    if (shouldBeDirty && formData.title && formData.company) {
       setOnSave(handleSave);
     } else {
       setOnSave(undefined);
     }
-  }, [hasUnsavedChanges, showForm, formData.title, formData.company, setIsDirty, setOnSave]);
+  }, [hasUnsavedChanges, showForm, saveSuccessful, formData.title, formData.company, setIsDirty, setOnSave]);
 
   // Handle paste from clipboard
   const handlePaste = async () => {
@@ -284,9 +288,12 @@ export default function JobAdd() {
 
   // Handle save
   const handleSave = async () => {
-    if (!formData.title || !formData.company) {
+    // Prevent double-save
+    if (isSaving || !formData.title || !formData.company) {
       return;
     }
+
+    setIsSaving(true);
 
     try {
       if (isEditMode && id) {
@@ -297,14 +304,18 @@ export default function JobAdd() {
         await createJob(formData);
       }
 
-      // Reset dirty state after successful save (Issue #12)
+      // Mark save as successful - this will trigger useEffect to clear dirty state
+      setSaveSuccessful(true);
       setInitialFormData(formData);
       setHasUnsavedChanges(false);
+      setIsDirty(false); // Explicitly clear context dirty state
 
-      // Navigate to jobs list on success
-      navigate('/jobs');
+      // Navigate to jobs list on success (after state updates)
+      // Use setTimeout to ensure state updates are processed before navigation
+      setTimeout(() => navigate('/jobs'), 0);
     } catch (err) {
       console.error('Failed to save job:', err);
+      setIsSaving(false); // Re-enable save button on error
     }
   };
 
@@ -561,11 +572,11 @@ export default function JobAdd() {
 
             <Button
               variant="contained"
-              startIcon={isLoading ? <CircularProgress size={20} /> : <SaveIcon />}
+              startIcon={(isLoading || isSaving) ? <CircularProgress size={20} /> : <SaveIcon />}
               onClick={handleSave}
-              disabled={!formData.title || !formData.company || isLoading}
+              disabled={!formData.title || !formData.company || isLoading || isSaving}
             >
-              {isLoading ? 'Speichere...' : 'Job speichern'}
+              {(isLoading || isSaving) ? 'Speichere...' : 'Job speichern'}
             </Button>
           </Box>
 
