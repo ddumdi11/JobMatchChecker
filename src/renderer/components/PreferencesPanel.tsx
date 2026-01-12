@@ -11,7 +11,8 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Chip
 } from '@mui/material';
 import { Save as SaveIcon } from '@mui/icons-material';
 import {
@@ -264,9 +265,16 @@ export const PreferencesPanel: React.FC = () => {
           {formData.preferredLocations.length > 0 && (
             <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
               {formData.preferredLocations.map((loc, idx) => (
-                <Typography key={idx} variant="body2" sx={{ bgcolor: 'primary.light', color: 'white', px: 1.5, py: 0.5, borderRadius: 2 }}>
-                  {loc}
-                </Typography>
+                <Chip
+                  key={idx}
+                  label={loc}
+                  onDelete={() => setFormData(prev => ({
+                    ...prev,
+                    preferredLocations: prev.preferredLocations.filter((_, i) => i !== idx)
+                  }))}
+                  color="primary"
+                  disabled={isLoading}
+                />
               ))}
             </Box>
           )}
