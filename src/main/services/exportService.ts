@@ -9,6 +9,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { dialog, shell } from 'electron';
+import JSZip from 'jszip';
 
 /**
  * Job data for export (includes matching result)
@@ -199,6 +200,14 @@ function escapePipes(str: string | undefined | null): string {
 function sanitizeFilename(value: string, fallback: string): string {
   const sanitized = value.replace(/[^a-zA-Z0-9äöüÄÖÜß\s-]/g, '').replace(/\s+/g, '_').trim();
   return sanitized || fallback;
+}
+
+/**
+ * Truncate string to max length and add ellipsis if needed
+ */
+function truncateString(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+  return value.substring(0, maxLength - 3) + '...';
 }
 
 /**
@@ -858,6 +867,98 @@ export async function exportToPdf(jobId: number): Promise<{ success: boolean; fi
 
   } catch (error: any) {
     log.error('Error exporting to PDF:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Export multiple jobs to a single ZIP file (Markdown + JSON per job)
+ * Bulk Export Feature - Issue #34
+ */
+export async function exportBulkToZip(jobIds: number[]): Promise<{ success: boolean; filePath?: string; error?: string; exportedCount?: number; skippedCount?: number }> {
+  const MAX_BULK_EXPORT = 100;
+
+  try {
+    if (jobIds.length === 0) {
+      return { success: false, error: 'Keine Jobs ausgewählt' };
+    }
+
+    if (jobIds.length > MAX_BULK_EXPORT) {
+      return { success: false, error: `Maximal ${MAX_BULK_EXPORT} Jobs können gleichzeitig exportiert werden` };
+    }
+
+    // Create ZIP instance
+    const zip = new JSZip();
+    let exportedCount = 0;
+    let skippedCount = 0;
+
+    // Process each job
+    for (const jobId of jobIds) {
+      try {
+        const data = getJobExportData(jobId);
+
+        // Generate filename with truncation for Windows path limits
+        const sanitizedCompany = sanitizeFilename(truncateString(data.company, 40), 'Unbekannt');
+        const sanitizedTitle = sanitizeFilename(truncateString(data.title, 60), 'Unbenannt');
+        const baseFilename = `job_${jobId}_${sanitizedCompany}_${sanitizedTitle}`;
+
+        // Generate Markdown content
+        const markdownContent = generateMarkdown(data);
+        zip.file(`${baseFilename}.md`, markdownContent);
+
+        // Generate JSON content (pretty-printed)
+        const jsonContent = JSON.stringify(data, null, 2);
+        zip.file(`${baseFilename}.json`, jsonContent);
+
+        exportedCount++;
+      } catch (err: any) {
+        log.warn(`Skipping job ${jobId}: ${err.message}`);
+        skippedCount++;
+      }
+    }
+
+    if (exportedCount === 0) {
+      return { success: false, error: 'Keine exportierbaren Jobs gefunden' };
+    }
+
+    // Generate default ZIP filename
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const defaultFilename = `bulk-export_${dateStr}.zip`;
+
+    // Show save dialog
+    const result = await dialog.showSaveDialog({
+      title: 'Bulk ZIP exportieren',
+      defaultPath: defaultFilename,
+      filters: [
+        { name: 'ZIP Archive', extensions: ['zip'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (result.canceled || !result.filePath) {
+      return { success: false, error: 'Export abgebrochen' };
+    }
+
+    // Generate ZIP as buffer
+    const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
+
+    // Write ZIP file
+    fs.writeFileSync(result.filePath, zipBuffer);
+
+    log.info(`Bulk exported ${exportedCount} jobs to ZIP: ${result.filePath} (${skippedCount} skipped)`);
+
+    // Open file location
+    shell.showItemInFolder(result.filePath);
+
+    return {
+      success: true,
+      filePath: result.filePath,
+      exportedCount,
+      skippedCount
+    };
+
+  } catch (error: any) {
+    log.error('Error in bulk ZIP export:', error);
     return { success: false, error: error.message };
   }
 }
