@@ -1,13 +1,15 @@
-# Aktuelle Aufgabe: Session 12.01.2026
+# Aktuelle Aufgabe: Session 14.01.2026
 
-**Stand:** 2026-01-12
-**Status:** ✅ ERLEDIGT - Bulk-Export + UX-Fix
+**Stand:** 2026-01-14
+**Status:** ✅ ERLEDIGT - ZIP-Export (Issue #34 komplett)
 
 ---
 
-## ✅ Erledigte Aufgaben (12.01.2026)
+## ✅ Erledigte Aufgaben
 
-### Bulk-Export (Issue #34, PR #42)
+### Session 12.01.2026
+
+**Bulk-Export PDF (Issue #34 Block 1, PR #42)** ✅
 
 - ✅ Mehrere Jobs als ein PDF exportieren (ein Job pro Seite)
 - ✅ UI: Checkboxes in Job-Liste + "Bulk exportieren" Button
@@ -15,89 +17,71 @@
 - ✅ Max-Limit: 100 Jobs (CodeRabbit Nitpick)
 - ✅ Selection wird nach Export zurückgesetzt (CodeRabbit Nitpick)
 
-### UX-Fix Matchen-Button (Issue #40, PR #43)
+**UX-Fix Matchen-Button (Issue #40, PR #43)** ✅
 
 - ✅ "Matchen" Button disabled wenn Job bereits Match-Score hat
 - ✅ Tooltip: "Bereits gematcht – nutze Erneut matchen"
 - ✅ "Erneut matchen" Button nur bei gematchten Jobs sichtbar
 - ✅ Span-Wrapper für Tooltip bei disabled Button (CodeRabbit Fix)
 
----
+### Session 14.01.2026
 
-## 📋 Nächste Aufgaben (Vorschlag)
+**Bulk-Export ZIP (Issue #34 Block 2, PR #44)** ✅
 
-### 1. **PreferencesPanel: Location Deletion (Mini-Issue)** 🔴 PRIO
-
-**Beschreibung:**
-Aktuell können Locations in PreferencesPanel nicht entfernt werden. Chips zeigen keine Delete-Funktion.
-
-**DoD (Definition of Done):**
-- [ ] Location Chips haben `onDelete` Handler
-- [ ] Click auf X-Button entfernt Location aus `formData.preferredLocations`
-- [ ] Dirty-State wird korrekt getriggert
-- [ ] Save speichert aktualisierte Location-Liste
-
-**Dateien:**
-- `src/renderer/components/PreferencesPanel.tsx` (ca. Zeile 264-271)
-
-**Zeitaufwand:** 15-30 Minuten
+- ✅ Mehrere Jobs als ZIP exportieren (Markdown + JSON pro Job)
+- ✅ UI: ZIP-Button neben PDF-Button in Job-Liste
+- ✅ Filename-Pattern: `job_<id>_<company>_<title>.<ext>`
+- ✅ ZIP-Filename: `bulk-export_YYYY-MM-DD.zip`
+- ✅ Path-Truncation: Company 40 chars, Title 60 chars (Windows-kompatibel)
+- ✅ jszip Integration mit in-memory ZIP-Generierung
+- ✅ Max-Limit: 100 Jobs, Selection wird nach Export zurückgesetzt
+- ✅ CodeRabbit Review: Alle Checks passed, 1 optionaler Nitpick (save dialog timing)
 
 ---
 
-### 2. **Matching-Algorithmus: Skills Metadata Integration** 🟡 WICHTIG
+## 📊 Projektstatus – Reset (Stand jetzt)
 
-**Beschreibung:**
-Confidence + MarketRelevance beim Matching berücksichtigen, um präzisere Match-Scores zu erzeugen.
+### ✅ Abgeschlossen
+- **Issue #34 – Bulk-Export (ZIP)** → implementiert, getestet, gemerged, stabil
 
-**Implementierungsplan:**
+### 🟡 Offen / bewusst geparkt
+- **Issue #12 – UnsavedChangesContext (UX)** → sinnvoll, aber kein akuter Druck
+- **PreferencesPanel: Location Deletion** → Mini-Issue, UX-Verbesserung
+- **Matching-Algorithmus: Skills Metadata Integration** → Business Value, aber nicht kritisch
+- **Filter-Bug: Jobs ohne Match-Score** → Workaround existiert
 
-| # | Aufgabe | Details |
-|---|---------|---------|
-| 1 | Matching-Service erweitern | `matchingService.ts` - Skills mit Metadata laden |
-| 2 | Prompt anpassen | Skill-Kategorien-Priorisierung: Hard > Future > Soft |
-| 3 | Gewichtung implementieren | `very_likely` + `high` → höheres Gewicht |
-| 4 | Test mit echten Daten | Match-Scores mit/ohne Metadata vergleichen |
+### 🧭 Leitplanken bestätigt
+- ✅ Fokus auf Konsolidierung, nicht Feature-Flut
+- ✅ Nebenprojekte bleiben geparkt, nicht vergessen
+- ✅ Projekt ist präsentationsfähig im Kern
 
-**Skill-Kategorien Priorisierung:**
-1. **Hard Skills** (höchste Priorität) - Technische Fähigkeiten
-2. **Future Skills** (zweite Priorität) - Transformative, digitale, gemeinschaftliche Skills
-3. **Soft Skills** (dritte Priorität) - Zusätzliche persönliche Eigenschaften
-
-**DoD:**
-- [ ] Skills mit `confidence='very_likely'` + `marketRelevance='high'` höher gewichtet
-- [ ] Matching-Prompt enthält Skill-Kategorien-Priorisierung
-- [ ] Match-Scores sind präziser als vorher (Smoke Test)
-
-**Dateien:**
-- `src/main/services/matchingService.ts`
-- Evtl. `src/main/services/profileService.ts` (Skills laden)
-
-**Zeitaufwand:** 2-3 Stunden
+### 🔜 Nächster möglicher Einstieg (nach Pause)
+- **Option 1:** Issue #12 grob sichten & entscheiden
+- **Option 2:** Bewusst nichts (auch eine valide Option)
 
 ---
 
-### 3. **Filter-Bug: Jobs ohne Match-Score** 🟢 OPTIONAL
+## 📋 Geparkte Features (für später)
 
-**Beschreibung:**
-"Jobs ohne Match-Score" Filter funktioniert nicht korrekt. Match-Score-Range-Slider filtert Jobs mit `null` Match-Score unbeabsichtigt aus.
+### PreferencesPanel: Location Deletion (Mini-Issue)
+**Beschreibung:** Locations können aktuell nicht entfernt werden. Chips zeigen keine Delete-Funktion.
 
-**DoD:**
-- [ ] "Nur Jobs mit Match-Score" Checkbox funktioniert korrekt
-- [ ] Jobs ohne Match-Score werden angezeigt wenn Checkbox deaktiviert
-- [ ] Match-Score-Range-Slider ignoriert Jobs mit `null` Match-Score
-
-**Dateien:**
-- `src/renderer/pages/JobList.tsx`
-- `src/main/services/jobService.ts` (Filter-Logik)
-
-**Zeitaufwand:** 1-2 Stunden
+**Dateien:** `src/renderer/components/PreferencesPanel.tsx` (ca. Zeile 264-271)
 
 ---
 
-## Empfehlung für nächste Session
+### Matching-Algorithmus: Skills Metadata Integration
+**Beschreibung:** Confidence + MarketRelevance beim Matching berücksichtigen für präzisere Match-Scores.
 
-**Start mit:** Mini-Issue "PreferencesPanel: Location Deletion" (schneller Quick-Win)
+**Skill-Kategorien Priorisierung:** Hard Skills > Future Skills > Soft Skills
 
-**Dann:** Matching-Algorithmus erweitern (bringt den größten Business Value)
+**Dateien:** `src/main/services/matchingService.ts`, evtl. `profileService.ts`
 
-**Optional:** Filter-Bug fixen (falls Zeit übrig)
+---
+
+### Filter-Bug: Jobs ohne Match-Score
+**Beschreibung:** Match-Score-Range-Slider filtert Jobs mit `null` Match-Score unbeabsichtigt aus.
+
+**Workaround:** Slider nicht verwenden wenn alle Jobs sichtbar sein sollen.
+
+**Dateien:** `src/renderer/pages/JobList.tsx`, `src/main/services/jobService.ts`

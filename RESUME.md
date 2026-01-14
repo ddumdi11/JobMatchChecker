@@ -1,13 +1,27 @@
 # JobMatchChecker - Wiederaufnahme-Datei
 
-> **Letzte Aktualisierung:** 2026-01-12
-> **Status:** MVP funktionsfähig, Bulk-Export + UX-Verbesserungen komplett
+> **Letzte Aktualisierung:** 2026-01-14
+> **Status:** MVP funktionsfähig, Issue #34 (Bulk-Export) komplett abgeschlossen
+
+## Session 14.01.2026 - Zusammenfassung
+
+### Erledigte Features
+
+**PR #44: Bulk-Export ZIP (Issue #34 Block 2)** ✅
+
+- Mehrere Jobs als ZIP exportieren (Markdown + JSON pro Job)
+- UI: ZIP-Button neben PDF-Button in Job-Liste
+- Filename-Pattern: `job_<id>_<company>_<title>.<ext>`
+- ZIP-Filename: `bulk-export_YYYY-MM-DD.zip`
+- Path-Truncation für Windows-Kompatibilität (Company 40, Title 60 chars)
+- jszip Integration, Max 100 Jobs, Selection-Reset nach Export
+- CodeRabbit: Alle Checks passed
 
 ## Session 12.01.2026 - Zusammenfassung
 
 ### Erledigte Features
 
-**PR #42: Bulk-Export (Issue #34 Block 1)** ✅
+**PR #42: Bulk-Export PDF (Issue #34 Block 1)** ✅
 
 - Mehrere Jobs als ein PDF exportieren (ein Job pro Seite)
 - UI: Checkboxes in Job-Liste + "Bulk exportieren" Button
@@ -44,7 +58,10 @@ npx tsc --noEmit
 - **Skills-Import** - Skills aus CSV mit Konfliktauflösung (PR #32, gemerged)
 - **Skills Metadata** - confidence + marketRelevance Import (PR #37, gemerged)
 - **Unsaved Changes** - Dirty-State-Tracking mit Confirmation-Dialog (PR #36, gemerged)
-- **Bulk Matching & Export** - Selective Matching + MD/PDF Export (PR #33, gemerged)
+- **Bulk Matching** - Selective Matching (Neue/Alle/Ausgewählte) (PR #33, gemerged)
+- **Bulk Export PDF** - Mehrere Jobs als ein PDF (PR #42, gemerged)
+- **Bulk Export ZIP** - Mehrere Jobs als ZIP (MD + JSON) (PR #44, gemerged)
+- **UX: Match-Button** - Disabled wenn bereits gematcht (PR #43, gemerged)
 
 ### Bekannte Issues (nicht kritisch)
 
@@ -63,29 +80,44 @@ npx tsc --noEmit
    - Chip hat kein `onDelete` Handler
    - Issue dokumentiert (siehe unten)
 
-## Nächste Schritte
+## Projektstatus – Reset (Stand 2026-01-14)
 
-### Kurzfristig (nächste Session)
+### ✅ Abgeschlossen
+- **Issue #34 – Bulk-Export (ZIP)** → implementiert, getestet, gemerged, stabil
 
-- **PreferencesPanel: Location Deletion (Mini-Issue)**
-  - Location Chips mit `onDelete` Handler ausstatten
-  - Locations aus Array entfernen können
-  - DoD: User kann Location mit X-Button löschen, formData aktualisiert sich, Dirty-State wird korrekt getriggert
+### 🟡 Offen / bewusst geparkt
+- **Issue #12 – UnsavedChangesContext (UX)** → sinnvoll, aber kein akuter Druck
+- **PreferencesPanel: Location Deletion** → Mini-Issue, UX-Verbesserung
+- **Matching-Algorithmus: Skills Metadata Integration** → Business Value, aber nicht kritisch
+- **Filter-Bug: Jobs ohne Match-Score** → Workaround existiert
 
-- **Matching-Algorithmus erweitern (Skills Metadata nutzen)**
-  - Confidence + MarketRelevance beim Matching berücksichtigen
-  - Skills mit `very_likely` + `high` relevance höher gewichten
-  - Skill-Kategorien-Priorisierung: Hard Skills > Future Skills > Soft Skills
+### 🧭 Leitplanken bestätigt
+- ✅ Fokus auf Konsolidierung, nicht Feature-Flut
+- ✅ Nebenprojekte bleiben geparkt, nicht vergessen
+- ✅ Projekt ist präsentationsfähig im Kern
 
-- **Optional: Filter-Bug für ungematchte Jobs fixen**
-  - Match-Score-Filter überarbeiten: null-Werte korrekt handhaben
-  - "Jobs ohne Match-Score" Checkbox richtig implementieren
+### 🔜 Nächster möglicher Einstieg (nach Pause)
+- **Option 1:** Issue #12 grob sichten & entscheiden
+- **Option 2:** Bewusst nichts (auch eine valide Option)
+
+## Geparkte Features (Backlog)
+
+### PreferencesPanel: Location Deletion
+- Location Chips mit `onDelete` Handler ausstatten
+- Locations aus Array entfernen können
+
+### Matching-Algorithmus: Skills Metadata nutzen
+- Confidence + MarketRelevance beim Matching berücksichtigen
+- Skill-Kategorien-Priorisierung: Hard Skills > Future Skills > Soft Skills
+
+### Filter-Bug für ungematchte Jobs
+- Match-Score-Filter überarbeiten: null-Werte korrekt handhaben
+- Workaround existiert (Slider nicht verwenden)
 
 ### Mittelfristig
-
-- Bulk-Export (mehrere Jobs gleichzeitig exportieren)
 - Matching-Ergebnisse detaillierter im Dialog anzeigen
 - Dashboard mit Statistiken erweitern
+- Fallback-Handling vereinheitlichen ("Unknown" vs "Unbekannt")
 
 ## Architektur-Kurzübersicht
 
@@ -118,7 +150,7 @@ src/
 | Feature | Hauptdateien |
 |---------|--------------|
 | Job Matching | `matchingService.ts`, `JobList.tsx`, `JobDetail.tsx` |
-| Export | `exportService.ts`, `JobDetail.tsx` |
+| Export (MD/PDF/ZIP) | `exportService.ts`, `JobDetail.tsx`, `JobList.tsx` |
 | Skills Import | `skillsImportService.ts`, `SkillsImport.tsx`, `SkillConflictDialog.tsx` |
 | Unsaved Changes | `Layout.tsx` (Context), `PreferencesPanel.tsx`, `ProfileForm.tsx`, etc. |
 | IPC | `handlers.ts`, `preload.ts`, `global.d.ts` |
