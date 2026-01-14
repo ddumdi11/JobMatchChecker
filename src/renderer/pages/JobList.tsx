@@ -51,7 +51,8 @@ import {
   Keyboard as KeyboardIcon,
   AutoAwesome as AutoAwesomeIcon,
   Refresh as RefreshIcon,
-  PictureAsPdf as PdfIcon
+  PictureAsPdf as PdfIcon,
+  FolderZip as FolderZipIcon
 } from '@mui/icons-material';
 import { CircularProgress, LinearProgress } from '@mui/material';
 import { useJobStore } from '../store/jobStore';
@@ -297,7 +298,7 @@ export default function JobList() {
   };
 
   // Handle bulk export to PDF
-  const handleBulkExport = async () => {
+  const handleBulkExportPdf = async () => {
     const jobIds = Array.from(selectedJobIds);
     if (jobIds.length === 0) {
       setExportSnackbarMessage('Keine Jobs ausgewählt');
@@ -320,6 +321,41 @@ export default function JobList() {
       setExportSnackbarOpen(true);
     } catch (error: any) {
       console.error('Bulk export failed:', error);
+      setExportSnackbarMessage(error.message || 'Export fehlgeschlagen');
+      setExportSnackbarSeverity('error');
+      setExportSnackbarOpen(true);
+    } finally {
+      setIsBulkExporting(false);
+    }
+  };
+
+  // Handle bulk export to ZIP (Markdown + JSON)
+  const handleBulkExportZip = async () => {
+    const jobIds = Array.from(selectedJobIds);
+    if (jobIds.length === 0) {
+      setExportSnackbarMessage('Keine Jobs ausgewählt');
+      setExportSnackbarSeverity('error');
+      setExportSnackbarOpen(true);
+      return;
+    }
+
+    setIsBulkExporting(true);
+    try {
+      const result = await window.api.exportBulkToZip(jobIds);
+      if (result.success) {
+        const message = result.skippedCount && result.skippedCount > 0
+          ? `${result.exportedCount} Jobs erfolgreich als ZIP exportiert (${result.skippedCount} übersprungen)`
+          : `${result.exportedCount} Jobs erfolgreich als ZIP exportiert`;
+        setExportSnackbarMessage(message);
+        setExportSnackbarSeverity('success');
+        setSelectedJobIds(new Set()); // Clear selection after successful export
+      } else {
+        setExportSnackbarMessage(result.error || 'Export fehlgeschlagen');
+        setExportSnackbarSeverity('error');
+      }
+      setExportSnackbarOpen(true);
+    } catch (error: any) {
+      console.error('Bulk ZIP export failed:', error);
       setExportSnackbarMessage(error.message || 'Export fehlgeschlagen');
       setExportSnackbarSeverity('error');
       setExportSnackbarOpen(true);
@@ -658,21 +694,36 @@ export default function JobList() {
           </Tooltip>
         </Box>
         <Stack direction="row" spacing={1}>
-          {/* Bulk Export Button */}
+          {/* Bulk Export Buttons */}
           {selectedJobIds.size > 0 && (
-            <Tooltip title={`${selectedJobIds.size} ausgewählte Jobs als PDF exportieren`}>
-              <span>
-                <Button
-                  variant="outlined"
-                  startIcon={isBulkExporting ? <CircularProgress size={18} /> : <PdfIcon />}
-                  onClick={handleBulkExport}
-                  disabled={isBulkExporting}
-                  color="primary"
-                >
-                  Bulk exportieren ({selectedJobIds.size})
-                </Button>
-              </span>
-            </Tooltip>
+            <>
+              <Tooltip title={`${selectedJobIds.size} ausgewählte Jobs als PDF exportieren`}>
+                <span>
+                  <Button
+                    variant="outlined"
+                    startIcon={isBulkExporting ? <CircularProgress size={18} /> : <PdfIcon />}
+                    onClick={handleBulkExportPdf}
+                    disabled={isBulkExporting}
+                    color="primary"
+                  >
+                    PDF ({selectedJobIds.size})
+                  </Button>
+                </span>
+              </Tooltip>
+              <Tooltip title={`${selectedJobIds.size} ausgewählte Jobs als ZIP exportieren (MD + JSON)`}>
+                <span>
+                  <Button
+                    variant="outlined"
+                    startIcon={isBulkExporting ? <CircularProgress size={18} /> : <FolderZipIcon />}
+                    onClick={handleBulkExportZip}
+                    disabled={isBulkExporting}
+                    color="secondary"
+                  >
+                    ZIP ({selectedJobIds.size})
+                  </Button>
+                </span>
+              </Tooltip>
+            </>
           )}
           {/* Match Selected Button */}
           {selectedJobIds.size > 0 && (

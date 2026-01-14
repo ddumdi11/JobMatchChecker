@@ -898,5 +898,15 @@ export function registerIpcHandlers() {
     }
   });
 
+  // Bulk export multiple jobs to ZIP (Markdown + JSON)
+  ipcMain.handle('export:bulkToZip', async (_, jobIds: number[]) => {
+    try {
+      return await exportService.exportBulkToZip(jobIds);
+    } catch (error: any) {
+      log.error('Error in bulk ZIP export:', error);
+      throw error;
+    }
+  });
+
   log.info('IPC handlers registered successfully');
 }

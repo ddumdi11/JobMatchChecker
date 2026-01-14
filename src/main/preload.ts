@@ -84,5 +84,6 @@ contextBridge.exposeInMainWorld('api', {
   // Export operations
   exportToMarkdown: (jobId: number) => ipcRenderer.invoke('export:toMarkdown', jobId),
   exportToPdf: (jobId: number) => ipcRenderer.invoke('export:toPdf', jobId),
-  exportBulkToPdf: (jobIds: number[]) => ipcRenderer.invoke('export:bulkToPdf', jobIds)
+  exportBulkToPdf: (jobIds: number[]) => ipcRenderer.invoke('export:bulkToPdf', jobIds),
+  exportBulkToZip: (jobIds: number[]) => ipcRenderer.invoke('export:bulkToZip', jobIds)
 });
