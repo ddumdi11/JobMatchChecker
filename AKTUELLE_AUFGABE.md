@@ -1,7 +1,7 @@
 # Aktuelle Aufgabe: Session 14.01.2026
 
 **Stand:** 2026-01-14
-**Status:** ✅ ERLEDIGT - ZIP-Export (Issue #34 komplett)
+**Status:** ✅ ERLEDIGT - ZIP-Export + UnsavedChanges-Diagnostik
 
 ---
 
@@ -35,17 +35,24 @@
 - ✅ Path-Truncation: Company 40 chars, Title 60 chars (Windows-kompatibel)
 - ✅ jszip Integration mit in-memory ZIP-Generierung
 - ✅ Max-Limit: 100 Jobs, Selection wird nach Export zurückgesetzt
-- ✅ CodeRabbit Review: Alle Checks passed, 1 optionaler Nitpick (save dialog timing)
+- ✅ CodeRabbit Review: Alle Checks passed
+
+**UnsavedChanges-Diagnostik (Issue #45)** ✅
+
+- ✅ Issue #45 erstellt mit vollständigem Testset (T1-T6)
+- ✅ Code-Analyse durchgeführt: UnsavedChangesContext bereits vollständig implementiert
+- ✅ Alle 6 Tests bestanden (Navigation, App-Schließen, Dirty-State, Undo, Hard-Kill, Bulk)
+- ✅ Ergebnis: **Kein Problem** - Issue geschlossen, keine Folge-Issues nötig
 
 ---
 
-## 📊 Projektstatus – Reset (Stand jetzt)
+## 📊 Projektstatus – Reset (Stand 14.01.2026)
 
 ### ✅ Abgeschlossen
-- **Issue #34 – Bulk-Export (ZIP)** → implementiert, getestet, gemerged, stabil
+- **Issue #34 – Bulk-Export (PDF + ZIP)** → komplett
+- **Issue #45 – UnsavedChanges Diagnostik** → geschlossen, alles funktioniert
 
 ### 🟡 Offen / bewusst geparkt
-- **Issue #12 – UnsavedChangesContext (UX)** → sinnvoll, aber kein akuter Druck
 - **PreferencesPanel: Location Deletion** → Mini-Issue, UX-Verbesserung
 - **Matching-Algorithmus: Skills Metadata Integration** → Business Value, aber nicht kritisch
 - **Filter-Bug: Jobs ohne Match-Score** → Workaround existiert
@@ -56,7 +63,7 @@
 - ✅ Projekt ist präsentationsfähig im Kern
 
 ### 🔜 Nächster möglicher Einstieg (nach Pause)
-- **Option 1:** Issue #12 grob sichten & entscheiden
+- **Option 1:** Eines der geparkten Mini-Features angehen
 - **Option 2:** Bewusst nichts (auch eine valide Option)
 
 ---

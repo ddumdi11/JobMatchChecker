@@ -1,7 +1,7 @@
 # JobMatchChecker - Wiederaufnahme-Datei
 
 > **Letzte Aktualisierung:** 2026-01-14
-> **Status:** MVP funktionsfähig, Issue #34 (Bulk-Export) komplett abgeschlossen
+> **Status:** MVP funktionsfähig, alle offenen Issues abgearbeitet
 
 ## Session 14.01.2026 - Zusammenfassung
 
@@ -16,6 +16,13 @@
 - Path-Truncation für Windows-Kompatibilität (Company 40, Title 60 chars)
 - jszip Integration, Max 100 Jobs, Selection-Reset nach Export
 - CodeRabbit: Alle Checks passed
+
+**Issue #45: UnsavedChanges-Diagnostik** ✅
+
+- Diagnostisches Testset (T1-T6) erstellt und durchgeführt
+- Code-Analyse: UnsavedChangesContext bereits vollständig implementiert
+- Ergebnis: **Kein Problem** - alle Tests bestanden
+- Issue geschlossen, keine Folge-Issues nötig
 
 ## Session 12.01.2026 - Zusammenfassung
 
@@ -83,21 +90,25 @@ npx tsc --noEmit
 ## Projektstatus – Reset (Stand 2026-01-14)
 
 ### ✅ Abgeschlossen
-- **Issue #34 – Bulk-Export (ZIP)** → implementiert, getestet, gemerged, stabil
+
+- **Issue #34 – Bulk-Export (PDF + ZIP)** → komplett
+- **Issue #45 – UnsavedChanges Diagnostik** → geschlossen, alles funktioniert
 
 ### 🟡 Offen / bewusst geparkt
-- **Issue #12 – UnsavedChangesContext (UX)** → sinnvoll, aber kein akuter Druck
+
 - **PreferencesPanel: Location Deletion** → Mini-Issue, UX-Verbesserung
 - **Matching-Algorithmus: Skills Metadata Integration** → Business Value, aber nicht kritisch
 - **Filter-Bug: Jobs ohne Match-Score** → Workaround existiert
 
 ### 🧭 Leitplanken bestätigt
+
 - ✅ Fokus auf Konsolidierung, nicht Feature-Flut
 - ✅ Nebenprojekte bleiben geparkt, nicht vergessen
 - ✅ Projekt ist präsentationsfähig im Kern
 
 ### 🔜 Nächster möglicher Einstieg (nach Pause)
-- **Option 1:** Issue #12 grob sichten & entscheiden
+
+- **Option 1:** Eines der geparkten Mini-Features angehen
 - **Option 2:** Bewusst nichts (auch eine valide Option)
 
 ## Geparkte Features (Backlog)
