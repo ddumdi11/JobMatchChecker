@@ -15,7 +15,8 @@ import {
   ContentPaste as PasteIcon,
   AutoAwesome as AIIcon,
   Save as SaveIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  UploadFile as UploadFileIcon
 } from '@mui/icons-material';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useJobStore } from '../store/jobStore';
@@ -60,6 +61,7 @@ export default function JobAdd() {
   const [showForm, setShowForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false); // Prevent double-save
   const [saveSuccessful, setSaveSuccessful] = useState(false); // Track successful save for navigation
+  const [fileWarning, setFileWarning] = useState<string | null>(null);
 
   // Form state (initialized from extraction or empty)
   const [formData, setFormData] = useState({
@@ -149,6 +151,72 @@ export default function JobAdd() {
       setOnSave(undefined);
     }
   }, [hasUnsavedChanges, showForm, saveSuccessful, formData.title, formData.company, setIsDirty, setOnSave]);
+
+  // Drag & drop state
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Check if imported content is usable (detects image-based PDFs)
+  const handleImportedContent = (content: string, filename: string) => {
+    setFileWarning(null);
+    const isPdf = filename.toLowerCase().endsWith('.pdf');
+    if (isPdf && content.trim().length < 50) {
+      setFileWarning(
+        'Das PDF scheint bildbasiert (gescannt) zu sein – es konnte kaum Text extrahiert werden. ' +
+        'Bitte verwende stattdessen eine Markdown- oder Text-Datei.'
+      );
+      return;
+    }
+    setJobText(content);
+  };
+
+  // Handle file import via dialog
+  const handleFileImport = async () => {
+    try {
+      const result = await window.api.jobSelectFile();
+      if (!result.canceled && result.content != null) {
+        handleImportedContent(result.content, result.filename || '');
+      }
+    } catch (err) {
+      console.error('Failed to import file:', err);
+    }
+  };
+
+  // Handle drag & drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!['md', 'txt', 'pdf'].includes(ext || '')) {
+      return;
+    }
+
+    try {
+      const filePath = window.api.getFilePath(file);
+      if (filePath) {
+        const result = await window.api.jobReadFile(filePath);
+        handleImportedContent(result.content, result.filename);
+      }
+    } catch (err) {
+      console.error('Failed to read dropped file:', err);
+    }
+  };
 
   // Handle paste from clipboard
   const handlePaste = async () => {
@@ -347,13 +415,25 @@ export default function JobAdd() {
 
       {/* Step 1: Paste Job Text (only in add mode) */}
       {!showForm && !isEditMode && (
-        <Paper sx={{ p: 3, mb: 3 }}>
+        <Paper
+          sx={{
+            p: 3,
+            mb: 3,
+            border: isDragging ? '2px dashed' : '2px solid transparent',
+            borderColor: isDragging ? 'primary.main' : 'transparent',
+            bgcolor: isDragging ? 'action.hover' : 'background.paper',
+            transition: 'all 0.2s ease'
+          }}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <Box sx={{ mb: 2 }}>
             <Typography variant="h6" gutterBottom>
               Schritt 1: Stellenanzeige einfügen
             </Typography>
             <Typography variant="body2" color="text.secondary" gutterBottom>
-              Kopiere die Stellenanzeige und füge sie hier ein. Claude AI wird die wichtigsten Informationen automatisch extrahieren.
+              Kopiere die Stellenanzeige, lade eine Datei (.md, .txt, .pdf) oder ziehe sie hierher.
             </Typography>
           </Box>
 
@@ -363,18 +443,26 @@ export default function JobAdd() {
             rows={12}
             value={jobText}
             onChange={(e) => setJobText(e.target.value)}
-            placeholder="Füge hier die Stellenanzeige ein..."
+            placeholder={isDragging ? 'Datei hier ablegen...' : 'Füge hier die Stellenanzeige ein...'}
             variant="outlined"
             sx={{ mb: 2 }}
           />
 
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
             <Button
               variant="outlined"
               startIcon={<PasteIcon />}
               onClick={handlePaste}
             >
               Aus Zwischenablage einfügen
+            </Button>
+
+            <Button
+              variant="outlined"
+              startIcon={<UploadFileIcon />}
+              onClick={handleFileImport}
+            >
+              Datei laden
             </Button>
 
             <Button
@@ -386,6 +474,12 @@ export default function JobAdd() {
               {isExtracting ? 'Analysiere mit AI...' : 'Mit AI analysieren'}
             </Button>
           </Box>
+
+          {fileWarning && (
+            <Alert severity="warning" sx={{ mt: 2 }} onClose={() => setFileWarning(null)}>
+              {fileWarning}
+            </Alert>
+          )}
 
           {error && (
             <Alert severity="error" sx={{ mt: 2 }}>
