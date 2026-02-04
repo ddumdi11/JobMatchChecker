@@ -58,7 +58,7 @@ export const SkillsManager: React.FC = () => {
   // Local UI state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Form state for new/edit skill
   const [skillForm, setSkillForm] = useState({
@@ -138,10 +138,11 @@ export const SkillsManager: React.FC = () => {
     try {
       if (editingSkill && editingSkill.id) {
         await updateSkill({ ...newSkill, id: editingSkill.id });
+        setSuccessMessage('Skill erfolgreich aktualisiert');
       } else {
         await addSkill(newSkill);
+        setSuccessMessage('Skill erfolgreich hinzugefügt');
       }
-      setSuccess(true);
       handleCloseDialog();
     } catch (err) {
       // Error is handled by store
@@ -151,14 +152,14 @@ export const SkillsManager: React.FC = () => {
   const handleDeleteSkill = async (id: number) => {
     try {
       await deleteSkill(id);
-      setSuccess(true);
+      setSuccessMessage('Skill erfolgreich gelöscht');
     } catch (err) {
       // Error is handled by store
     }
   };
 
   const handleSnackbarClose = () => {
-    setSuccess(false);
+    setSuccessMessage(null);
   };
 
   // Group skills by category
@@ -315,13 +316,13 @@ export const SkillsManager: React.FC = () => {
 
       {/* Success notification */}
       <Snackbar
-        open={success}
+        open={!!successMessage}
         autoHideDuration={3000}
         onClose={handleSnackbarClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
         <Alert onClose={handleSnackbarClose} severity="success" sx={{ width: '100%' }}>
-          Skill saved successfully!
+          {successMessage}
         </Alert>
       </Snackbar>
     </Paper>
