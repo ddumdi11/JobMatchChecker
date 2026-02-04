@@ -1,6 +1,10 @@
-# Job Match Checker
+<div align="center">
 
-> AI-gesteuerte Desktop-App zur systematischen Analyse und Bewertung von Stellenangeboten
+# 🎯 Job Match Checker
+
+**Finde den perfekten Job – mit KI-Unterstützung**
+
+*Stellenangebote erfassen, analysieren und matchen – alles lokal auf deinem Rechner*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Electron](https://img.shields.io/badge/Electron-38.2-blue.svg)](https://www.electronjs.org/)
@@ -8,22 +12,33 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
 [![Claude AI](https://img.shields.io/badge/Claude-Sonnet_4.5-orange.svg)](https://www.anthropic.com/)
 
+![Job-Übersicht mit Match-Scores](docs/assets/jobuebersicht.jpg)
+
+</div>
+
 ---
 
-## Uebersicht
+## Warum Job Match Checker?
 
-Job Match Checker ist eine Electron-Desktop-App, die Stellenangebote systematisch erfasst, verwaltet und per AI-Matching (Claude Sonnet 4.5) gegen dein Profil abgleicht. Match-Score, Gap-Analyse und Empfehlungen helfen dir, datenbasierte Entscheidungen bei der Jobsuche zu treffen.
+| Problem | Lösung |
+|---------|--------|
+| Stellenangebote überall verstreut | Zentrale Verwaltung in einer App |
+| "Passt der Job zu mir?" | AI-Matching mit Score (0-100%) |
+| "Was fehlt mir noch?" | Gap-Analyse zeigt Lücken auf |
+| Daten in der Cloud? | 100% lokal – deine Daten bleiben bei dir |
 
-### Features
+---
 
-- **AI-Matching** - Stellenangebote gegen dein Profil matchen (Claude Sonnet 4.5), einzeln oder als Bulk
-- **Profil & Skills** - Profilverwaltung mit kategorisierten Skills, Levels, Confidence und Market Relevance
-- **Job-Verwaltung** - CRUD, Filterung, Sortierung, Statusverwaltung
-- **Datei-Import** - Stellenanzeigen per Drag & Drop oder Datei-Dialog (.md, .txt, .pdf) importieren
-- **CSV-Import** - Bulk-Import mit automatischer Duplikaterkennung und Merge-Dialog
-- **Skills-Import** - CSV/JSON-Import mit Konfliktaufloesung und Future Skills Framework
-- **Export** - Einzeln oder Bulk als PDF, Markdown oder ZIP (Markdown + JSON)
-- **Privacy First** - Alle Daten lokal in SQLite, kein Cloud-Sync
+## Features
+
+- **AI-Matching** – Stellenangebote gegen dein Profil matchen (Claude Sonnet 4.5), einzeln oder als Bulk
+- **Profil & Skills** – Profilverwaltung mit kategorisierten Skills, Levels, Confidence und Market Relevance
+- **Job-Verwaltung** – CRUD, Filterung, Sortierung, Statusverwaltung
+- **Datei-Import** – Stellenanzeigen per Drag & Drop oder Datei-Dialog (.md, .txt, .pdf) importieren
+- **CSV-Import** – Bulk-Import mit automatischer Duplikaterkennung und Merge-Dialog
+- **Skills-Import** – CSV/JSON-Import mit Konfliktauflösung und Future Skills Framework
+- **Export** – Einzeln oder Bulk als PDF, Markdown oder ZIP (Markdown + JSON)
+- **Privacy First** – Alle Daten lokal in SQLite, kein Cloud-Sync
 
 ---
 
@@ -44,7 +59,7 @@ npm install
 npm run dev
 ```
 
-Die App oeffnet sich automatisch. Beim ersten Start den Claude API Key unter **Einstellungen** eingeben.
+Die App öffnet sich automatisch. Beim ersten Start den Claude API Key unter **Einstellungen** eingeben.
 
 ---
 
@@ -52,30 +67,40 @@ Die App oeffnet sich automatisch. Beim ersten Start den Claude API Key unter **E
 
 ### 1. Profil anlegen
 
-Unter **Profil** persoenliche Daten, bevorzugte Standorte und Skills pflegen. Skills koennen manuell oder per CSV/JSON-Import (z.B. aus dem skills_hub) hinzugefuegt werden.
+Unter **Profil** persönliche Daten, bevorzugte Standorte und Skills pflegen. Skills können manuell oder per CSV/JSON-Import hinzugefügt werden.
+
+![Skills-Verwaltung](docs/assets/skills.jpg)
 
 ### 2. Stellenangebote erfassen
 
-Vier Wege, Jobs hinzuzufuegen:
+Vier Wege, Jobs hinzuzufügen:
 
 | Methode | Beschreibung |
 |---------|-------------|
-| **Copy-Paste** | Text aus Zwischenablage einfuegen, AI extrahiert Felder |
+| **Copy-Paste** | Text aus Zwischenablage einfügen, AI extrahiert Felder |
 | **Datei laden** | Markdown, Text oder PDF per Dialog oder Drag & Drop importieren |
 | **CSV-Import** | Bulk-Import mit Duplikaterkennung und Merge-Dialog |
-| **Manuell** | Formular direkt ausfuellen |
+| **Manuell** | Formular direkt ausfüllen |
 
-### 3. Matching ausfuehren
+![Job hinzufügen – Drag & Drop](docs/assets/jobhinzufuegen.jpg)
 
-- **Einzeln**: Job oeffnen, "Match Job" klicken
-- **Bulk**: Mehrere Jobs auswaehlen oder alle neuen matchen lassen
-- **Ergebnis**: Match-Score (0-100%), Staerken, Luecken, Empfehlungen
+### 3. AI-Analyse
 
-### 4. Exportieren
+Nach dem Einfügen analysiert Claude AI den Text und extrahiert automatisch alle relevanten Felder:
 
-- **PDF** - Einzeln oder mehrere Jobs als PDF
-- **Markdown** - Strukturierter Text-Export
-- **ZIP** - Bulk-Export als ZIP (Markdown + JSON)
+![AI-Analyse Ergebnis](docs/assets/jobhinzufuegen_ai_analyse.jpg)
+
+### 4. Matching ausführen
+
+- **Einzeln**: Job öffnen, "Match Job" klicken
+- **Bulk**: Mehrere Jobs auswählen oder alle neuen matchen lassen
+- **Ergebnis**: Match-Score (0-100%), Stärken, Lücken, Empfehlungen
+
+### 5. Exportieren
+
+- **PDF** – Einzeln oder mehrere Jobs als PDF
+- **Markdown** – Strukturierter Text-Export
+- **ZIP** – Bulk-Export als ZIP (Markdown + JSON)
 
 ---
 
@@ -114,19 +139,6 @@ JobMatchChecker/
 
 ---
 
-## Scripts
-
-| Command | Beschreibung |
-|---------|-------------|
-| `npm run dev` | Entwicklungsserver starten (Hot Reload) |
-| `npm run build` | Production Build |
-| `npm run package` | Distributable erstellen |
-| `npm run lint` | ESLint ausfuehren |
-| `npm test` | Tests mit Vitest |
-| `npm run migrate:latest` | Datenbank-Migrationen ausfuehren |
-
----
-
 ## Architektur
 
 ```
@@ -140,12 +152,12 @@ Preload (contextBridge)
     ▼
 Main Process (IPC Handler)
     │
-    ├── jobService        # CRUD, Merge, Validierung
+    ├── jobService           # CRUD, Merge, Validierung
     ├── aiExtractionService  # Claude AI Feld-Extraktion
-    ├── matchingService   # AI Matching & Gap-Analyse
-    ├── importService     # CSV-Import & Staging
+    ├── matchingService      # AI Matching & Gap-Analyse
+    ├── importService        # CSV-Import & Staging
     ├── skillsImportService  # Skills CSV/JSON Import
-    └── exportService     # PDF, Markdown, ZIP Export
+    └── exportService        # PDF, Markdown, ZIP Export
     │
     ▼
 SQLite (better-sqlite3)
@@ -161,9 +173,9 @@ SQLite (better-sqlite3)
 
 ---
 
-## Oekosystem
+## Ökosystem
 
-Job Match Checker ist Teil eines groesseren Workflows:
+Job Match Checker ist Teil eines größeren Workflows:
 
 ```
 Multi-LLM Profil-Analyse (ChatGPT, Claude, Gemini)
@@ -173,7 +185,20 @@ skills_hub (Python/Streamlit) → Konsolidierung
 Job Match Checker → Skills-Import, AI-Matching, Export
 ```
 
-Siehe [WORKFLOW_VISION.md](./WORKFLOW_VISION.md) fuer das vollstaendige Oekosystem.
+Siehe [WORKFLOW_VISION.md](./WORKFLOW_VISION.md) für das vollständige Ökosystem.
+
+---
+
+## Scripts
+
+| Command | Beschreibung |
+|---------|-------------|
+| `npm run dev` | Entwicklungsserver starten (Hot Reload) |
+| `npm run build` | Production Build |
+| `npm run package` | Distributable erstellen |
+| `npm run lint` | ESLint ausführen |
+| `npm test` | Tests mit Vitest |
+| `npm run migrate:latest` | Datenbank-Migrationen ausführen |
 
 ---
 
@@ -182,24 +207,28 @@ Siehe [WORKFLOW_VISION.md](./WORKFLOW_VISION.md) fuer das vollstaendige Oekosyst
 - **API Keys**: Im App-internen Store gespeichert
 - **SQL Injection**: Verhindert durch Knex.js Prepared Statements
 - **XSS**: Mitigiert durch React's automatisches Escaping
-- **Daten**: Vollstaendig lokal, kein Cloud-Sync
+- **Daten**: Vollständig lokal, kein Cloud-Sync
 - **Backups**: Datenbank-Backup & Restore integriert
 
 ---
 
 ## Lizenz
 
-MIT License - siehe [LICENSE](LICENSE)
+MIT License – siehe [LICENSE](LICENSE)
 
 ---
 
 ## Danksagungen
 
-- [Anthropic](https://www.anthropic.com/) - Claude API
-- [Electron](https://www.electronjs.org/) - Desktop Framework
-- [React](https://reactjs.org/) & [Material-UI](https://mui.com/) - UI
-- [CodeRabbit](https://coderabbit.ai/) - AI Code Review
+- [Anthropic](https://www.anthropic.com/) – Claude API
+- [Electron](https://www.electronjs.org/) – Desktop Framework
+- [React](https://reactjs.org/) & [Material-UI](https://mui.com/) – UI
+- [CodeRabbit](https://coderabbit.ai/) – AI Code Review
 
 ---
 
-Built with Claude Sonnet 4.5
+<div align="center">
+
+**Built with ❤️ and a lot of Claude**
+
+</div>
