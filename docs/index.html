@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Match Checker - KI-gestützte Stellenanalyse</title>
+    <meta name="description" content="Job Match Checker ist eine Desktop-App zur systematischen Analyse von Stellenangeboten. KI-Matching mit Claude, Gap-Analyse und Empfehlungen – alles lokal auf deinem Rechner.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1976d2;
+            --primary-dark: #1565c0;
+            --secondary: #f59e0b;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --gradient-start: #1976d2;
+            --gradient-end: #7c3aed;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        nav {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo svg { width: 32px; height: 32px; }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover { color: white; }
+
+        .hero {
+            padding: 6rem 2rem;
+            text-align: center;
+            background: linear-gradient(180deg, rgba(25, 118, 210, 0.1) 0%, transparent 100%);
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero .subtitle {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            max-width: 700px;
+            margin: 0 auto 2rem;
+        }
+
+        .hero-image {
+            max-width: 900px;
+            margin: 3rem auto 0;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .hero-image img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.875rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            color: white;
+            box-shadow: 0 4px 15px rgba(25, 118, 210, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(25, 118, 210, 0.5);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover { background: var(--border); }
+
+        .why-section {
+            padding: 5rem 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .why-section h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .why-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .why-table th, .why-table td {
+            padding: 1.25rem 1.5rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .why-table th {
+            background: var(--bg-card);
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .why-table td:first-child {
+            color: var(--warning);
+        }
+
+        .why-table td:last-child {
+            color: var(--success);
+        }
+
+        .features {
+            padding: 5rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .features h2, .workflow h2, .tech-stack h2, .installation h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+
+        .feature-icon svg {
+            width: 24px;
+            height: 24px;
+            color: white;
+        }
+
+        .feature-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+        }
+
+        .workflow {
+            padding: 5rem 2rem;
+            background: linear-gradient(180deg, transparent 0%, rgba(25, 118, 210, 0.05) 50%, transparent 100%);
+        }
+
+        .workflow-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .workflow-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .workflow-step {
+            display: flex;
+            gap: 1.5rem;
+            align-items: flex-start;
+        }
+
+        .step-number {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+
+        .step-content h3 {
+            margin-bottom: 0.5rem;
+        }
+
+        .step-content p {
+            color: var(--text-secondary);
+        }
+
+        .step-image {
+            margin-top: 1rem;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            max-width: 600px;
+        }
+
+        .step-image img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .tech-stack {
+            padding: 5rem 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .tech-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 2rem;
+        }
+
+        .tech-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1.5rem 2rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            min-width: 120px;
+        }
+
+        .tech-item span {
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .installation {
+            padding: 5rem 2rem;
+            background: var(--bg-card);
+        }
+
+        .installation-container {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .code-block {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+        }
+
+        .code-block pre {
+            margin: 0;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.9rem;
+            line-height: 1.8;
+        }
+
+        .code-comment { color: #6b7280; }
+        .code-command { color: #10b981; }
+
+        footer {
+            padding: 3rem 2rem;
+            text-align: center;
+            border-top: 1px solid var(--border);
+        }
+
+        footer p {
+            color: var(--text-secondary);
+        }
+
+        footer a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.5rem; }
+            .nav-links { display: none; }
+            .features-grid { grid-template-columns: 1fr; }
+            .workflow-step { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="#" class="logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                    <path d="M2 17l10 5 10-5"/>
+                    <path d="M2 12l10 5 10-5"/>
+                </svg>
+                Job Match Checker
+            </a>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#workflow">Workflow</a></li>
+                <li><a href="#tech">Technologie</a></li>
+                <li><a href="#installation">Installation</a></li>
+                <li><a href="https://github.com/ddumdi11/JobMatchChecker">GitHub</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <h1>🎯 Job Match Checker</h1>
+            <p class="subtitle">
+                Finde den perfekten Job – mit KI-Unterstützung.<br>
+                Stellenangebote erfassen, analysieren und matchen – alles lokal auf deinem Rechner.
+            </p>
+            <div class="cta-buttons">
+                <a href="https://github.com/ddumdi11/JobMatchChecker" class="btn btn-primary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                    </svg>
+                    GitHub Repository
+                </a>
+                <a href="#installation" class="btn btn-secondary">
+                    Installation →
+                </a>
+            </div>
+            <div class="hero-image">
+                <img src="assets/jobuebersicht.jpg" alt="Job Match Checker - Job-Übersicht mit Match-Scores">
+            </div>
+        </section>
+
+        <section class="why-section">
+            <h2>Warum Job Match Checker?</h2>
+            <table class="why-table">
+                <tr>
+                    <th>Problem</th>
+                    <th>Lösung</th>
+                </tr>
+                <tr>
+                    <td>Stellenangebote überall verstreut</td>
+                    <td>Zentrale Verwaltung in einer App</td>
+                </tr>
+                <tr>
+                    <td>"Passt der Job zu mir?"</td>
+                    <td>AI-Matching mit Score (0-100%)</td>
+                </tr>
+                <tr>
+                    <td>"Was fehlt mir noch?"</td>
+                    <td>Gap-Analyse zeigt Lücken auf</td>
+                </tr>
+                <tr>
+                    <td>Daten in der Cloud?</td>
+                    <td>100% lokal – deine Daten bleiben bei dir</td>
+                </tr>
+            </table>
+        </section>
+
+        <section id="features" class="features">
+            <h2>Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2a10 10 0 1 0 10 10H12V2z"/>
+                            <path d="M12 2a10 10 0 0 1 10 10"/>
+                            <circle cx="12" cy="12" r="6"/>
+                        </svg>
+                    </div>
+                    <h3>AI-Matching</h3>
+                    <p>Stellenangebote gegen dein Profil matchen – mit Claude Sonnet 4.5. Einzeln oder als Bulk für viele Jobs gleichzeitig.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                    <h3>Profil & Skills</h3>
+                    <p>Kategorisierte Skills mit Levels (0-10), Confidence und Market Relevance. Import per CSV/JSON aus externen Tools.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <path d="M14 2v6h6"/>
+                            <path d="M12 18v-6"/>
+                            <path d="M9 15h6"/>
+                        </svg>
+                    </div>
+                    <h3>Flexibler Import</h3>
+                    <p>Jobs per Drag & Drop, Datei-Dialog (.md, .txt, .pdf), CSV-Bulk-Import oder Copy-Paste erfassen – die KI extrahiert alle Felder.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+                            <path d="M9 14l2 2 4-4"/>
+                        </svg>
+                    </div>
+                    <h3>Smart Merge</h3>
+                    <p>Automatische Duplikaterkennung beim CSV-Import. Side-by-Side-Vergleich mit intelligenter Merge-Logik.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                    </div>
+                    <h3>Bulk-Export</h3>
+                    <p>Einzeln oder mehrere Jobs als PDF, Markdown oder ZIP (Markdown + JSON) exportieren. Perfekt für Dokumentation.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                    </div>
+                    <h3>Privacy First</h3>
+                    <p>Alle Daten lokal in SQLite. Kein Cloud-Sync, keine Registrierung. Deine Jobsuche bleibt privat.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="workflow" class="workflow">
+            <div class="workflow-container">
+                <h2>Workflow</h2>
+                <div class="workflow-steps">
+                    <div class="workflow-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Profil mit Skills anlegen</h3>
+                            <p>Pflege deine persönlichen Daten und Skills. Kategorisiert mit Levels, Erfahrungsjahren und Market Relevance. Import per CSV/JSON möglich.</p>
+                            <div class="step-image">
+                                <img src="assets/skills.jpg" alt="Skills-Verwaltung">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Stellenanzeige erfassen</h3>
+                            <p>Drag & Drop eine Datei, kopiere Text aus der Zwischenablage oder nutze den CSV-Import für viele Jobs auf einmal.</p>
+                            <div class="step-image">
+                                <img src="assets/jobhinzufuegen.jpg" alt="Job hinzufügen">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>KI extrahiert die Felder</h3>
+                            <p>Claude AI analysiert den Text und füllt automatisch alle relevanten Felder aus: Titel, Firma, Standort, Remote-Anteil, Anforderungen und mehr.</p>
+                            <div class="step-image">
+                                <img src="assets/jobhinzufuegen_ai_analyse.jpg" alt="AI-Analyse">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="workflow-step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>Matching & Entscheidung</h3>
+                            <p>Klicke auf "Match Job" und erhalte einen Score (0-100%), deine Stärken, vorhandene Lücken und konkrete Empfehlungen. Datenbasierte Entscheidungen statt Bauchgefühl.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="tech" class="tech-stack">
+            <h2>Technologie</h2>
+            <div class="tech-grid">
+                <div class="tech-item">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="#61DAFB">
+                        <circle cx="12" cy="12" r="2.5"/>
+                        <ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="#61DAFB" stroke-width="1"/>
+                        <ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="#61DAFB" stroke-width="1" transform="rotate(60 12 12)"/>
+                        <ellipse cx="12" cy="12" rx="10" ry="4" fill="none" stroke="#61DAFB" stroke-width="1" transform="rotate(120 12 12)"/>
+                    </svg>
+                    <span>React 18</span>
+                </div>
+                <div class="tech-item">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="#47848F">
+                        <path d="M12 2L2 7v10l10 5 10-5V7L12 2z"/>
+                        <path d="M12 22V12" stroke="white" stroke-width="1" fill="none"/>
+                        <path d="M22 7L12 12 2 7" stroke="white" stroke-width="1" fill="none"/>
+                    </svg>
+                    <span>Electron 38</span>
+                </div>
+                <div class="tech-item">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="#3178C6">
+                        <rect width="24" height="24" rx="4"/>
+                        <text x="4" y="18" fill="white" font-size="12" font-weight="bold">TS</text>
+                    </svg>
+                    <span>TypeScript</span>
+                </div>
+                <div class="tech-item">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="#CC6699">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                    </svg>
+                    <span>Claude AI</span>
+                </div>
+                <div class="tech-item">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="#003B57">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+                        <text x="6" y="16" fill="white" font-size="8" font-weight="bold">SQL</text>
+                    </svg>
+                    <span>SQLite</span>
+                </div>
+                <div class="tech-item">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="#0081CB">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                    <span>Material-UI</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="installation" class="installation">
+            <div class="installation-container">
+                <h2>Installation</h2>
+                <div class="code-block">
+                    <pre><code><span class="code-comment"># Repository klonen</span>
+<span class="code-command">git clone https://github.com/ddumdi11/JobMatchChecker.git</span>
+<span class="code-command">cd JobMatchChecker</span>
+
+<span class="code-comment"># Dependencies installieren</span>
+<span class="code-command">npm install</span>
+
+<span class="code-comment"># Entwicklungsserver starten</span>
+<span class="code-command">npm run dev</span>
+
+<span class="code-comment"># Oder per Doppelklick:</span>
+<span class="code-command">start.bat</span></code></pre>
+                </div>
+                <p style="color: var(--text-secondary); text-align: center;">
+                    <strong>Voraussetzungen:</strong> Node.js ≥ 18, npm ≥ 9<br>
+                    <strong>API Key:</strong> Claude API Key von <a href="https://console.anthropic.com" style="color: var(--primary);">console.anthropic.com</a> – beim ersten Start in den Einstellungen eingeben.
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>
+            Job Match Checker – Open Source Desktop-App für KI-gestützte Stellenanalyse<br>
+            <a href="https://github.com/ddumdi11/JobMatchChecker">GitHub</a> · MIT License · Built with ❤️ and a lot of Claude
+        </p>
+    </footer>
+</body>
+</html>
