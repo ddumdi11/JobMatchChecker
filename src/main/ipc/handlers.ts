@@ -1,6 +1,7 @@
 import { ipcMain, dialog } from 'electron';
 import * as log from 'electron-log';
 import * as fs from 'fs';
+import * as path from 'path';
 import Store from 'electron-store';
 import Anthropic from '@anthropic-ai/sdk';
 import { IPC_CHANNELS } from '../../shared/constants';
@@ -860,6 +861,80 @@ export function registerIpcHandlers() {
       return { success: true };
     } catch (error: any) {
       log.error('Error deleting import session:', error);
+      throw error;
+    }
+  });
+
+  // ==========================================================================
+  // Job file import (Markdown, Text, PDF)
+  // ==========================================================================
+
+  /**
+   * Read file content - shared logic for dialog and drag & drop.
+   * .md/.txt → UTF-8 text, .pdf → pdf-parse text extraction
+   */
+  async function readFileContent(filePath: string): Promise<{ content: string; filename: string }> {
+    const filename = filePath.split(/[\\/]/).pop() || '';
+    const ext = path.extname(filePath).toLowerCase();
+    log.info(`readFileContent: ${filename} (ext: ${ext})`);
+
+    if (ext === '.pdf') {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const pdfParse = require('pdf-parse');
+        const buffer = fs.readFileSync(filePath);
+        log.info(`PDF buffer size: ${buffer.length}`);
+        const data = await pdfParse(buffer);
+        log.info(`PDF text extracted: ${data.text.length} chars`);
+        return { content: data.text, filename };
+      } catch (pdfError: any) {
+        log.error('PDF parse error:', pdfError.message, pdfError.stack);
+        throw pdfError;
+      }
+    }
+
+    // .md, .txt, and other text files
+    const content = fs.readFileSync(filePath, 'utf-8');
+    log.info(`Text file read: ${content.length} chars`);
+    return { content, filename };
+  }
+
+  // Open file dialog to select a job description file
+  ipcMain.handle('job:selectFile', async () => {
+    try {
+      const result = await dialog.showOpenDialog({
+        title: 'Stellenanzeige importieren',
+        filters: [
+          { name: 'Stellenanzeigen', extensions: ['md', 'txt', 'pdf'] },
+          { name: 'All Files', extensions: ['*'] }
+        ],
+        properties: ['openFile']
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return { canceled: true };
+      }
+
+      const { content, filename } = await readFileContent(result.filePaths[0]);
+
+      return {
+        canceled: false,
+        filePath: result.filePaths[0],
+        filename,
+        content
+      };
+    } catch (error: any) {
+      log.error('Error selecting job file:', error);
+      throw error;
+    }
+  });
+
+  // Read a file by path (used for drag & drop)
+  ipcMain.handle('job:readFile', async (_, filePath: string) => {
+    try {
+      return await readFileContent(filePath);
+    } catch (error: any) {
+      log.error('Error reading job file:', error);
       throw error;
     }
   });

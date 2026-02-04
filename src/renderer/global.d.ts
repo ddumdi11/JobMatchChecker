@@ -56,6 +56,10 @@ interface Window {
     backupDatabase: () => Promise<string>;
     restoreDatabase: (backupPath: string) => Promise<void>;
     migrateDatabase: () => Promise<void>;
+    // Job file import (Markdown, Text, PDF)
+    jobSelectFile: () => Promise<{ canceled: boolean; filePath?: string; filename?: string; content?: string }>;
+    jobReadFile: (filePath: string) => Promise<{ content: string; filename: string }>;
+    getFilePath: (file: File) => string;
     // Import operations
     importSelectCsvFile: () => Promise<{ canceled: boolean; filePath?: string; filename?: string; content?: string }>;
     importProcessCsv: (filename: string, csvContent: string) => Promise<any>;

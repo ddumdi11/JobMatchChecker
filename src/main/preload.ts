@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import { IPC_CHANNELS } from '../shared/constants';
 
 /**
@@ -68,6 +68,11 @@ contextBridge.exposeInMainWorld('api', {
   backupDatabase: () => ipcRenderer.invoke(IPC_CHANNELS.DB_BACKUP),
   restoreDatabase: (backupPath: string) => ipcRenderer.invoke(IPC_CHANNELS.DB_RESTORE, backupPath),
   migrateDatabase: () => ipcRenderer.invoke(IPC_CHANNELS.DB_MIGRATE),
+
+  // Job file import (Markdown, Text, PDF)
+  jobSelectFile: () => ipcRenderer.invoke('job:selectFile'),
+  jobReadFile: (filePath: string) => ipcRenderer.invoke('job:readFile', filePath),
+  getFilePath: (file: File) => webUtils.getPathForFile(file),
 
   // Import operations (CSV Import)
   importSelectCsvFile: () => ipcRenderer.invoke('import:selectCsvFile'),
