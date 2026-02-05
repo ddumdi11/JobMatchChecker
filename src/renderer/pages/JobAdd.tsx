@@ -380,14 +380,17 @@ export default function JobAdd() {
       setHasUnsavedChanges(false);
       setIsDirty(false); // Explicitly clear context dirty state
 
+      // Clear extraction result to prevent form re-population if user navigates back
+      clearExtractionResult();
+
       // Navigate to jobs list on success (after state updates)
-      // Use setTimeout to ensure state updates are processed before navigation
-      setTimeout(() => navigate('/jobs'), 0);
+      // Use replace to prevent back-button returning to filled form
+      setTimeout(() => navigate('/jobs', { replace: true }), 0);
     } catch (err) {
       console.error('Failed to save job:', err);
       setIsSaving(false); // Re-enable save button on error
     }
-  }, [isSaving, formData, isEditMode, id, updateJob, createJob, setIsDirty, navigate]);
+  }, [isSaving, formData, isEditMode, id, updateJob, createJob, setIsDirty, navigate, clearExtractionResult]);
 
   // Keyboard shortcut: Ctrl+S for save
   const canSave = showForm && formData.title && formData.company && !isSaving;
