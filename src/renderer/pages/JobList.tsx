@@ -644,7 +644,7 @@ export default function JobList() {
   const getStatusColor = (status: string): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
     switch (status) {
       case 'new': return 'info';
-      case 'interesting': return 'primary';
+      case 'interesting': return 'success';
       case 'applied': return 'warning';
       case 'rejected': return 'error';
       case 'archived': return 'default';
@@ -1124,6 +1124,7 @@ export default function JobList() {
                           label={job.status}
                           color={getStatusColor(job.status)}
                           size="small"
+                          sx={job.status === 'new' ? { backgroundColor: '#64b5f6', color: '#fff' } : undefined}
                         />
                       </TableCell>
                       <TableCell align="center">
