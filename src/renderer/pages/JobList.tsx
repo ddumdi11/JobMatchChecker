@@ -405,7 +405,7 @@ export default function JobList() {
     if (matchScoreRange[0] > 0 || matchScoreRange[1] < 100) {
       result = result.filter(job => {
         if (job.matchScore === null || job.matchScore === undefined) {
-          return false; // Exclude jobs without match score when range is set
+          return !onlyWithMatchScore; // Keep unmatched jobs unless checkbox is checked
         }
         return job.matchScore >= matchScoreRange[0] && job.matchScore <= matchScoreRange[1];
       });
