@@ -263,7 +263,11 @@ export default function JobList() {
       return;
     }
 
-    const jobCount = rematchAll ? jobs.length : unmatchedCount;
+    // Get fresh count from DB to avoid stale state
+    const freshUnmatchedCount = await window.api.getUnmatchedJobCount();
+    setUnmatchedCount(freshUnmatchedCount); // Update state too
+
+    const jobCount = rematchAll ? jobs.length : freshUnmatchedCount;
     if (jobCount === 0) {
       alert(rematchAll ? 'Keine Jobs zum Matchen vorhanden.' : 'Alle Jobs haben bereits einen Match-Score.');
       return;
