@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Typography,
@@ -21,6 +21,7 @@ import {
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useJobStore } from '../store/jobStore';
 import { useUnsavedChangesContext } from '../components/Layout';
+import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
 
 /**
  * JobAdd Page - Add new job offers with AI extraction
@@ -355,7 +356,7 @@ export default function JobAdd() {
   };
 
   // Handle save
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     // Prevent double-save
     if (isSaving || !formData.title || !formData.company) {
       return;
@@ -385,7 +386,11 @@ export default function JobAdd() {
       console.error('Failed to save job:', err);
       setIsSaving(false); // Re-enable save button on error
     }
-  };
+  }, [isSaving, formData, isEditMode, id, updateJob, createJob, setIsDirty, navigate]);
+
+  // Keyboard shortcut: Ctrl+S for save
+  const canSave = showForm && formData.title && formData.company && !isSaving;
+  useKeyboardShortcut('ctrl+s', handleSave, { disabled: !canSave });
 
   // Handle clear
   const handleClear = () => {

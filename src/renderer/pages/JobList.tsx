@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
 import {
   Container,
   Typography,
@@ -63,6 +64,10 @@ import { useJobStore } from '../store/jobStore';
  */
 export default function JobList() {
   const navigate = useNavigate();
+
+  // Keyboard shortcut: Ctrl+N for new job
+  const handleNewJob = useCallback(() => navigate('/jobs/add'), [navigate]);
+  useKeyboardShortcut('ctrl+n', handleNewJob);
 
   // Store state
   const jobs = useJobStore(state => state.jobs);

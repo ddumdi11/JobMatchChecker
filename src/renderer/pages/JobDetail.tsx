@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
 import {
   Container,
   Typography,
@@ -215,11 +216,16 @@ export default function JobDetail() {
   };
 
   // Handle edit
-  const handleEdit = () => {
+  const handleEdit = useCallback(() => {
     if (currentJob?.id) {
       navigate(`/jobs/${currentJob.id}/edit`);
     }
-  };
+  }, [currentJob?.id, navigate]);
+
+  // Keyboard shortcuts
+  const hasExistingMatch = currentJob?.matchScore !== null && currentJob?.matchScore !== undefined;
+  useKeyboardShortcut('ctrl+m', handleMatch, { disabled: isMatching || hasExistingMatch || !currentJob });
+  useKeyboardShortcut('ctrl+e', handleEdit, { disabled: !currentJob });
 
   // Format date
   const formatDate = (date?: Date | null) => {
