@@ -82,7 +82,7 @@ function Dashboard() {
     const statusCounts = {
       new: jobs.filter(j => j.status === 'new').length,
       applied: jobs.filter(j => j.status === 'applied').length,
-      reviewing: jobs.filter(j => j.status === 'reviewing').length,
+      interesting: jobs.filter(j => j.status === 'interesting').length,
       rejected: jobs.filter(j => j.status === 'rejected').length
     };
 
@@ -396,7 +396,7 @@ function Dashboard() {
                         <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <span>{job.company}</span>
                           <span>•</span>
-                          <span>{formatDate(job.created_at || job.postedDate)}</span>
+                          <span>{formatDate(job.createdAt || job.postedDate)}</span>
                         </Box>
                       }
                     />
@@ -407,7 +407,7 @@ function Dashboard() {
                         color={
                           job.status === 'new' ? 'info' :
                           job.status === 'applied' ? 'warning' :
-                          job.status === 'reviewing' ? 'primary' :
+                          job.status === 'interesting' ? 'primary' :
                           'default'
                         }
                       />

@@ -81,8 +81,8 @@ export default function JobList() {
   // Local filter state (before applying to store)
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [sortField, setSortField] = useState<string>(sortConfig.field);
-  const [sortDirection, setSortDirection] = useState<string>(sortConfig.direction);
+  const [sortField, setSortField] = useState<string>(sortConfig.sortBy);
+  const [sortDirection, setSortDirection] = useState<string>(sortConfig.sortOrder);
 
   // Extended filter state
   const [showExtendedFilters, setShowExtendedFilters] = useState(false);
@@ -127,7 +127,7 @@ export default function JobList() {
     remoteFilter !== 'all';
 
   // Helper function to normalize and match remote option
-  const matchRemoteOption = (remoteOption: string | undefined, filter: string): boolean => {
+  const matchRemoteOption = (remoteOption: string | null | undefined, filter: string): boolean => {
     const normalized = (remoteOption || '').toLowerCase().trim();
 
     switch (filter) {
@@ -382,7 +382,7 @@ export default function JobList() {
     }
     // Note: searchTerm is handled client-side (see filteredJobs)
 
-    fetchJobs(filters, { field: sortField as any, direction: sortDirection as any });
+    fetchJobs(filters, { sortBy: sortField as any, sortOrder: sortDirection as any });
   };
 
   // Client-side filtering for search and extended filters
@@ -579,14 +579,14 @@ export default function JobList() {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
     setSortField(field);
     setSortDirection(newDirection);
-    setSortConfig({ field: field as any, direction: newDirection as any });
+    setSortConfig({ sortBy: field as any, sortOrder: newDirection as any });
 
     // Apply sort immediately
     const filters: any = {};
     if (statusFilter !== 'all') {
       filters.status = statusFilter;
     }
-    fetchJobs(filters, { field: field as any, direction: newDirection as any });
+    fetchJobs(filters, { sortBy: field as any, sortOrder: newDirection as any });
   };
 
   // Handle page change (client-side pagination)

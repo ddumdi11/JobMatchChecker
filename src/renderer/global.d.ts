@@ -74,5 +74,7 @@ interface Window {
     // Export operations
     exportToMarkdown: (jobId: number) => Promise<{ success: boolean; filePath?: string; error?: string }>;
     exportToPdf: (jobId: number) => Promise<{ success: boolean; filePath?: string; error?: string }>;
+    exportBulkToPdf: (jobIds: number[]) => Promise<{ success: boolean; filePath?: string; error?: string; exportedCount?: number }>;
+    exportBulkToZip: (jobIds: number[]) => Promise<{ success: boolean; filePath?: string; error?: string; exportedCount?: number; skippedCount?: number }>;
   };
 }

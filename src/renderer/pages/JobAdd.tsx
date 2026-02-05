@@ -113,17 +113,18 @@ export default function JobAdd() {
   // Populate form when job is loaded (edit mode)
   useEffect(() => {
     if (isEditMode && currentJob) {
+      // Map camelCase JobOffer properties to snake_case form fields
       const loadedData = {
         title: currentJob.title || '',
         company: currentJob.company || '',
         location: currentJob.location || '',
-        description: currentJob.description || (currentJob as any).fullText || '',
-        requirements: currentJob.requirements || '',
-        salary_min: currentJob.salary_min,
-        salary_max: currentJob.salary_max,
-        remote_percentage: currentJob.remote_percentage,
-        source: currentJob.source || '',
-        source_url: currentJob.source_url || (currentJob as any).url || '',
+        description: currentJob.fullText || '',
+        requirements: '',
+        salary_min: undefined as number | undefined,
+        salary_max: undefined as number | undefined,
+        remote_percentage: undefined as number | undefined,
+        source: currentJob.sourceName || '',
+        source_url: currentJob.url || '',
         status: (currentJob.status || 'new') as 'new'
       };
       setShowForm(true);
