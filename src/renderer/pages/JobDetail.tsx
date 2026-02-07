@@ -35,7 +35,11 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-  Tooltip
+  Tooltip,
+  Select,
+  MenuItem,
+  FormControl,
+  SelectChangeEvent
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -57,6 +61,7 @@ import {
   Code as MarkdownIcon
 } from '@mui/icons-material';
 import { useJobStore } from '../store/jobStore';
+import type { JobStatus } from '../../shared/types';
 
 /**
  * JobDetail Page - Display full details of a single job offer
@@ -69,6 +74,7 @@ export default function JobDetail() {
   // Store state
   const currentJob = useJobStore(state => state.currentJob);
   const getJobById = useJobStore(state => state.getJobById);
+  const updateJob = useJobStore(state => state.updateJob);
   const deleteJob = useJobStore(state => state.deleteJob);
   const isLoading = useJobStore(state => state.isLoading);
   const error = useJobStore(state => state.error);
@@ -95,6 +101,13 @@ export default function JobDetail() {
   const [exportSnackbarMessage, setExportSnackbarMessage] = useState('');
   const [exportSnackbarSeverity, setExportSnackbarSeverity] = useState<'success' | 'error'>('success');
 
+  // Status change state
+  const [statusOptions, setStatusOptions] = useState<Array<{ value: string; label: string }>>([]);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [statusSnackbarOpen, setStatusSnackbarOpen] = useState(false);
+  const [statusSnackbarMessage, setStatusSnackbarMessage] = useState('');
+  const [statusSnackbarSeverity, setStatusSnackbarSeverity] = useState<'success' | 'error'>('success');
+
   // Fetch job on mount
   useEffect(() => {
     if (id) {
@@ -103,6 +116,48 @@ export default function JobDetail() {
       getMatchingHistory(jobId);
     }
   }, [id, getJobById, getMatchingHistory]);
+
+  // Load status options on mount
+  useEffect(() => {
+    const loadStatusOptions = async () => {
+      try {
+        const options = await window.api.getJobStatusOptions();
+        setStatusOptions(options);
+      } catch (err) {
+        console.error('Failed to load status options:', err);
+      }
+    };
+    loadStatusOptions();
+  }, []);
+
+  // Handle status change
+  const handleStatusChange = async (event: SelectChangeEvent<string>) => {
+    if (!currentJob?.id) return;
+
+    const newStatus = event.target.value as JobStatus;
+    const oldStatus = currentJob.status;
+
+    if (newStatus === oldStatus) return;
+
+    setIsUpdatingStatus(true);
+    try {
+      await updateJob(currentJob.id, { status: newStatus });
+      // Refresh job data to get updated status
+      await getJobById(currentJob.id);
+
+      const statusLabel = statusOptions.find(opt => opt.value === newStatus)?.label || newStatus;
+      setStatusSnackbarMessage(`Status geändert auf "${statusLabel}"`);
+      setStatusSnackbarSeverity('success');
+      setStatusSnackbarOpen(true);
+    } catch (err) {
+      console.error('Failed to update status:', err);
+      setStatusSnackbarMessage('Status-Änderung fehlgeschlagen');
+      setStatusSnackbarSeverity('error');
+      setStatusSnackbarOpen(true);
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   // Handle match
   const handleMatch = async () => {
@@ -273,13 +328,12 @@ export default function JobDetail() {
 
   // Get status display
   const getStatusInfo = (status: string) => {
-    const statusMap: Record<string, { label: string; color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' }> = {
-      'new': { label: 'Neu', color: 'info' },
-      'reviewing': { label: 'In Prüfung', color: 'primary' },
+    const statusMap: Record<string, { label: string; color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'; customSx?: object }> = {
+      'new': { label: 'Neu', color: 'info', customSx: { backgroundColor: '#64b5f6', color: '#fff' } }, // Lighter blue
+      'interesting': { label: 'Interessant', color: 'success' },
       'applied': { label: 'Beworben', color: 'warning' },
       'rejected': { label: 'Abgelehnt', color: 'error' },
-      'offer': { label: 'Angebot', color: 'success' },
-      'accepted': { label: 'Angenommen', color: 'success' }
+      'archived': { label: 'Archiviert', color: 'default' }
     };
     return statusMap[status] || { label: status, color: 'default' };
   };
@@ -329,8 +383,6 @@ export default function JobDetail() {
     );
   }
 
-  const statusInfo = getStatusInfo(currentJob.status);
-
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       {/* Header with actions */}
@@ -350,11 +402,35 @@ export default function JobDetail() {
             <Typography variant="h6" color="text.secondary">
               {currentJob.company}
             </Typography>
-            <Chip
-              label={statusInfo.label}
-              color={statusInfo.color}
-              size="medium"
-            />
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <Select
+                value={currentJob.status || 'new'}
+                onChange={handleStatusChange}
+                disabled={isUpdatingStatus}
+                sx={{
+                  '& .MuiSelect-select': {
+                    py: 0.5,
+                    display: 'flex',
+                    alignItems: 'center'
+                  }
+                }}
+              >
+                {statusOptions.map((option) => {
+                  const statusInfo = getStatusInfo(option.value);
+                  return (
+                    <MenuItem key={option.value} value={option.value}>
+                      <Chip
+                        label={option.label}
+                        color={statusInfo.color}
+                        size="small"
+                        sx={{ cursor: 'pointer', ...statusInfo.customSx }}
+                      />
+                    </MenuItem>
+                  );
+                })}
+              </Select>
+            </FormControl>
+            {isUpdatingStatus && <CircularProgress size={20} />}
           </Box>
         </Box>
 
@@ -907,6 +983,18 @@ export default function JobDetail() {
       >
         <Alert onClose={() => setExportSnackbarOpen(false)} severity={exportSnackbarSeverity} sx={{ width: '100%' }}>
           {exportSnackbarMessage}
+        </Alert>
+      </Snackbar>
+
+      {/* Status Change Snackbar */}
+      <Snackbar
+        open={statusSnackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setStatusSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setStatusSnackbarOpen(false)} severity={statusSnackbarSeverity} sx={{ width: '100%' }}>
+          {statusSnackbarMessage}
         </Alert>
       </Snackbar>
     </Container>
