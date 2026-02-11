@@ -220,26 +220,28 @@ export const PreferencesPanel: React.FC = () => {
         {/* Salary Range */}
         <Box>
           <Typography variant="subtitle2" gutterBottom>
-            Salary Range
+            Gehaltsvorstellung (€/Jahr, brutto)
           </Typography>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <TextField
-              label="Minimum Salary"
+              label="Gehalt Min (€/Jahr)"
               type="number"
               value={formData.minSalary || ''}
               onChange={handleSalaryChange('minSalary')}
               fullWidth
-              InputProps={{ inputProps: { min: 0 } }}
+              InputProps={{ inputProps: { min: 0, step: 1000 } }}
               disabled={isLoading}
+              helperText="z.B. 50000"
             />
             <TextField
-              label="Maximum Salary"
+              label="Gehalt Max (€/Jahr)"
               type="number"
               value={formData.maxSalary || ''}
               onChange={handleSalaryChange('maxSalary')}
               fullWidth
-              InputProps={{ inputProps: { min: 0 } }}
+              InputProps={{ inputProps: { min: 0, step: 1000 } }}
               disabled={isLoading}
+              helperText="z.B. 70000"
             />
           </Box>
         </Box>

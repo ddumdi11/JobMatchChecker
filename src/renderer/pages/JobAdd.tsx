@@ -69,6 +69,7 @@ export default function JobAdd() {
     title: '',
     company: '',
     location: '',
+    postedDate: '',
     description: '',
     requirements: '',
     salary_min: undefined as number | undefined,
@@ -97,6 +98,7 @@ export default function JobAdd() {
         title: '',
         company: '',
         location: '',
+        postedDate: '',
         description: '',
         requirements: '',
         salary_min: undefined,
@@ -114,10 +116,19 @@ export default function JobAdd() {
   useEffect(() => {
     if (isEditMode && currentJob) {
       // Map camelCase JobOffer properties to snake_case form fields
+      // Format date to YYYY-MM-DD for HTML date input
+      const formatDateForInput = (date?: Date | null) => {
+        if (!date) return '';
+        const d = new Date(date);
+        if (isNaN(d.getTime())) return '';
+        return d.toISOString().split('T')[0];
+      };
+
       const loadedData = {
         title: currentJob.title || '',
         company: currentJob.company || '',
         location: currentJob.location || '',
+        postedDate: formatDateForInput(currentJob.postedDate),
         description: currentJob.fullText || '',
         requirements: '',
         salary_min: undefined as number | undefined,
@@ -320,10 +331,20 @@ export default function JobAdd() {
         }
       }
 
+      // Format extracted date to YYYY-MM-DD for HTML date input
+      let extractedDate = '';
+      if (fields.postedDate) {
+        const d = new Date(fields.postedDate as any);
+        if (!isNaN(d.getTime())) {
+          extractedDate = d.toISOString().split('T')[0];
+        }
+      }
+
       setFormData({
         title: fields.title || '',
         company: fields.company || '',
         location: fields.location || '',
+        postedDate: extractedDate,
         description: (fields as any).fullText || '',
         requirements: (fields as any).notes || '', // AI extracts requirements into notes field
         salary_min: salaryMin,
@@ -403,6 +424,7 @@ export default function JobAdd() {
       title: '',
       company: '',
       location: '',
+      postedDate: '',
       description: '',
       requirements: '',
       salary_min: undefined,
@@ -594,10 +616,20 @@ export default function JobAdd() {
               fullWidth
             />
 
+            {/* Posted Date */}
+            <TextField
+              label="Veröffentlichungsdatum"
+              type="date"
+              value={formData.postedDate}
+              onChange={handleFieldChange('postedDate')}
+              fullWidth
+              InputLabelProps={{ shrink: true }}
+            />
+
             {/* Salary Range */}
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
-                label="Gehalt Min (€)"
+                label="Gehalt Min (€/Jahr)"
                 type="number"
                 value={formData.salary_min || ''}
                 onChange={handleNumberChange('salary_min')}
@@ -605,7 +637,7 @@ export default function JobAdd() {
                 InputProps={{ inputProps: { min: 0, step: 1000 } }}
               />
               <TextField
-                label="Gehalt Max (€)"
+                label="Gehalt Max (€/Jahr)"
                 type="number"
                 value={formData.salary_max || ''}
                 onChange={handleNumberChange('salary_max')}

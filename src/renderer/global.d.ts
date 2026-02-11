@@ -11,6 +11,7 @@ interface Window {
     updateJob: (id: number, data: any) => Promise<any>;
     deleteJob: (id: number) => Promise<void>;
     getJobSources: () => Promise<Array<{ id: number; name: string }>>;
+    getOrCreateJobSource: (name: string) => Promise<{ id: number; name: string }>;
     getJobStatusOptions: () => Promise<Array<{ value: string; label: string }>>;
     extractJobFields: (text: string) => Promise<any>;
     // Merge operations

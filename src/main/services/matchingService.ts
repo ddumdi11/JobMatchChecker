@@ -250,6 +250,15 @@ Skills mit hoher Marktrelevanz UND sicherer Konfidenz sollten stärker positiv i
 2. Future Skills (zweite Priorität) - Transformative, digitale, gemeinschaftliche Skills
 3. Soft Skills (dritte Priorität) - Zusätzliche persönliche Eigenschaften
 
+**Level-basierte Sprachrichtlinien für Stärken-Beschreibungen:**
+Verwende in den "strengths" Texten Formulierungen, die dem tatsächlichen Skill-Level entsprechen:
+- Level 1-2/10: "Erste Erfahrungen mit...", "Grundverständnis von...", "Anfängerkenntnisse in..."
+- Level 3-4/10: "Basiskenntnisse in...", "Praktische Grundlagen in...", "Grundsolide Erfahrung mit..."
+- Level 5-6/10: "Solide Kenntnisse in...", "Gute praktische Erfahrung mit...", "Fundierte Kenntnisse in..."
+- Level 7-8/10: "Starke Erfahrung mit...", "Sehr gute Kenntnisse in...", "Tiefgehende Expertise in..."
+- Level 9-10/10: "Expertenkenntnisse in...", "Umfangreiche Expertise in...", "Tiefe Spezialisierung in..."
+WICHTIG: Beschreibe NIE ein Level 3-4 als "stark" oder "umfangreich". Sei ehrlich und realistisch!
+
 **Wichtig für Skill-Matching (SEMANTISCH interpretieren!):**
 - Interpretiere Skills SEMANTISCH, nicht nur nach exaktem Namen oder Schreibweise
 - Ignoriere Unterschiede in Groß/Kleinschreibung, Leerzeichen, Bindestriche (z.B. "Softwaretesting" = "Software Testing" = "Software-Testing")

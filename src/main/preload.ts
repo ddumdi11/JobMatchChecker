@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('api', {
   updateJob: (id: number, data: any) => ipcRenderer.invoke('updateJob', id, data),
   deleteJob: (id: number) => ipcRenderer.invoke('deleteJob', id),
   getJobSources: () => ipcRenderer.invoke('getJobSources'),
+  getOrCreateJobSource: (name: string) => ipcRenderer.invoke('getOrCreateJobSource', name),
   getJobStatusOptions: () => ipcRenderer.invoke('getJobStatusOptions'),
   extractJobFields: (text: string) => ipcRenderer.invoke('extractJobFields', text),
 
