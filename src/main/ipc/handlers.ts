@@ -82,7 +82,7 @@ export function registerIpcHandlers() {
 
   ipcMain.handle('getOrCreateJobSource', async (_event, name: string) => {
     try {
-      return jobService.getOrCreateJobSource(name);
+      return await jobService.getOrCreateJobSource(name);
     } catch (error: any) {
       log.error('Error in getOrCreateJobSource:', error);
       throw error;

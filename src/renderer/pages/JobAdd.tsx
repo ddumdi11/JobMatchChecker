@@ -116,12 +116,15 @@ export default function JobAdd() {
   useEffect(() => {
     if (isEditMode && currentJob) {
       // Map camelCase JobOffer properties to snake_case form fields
-      // Format date to YYYY-MM-DD for HTML date input
+      // Format date to YYYY-MM-DD for HTML date input (using local timezone)
       const formatDateForInput = (date?: Date | null) => {
         if (!date) return '';
         const d = new Date(date);
         if (isNaN(d.getTime())) return '';
-        return d.toISOString().split('T')[0];
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
       };
 
       const loadedData = {
@@ -331,12 +334,15 @@ export default function JobAdd() {
         }
       }
 
-      // Format extracted date to YYYY-MM-DD for HTML date input
+      // Format extracted date to YYYY-MM-DD for HTML date input (using local timezone)
       let extractedDate = '';
       if (fields.postedDate) {
         const d = new Date(fields.postedDate as any);
         if (!isNaN(d.getTime())) {
-          extractedDate = d.toISOString().split('T')[0];
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          extractedDate = `${year}-${month}-${day}`;
         }
       }
 

@@ -299,15 +299,15 @@ export const useJobStore = create<JobState>()(
           // Remove frontend-only fields that backend doesn't understand
           delete backendData.requirements;
 
-          await window.api.updateJob(id, backendData);
+          const updatedJob = await window.api.updateJob(id, backendData);
 
-          // Update local state
+          // Update local state with server response (not raw form data)
           set(state => ({
             jobs: state.jobs.map(job =>
-              job.id === id ? { ...job, ...data } : job
+              job.id === id ? updatedJob : job
             ),
             currentJob: state.currentJob?.id === id
-              ? { ...state.currentJob, ...data }
+              ? updatedJob
               : state.currentJob,
             isLoading: false
           }));
