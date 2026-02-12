@@ -91,7 +91,10 @@ export async function matchJob(jobId: number, apiKey: string): Promise<MatchingR
     if (firstBlock.type !== 'text') {
       throw new Error('Unexpected response type from Claude API');
     }
-    const result = parseMatchingResponse(firstBlock.text);
+    const rawResult = parseMatchingResponse(firstBlock.text);
+
+    // 5b. Plausibility check: validate score against reported gaps
+    const result = validateAndAdjustScore(rawResult);
 
     // 6. Save to matching_results table
     db.prepare(`
@@ -126,6 +129,73 @@ export async function matchJob(jobId: number, apiKey: string): Promise<MatchingR
     log.error('Error in matchJob:', error);
     throw error;
   }
+}
+
+/**
+ * Validate AI score against reported gaps and adjust if inconsistent.
+ * This acts as a safety net against binary scoring where the AI ignores level gaps.
+ */
+function validateAndAdjustScore(result: MatchingResult): MatchingResult {
+  const gaps = result.gaps.missingSkills;
+
+  if (gaps.length === 0) {
+    return result; // No gaps reported, trust the AI score
+  }
+
+  // Calculate average fulfillment from the gap report
+  let totalFulfillment = 0;
+  let gapCount = 0;
+
+  for (const gap of gaps) {
+    if (gap.requiredLevel > 0) {
+      const fulfillment = gap.currentLevel / gap.requiredLevel;
+      totalFulfillment += Math.min(fulfillment, 1.0);
+      gapCount++;
+    }
+  }
+
+  if (gapCount === 0) {
+    return result; // No meaningful gaps to validate against
+  }
+
+  const avgFulfillment = totalFulfillment / gapCount;
+
+  // If significant gaps exist but score is unreasonably high, cap it
+  // Rule: If average gap fulfillment is below 50%, score shouldn't exceed 65%
+  // If average gap fulfillment is below 30%, score shouldn't exceed 50%
+  let maxReasonableScore = 100;
+  if (avgFulfillment < 0.3) {
+    maxReasonableScore = 50;
+  } else if (avgFulfillment < 0.5) {
+    maxReasonableScore = 65;
+  } else if (avgFulfillment < 0.7) {
+    maxReasonableScore = 80;
+  }
+
+  if (result.matchScore > maxReasonableScore) {
+    const adjustedScore = maxReasonableScore;
+    log.info(
+      `Score adjusted: ${result.matchScore}% → ${adjustedScore}% ` +
+      `(avg gap fulfillment: ${(avgFulfillment * 100).toFixed(0)}%, ` +
+      `${gapCount} gaps reported)`
+    );
+
+    // Adjust category to match new score
+    let adjustedCategory = result.matchCategory;
+    if (adjustedScore >= 80) adjustedCategory = 'good';
+    else if (adjustedScore >= 55) adjustedCategory = 'needs_work';
+    else adjustedCategory = 'poor';
+
+    return {
+      ...result,
+      matchScore: adjustedScore,
+      matchCategory: adjustedCategory,
+      reasoning: result.reasoning +
+        ` [Score angepasst von ${result.matchScore}% auf ${adjustedScore}% basierend auf Level-Gap-Analyse]`
+    };
+  }
+
+  return result;
 }
 
 /**
@@ -229,26 +299,51 @@ Gib eine strukturierte Analyse als JSON zurück mit folgenden Feldern:
   "reasoning": "Begründung des Scores in 2-3 Sätzen"
 }
 
-**Bewertungskriterien:**
+**Bewertungskriterien (Gewichtung):**
 - Skills-Match (40%): Wie gut passen die vorhandenen Skills zu den Anforderungen?
 - Erfahrungs-Match (30%): Passt das Erfahrungslevel?
 - Standort/Remote-Match (15%): Passen Standort und Remote-Optionen?
 - Gehalts-Match (15%): Liegt das Gehalt im gewünschten Bereich?
 
+**KRITISCH - Level-proportionale Skill-Bewertung:**
+Das Skill-Level des Kandidaten MUSS proportional in den Score einfließen! Ein Skill bei Level 3/10 ist NICHT gleichwertig mit einem Skill bei Level 8/10.
+
+Berechne für JEDEN geforderten Skill einen Erfüllungsgrad:
+- Erfüllungsgrad = min(kandidat_level / anforderungs_level, 1.0)
+- Beispiel: Job fordert "Python Level 7" → Kandidat hat "Python Level 3" → Erfüllungsgrad = 3/7 = 0.43 (nur 43% erfüllt!)
+- Beispiel: Job fordert "SQL Level 5" → Kandidat hat "SQL Level 7" → Erfüllungsgrad = 1.0 (voll erfüllt)
+- Fehlender Skill → Erfüllungsgrad = 0.0
+
+Der Skills-Match-Anteil (40%) ergibt sich aus dem DURCHSCHNITT aller Erfüllungsgrade.
+
+**ANTI-PATTERN - Vermeide binäre Bewertung!**
+FALSCH: "Kandidat hat ITSM (egal welches Level) → volle Punkte für ITSM"
+RICHTIG: "Kandidat hat ITSM Level 4/10, Job fordert Level 7 → nur 57% Erfüllung für diesen Skill"
+Ein Skill bei Level 3/10 erfüllt eine Anforderung auf Level 8 nur zu ca. 37% (3/8 = 0.375).
+
+**Kalibrierungsbeispiele für realistische Scores:**
+- 85-100%: Kandidat erfüllt fast alle Anforderungen auf dem geforderten Level oder höher
+- 70-84%: Gute Passung, aber einige Skills unter dem geforderten Level oder 1-2 fehlende Kernfähigkeiten
+- 55-69%: Mittlere Passung, mehrere Skills deutlich unter dem geforderten Level
+- 40-54%: Schwache Passung, viele Lücken oder Skills weit unter dem Anforderungsniveau
+- 0-39%: Kaum Übereinstimmung, grundlegende Anforderungen nicht erfüllt
+
+Beispiel: QA-Tester (Level 6) bewirbt sich auf eine Rollout-/IT-Infrastruktur-Stelle.
+Hat ITSM Level 4/10, Hardware Level 3/10 → realistischer Score: 45-55%, NICHT 70%+
+
 **Skill-Gewichtung nach Metadata:**
-Bei manchen Skills sind Konfidenz und Marktrelevanz angegeben. Nutze diese zur Gewichtung:
-- Marktrelevanz "hoch" → Skill ist besonders wertvoll (Faktor 1.2)
-- Marktrelevanz "mittel" → Skill ist normal wertvoll (Faktor 1.0)
-- Marktrelevanz "niedrig" → Skill ist weniger relevant (Faktor 0.8)
-- Konfidenz "sehr sicher" → Skill ist verlässlich nachgewiesen (Faktor 1.1)
-- Konfidenz "möglich" → Skill ist wahrscheinlich vorhanden (Faktor 1.0)
-- Fehlende Werte → neutral (Faktor 1.0)
-Skills mit hoher Marktrelevanz UND sicherer Konfidenz sollten stärker positiv in den Match-Score einfließen.
+Bei manchen Skills sind Konfidenz und Marktrelevanz angegeben. Nutze diese als ZUSÄTZLICHE Faktoren:
+- Marktrelevanz "hoch" → Faktor 1.2
+- Marktrelevanz "mittel" → Faktor 1.0
+- Marktrelevanz "niedrig" → Faktor 0.8
+- Konfidenz "sehr sicher" → Faktor 1.1
+- Konfidenz "möglich" → Faktor 1.0
+- Fehlende Werte → Faktor 1.0
 
 **Skill-Kategorien-Priorisierung:**
 1. Hard Skills (höchste Priorität) - Technische Fähigkeiten sind am wichtigsten für den Job-Match
 2. Future Skills (zweite Priorität) - Transformative, digitale, gemeinschaftliche Skills
-3. Soft Skills (dritte Priorität) - Zusätzliche persönliche Eigenschaften
+3. Soft Skills (dritte Priorität) - Zusätzliche persönliche Eigenschaften, können max. 5-10% zum Score beitragen
 
 **Level-basierte Sprachrichtlinien für Stärken-Beschreibungen:**
 Verwende in den "strengths" Texten Formulierungen, die dem tatsächlichen Skill-Level entsprechen:
