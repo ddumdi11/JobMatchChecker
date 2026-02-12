@@ -533,6 +533,31 @@ export function getJobSources(): Array<{ id: number; name: string }> {
 }
 
 /**
+ * Get or create a job source by name (case-insensitive match)
+ */
+export function getOrCreateJobSource(name: string): { id: number; name: string } {
+  const db = getDatabase();
+  const trimmed = name.trim();
+  if (!trimmed) {
+    // Return first source as default, or create one if none exist
+    const first = db.prepare('SELECT id, name FROM job_sources ORDER BY id LIMIT 1').get() as { id: number; name: string } | undefined;
+    if (first) return first;
+    const fallback = db.prepare('INSERT INTO job_sources (name, url, api_available) VALUES (?, NULL, 0)').run('Sonstige');
+    return { id: fallback.lastInsertRowid as number, name: 'Sonstige' };
+  }
+
+  // Case-insensitive lookup
+  const existing = db.prepare('SELECT id, name FROM job_sources WHERE LOWER(name) = LOWER(?)').get(trimmed) as { id: number; name: string } | undefined;
+  if (existing) {
+    return existing;
+  }
+
+  // Create new source
+  const result = db.prepare('INSERT INTO job_sources (name, url, api_available) VALUES (?, NULL, 0)').run(trimmed);
+  return { id: result.lastInsertRowid as number, name: trimmed };
+}
+
+/**
  * Get job status options with user-friendly labels
  */
 export function getJobStatusOptions(): Array<{ value: JobStatus; label: string }> {

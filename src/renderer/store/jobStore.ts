@@ -164,7 +164,6 @@ export const useJobStore = create<JobState>()(
             ...data,
             // Add required fields with defaults if missing
             postedDate: data.postedDate || new Date(), // Default to today
-            sourceId: data.sourceId || 1, // Default to first source (TODO: make this configurable)
             importMethod: 'ai_paste',
             status: data.status || 'new'
           };
@@ -209,6 +208,18 @@ export const useJobStore = create<JobState>()(
             delete backendData.source_url;
           }
 
+          // Resolve source name to sourceId
+          if (backendData.source) {
+            const sourceResult = await window.api.getOrCreateJobSource(backendData.source);
+            backendData.sourceId = sourceResult.id;
+            delete backendData.source;
+          } else if (!backendData.sourceId) {
+            backendData.sourceId = 1; // Default fallback
+          }
+
+          // Remove frontend-only fields
+          delete backendData.requirements;
+
           const newJob = await window.api.createJob(backendData);
 
           // Add to local state
@@ -230,15 +241,73 @@ export const useJobStore = create<JobState>()(
       updateJob: async (id: number, data: Partial<JobOfferType>) => {
         set({ isLoading: true, error: null });
         try {
-          await window.api.updateJob(id, data);
+          // Transform frontend form fields to backend format (same as createJob)
+          const backendData: any = { ...data };
 
-          // Update local state
+          // Transform salary_min/max to salaryRange string if present
+          if ((data as any).salary_min || (data as any).salary_max) {
+            const min = (data as any).salary_min;
+            const max = (data as any).salary_max;
+            if (min && max) {
+              backendData.salaryRange = `${min}-${max}`;
+            } else if (max) {
+              backendData.salaryRange = `up to ${max}`;
+            } else if (min) {
+              backendData.salaryRange = `from ${min}`;
+            }
+            delete backendData.salary_min;
+            delete backendData.salary_max;
+          }
+
+          // Transform remote_percentage to remoteOption string if present
+          if ((data as any).remote_percentage !== undefined) {
+            const percentage = (data as any).remote_percentage;
+            if (percentage === 100) {
+              backendData.remoteOption = '100% remote';
+            } else if (percentage === 0) {
+              backendData.remoteOption = 'on-site';
+            } else {
+              backendData.remoteOption = `hybrid (${percentage}% remote)`;
+            }
+            delete backendData.remote_percentage;
+          }
+
+          // Rename fields to match backend expectations
+          if (backendData.description !== undefined) {
+            backendData.fullText = backendData.description;
+            delete backendData.description;
+          }
+          if (backendData.source_url !== undefined) {
+            backendData.url = backendData.source_url;
+            delete backendData.source_url;
+          }
+
+          // Resolve source name to sourceId
+          if (backendData.source !== undefined) {
+            if (backendData.source) {
+              const sourceResult = await window.api.getOrCreateJobSource(backendData.source);
+              backendData.sourceId = sourceResult.id;
+            }
+            delete backendData.source;
+          }
+
+          // Handle empty postedDate: remove from payload to keep existing value
+          if (backendData.postedDate === '') {
+            delete backendData.postedDate;
+          }
+
+          // Remove frontend-only fields that backend doesn't understand
+          delete backendData.requirements;
+
+          const updatedJob = await window.api.updateJob(id, backendData);
+
+          // Update local state with server response (not raw form data)
           set(state => ({
             jobs: state.jobs.map(job =>
-              job.id === id ? { ...job, ...data } : job
+              job.id === id ? updatedJob : job
             ),
             currentJob: state.currentJob?.id === id
-              ? { ...state.currentJob, ...data }
+              ? updatedJob
               : state.currentJob,
             isLoading: false
           }));

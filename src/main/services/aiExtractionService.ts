@@ -60,6 +60,11 @@ IMPORTANT: This text may come from various sources including:
 - LinkedIn, StepStone, Indeed, or other job boards
 - Company career pages
 - Email or PDF job descriptions
+- Messages or notifications that contain a job posting
+
+IMPORTANT: If the text contains email headers, message metadata, sender information,
+subject lines, or notification UI elements (e.g., "Ihre Nachricht", "Absender:", "Betreff:",
+"Von:", "An:", "Gesendet:"), IGNORE all of that and extract ONLY the actual job posting content.
 
 For Arbeitsagentur-style listings, note that:
 - "Detailansicht des Stellenangebots" is just a header, NOT the job title
@@ -75,7 +80,7 @@ Return a JSON object with these fields (all optional except where noted):
 - title (string, required): The actual job position title (e.g., "Java Architekt", "Software Developer")
 - company (string, required): Company/employer name (look for "Arbeitgeber:" in German listings)
 - location (string): Job location (look for "Arbeitsort:" or city names)
-- remoteOption (string): Remote/home office work details - look for "Heim-/Telearbeit", "Telearbeit", "Homeoffice", "Remote", percentage mentions like "überwiegend" (mostly), "teilweise" (partly), or specific percentages. Extract the full remote work arrangement description.
+- remoteOption (string): Remote/home office work details - look for "Heim-/Telearbeit", "Telearbeit", "Homeoffice", "Remote", percentage mentions like "überwiegend" (mostly), "teilweise" (partly), or specific percentages. Extract the full remote work arrangement description. If NO remote/homeoffice option is mentioned at all, set this to "0% - Vor Ort" (pure on-site position).
 - salaryRange (string): Salary information (preserve original format)
 - contractType (string): Employment type (e.g., "Vollzeit", "Full-time", "unbefristet")
 - postedDate (string, format: YYYY-MM-DD): Date job was posted
@@ -186,17 +191,22 @@ Return ONLY valid JSON, no explanation or markdown. If a field cannot be extract
       }
     }
 
-    // Determine missing required fields
-    const requiredFields = ['title', 'company', 'postedDate'];
-    const missingRequired = requiredFields.filter(field => !fields[field]);
+    // Determine missing fields by importance
+    const criticalFields = ['title', 'company'];
+    const supplementaryFields = ['postedDate'];
+    const missingCritical = criticalFields.filter(field => !fields[field]);
+    const missingSupplementary = supplementaryFields.filter(field => !fields[field]);
+    const missingRequired = [...missingCritical, ...missingSupplementary];
 
     // Determine confidence level
     let confidence: 'high' | 'medium' | 'low' = 'high';
     const extractedCount = Object.keys(extractedData).length;
 
-    if (missingRequired.length > 0) {
+    if (missingCritical.length > 0) {
+      // Missing title or company = truly low confidence
       confidence = 'low';
-    } else if (extractedCount < 3) {
+    } else if (missingSupplementary.length > 0 || extractedCount < 3) {
+      // Missing only date or few fields extracted = medium
       confidence = 'medium';
     }
 

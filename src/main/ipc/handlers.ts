@@ -80,6 +80,15 @@ export function registerIpcHandlers() {
     }
   });
 
+  ipcMain.handle('getOrCreateJobSource', async (_event, name: string) => {
+    try {
+      return await jobService.getOrCreateJobSource(name);
+    } catch (error: any) {
+      log.error('Error in getOrCreateJobSource:', error);
+      throw error;
+    }
+  });
+
   ipcMain.handle('getJobStatusOptions', async () => {
     try {
       return await jobService.getJobStatusOptions();
