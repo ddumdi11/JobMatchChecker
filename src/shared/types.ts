@@ -259,3 +259,39 @@ export interface SkillImportResult {
   skipped: number;
   errors: Array<{ row: number; skill: string; error: string }>;
 }
+
+// AI Provider types (OpenRouter Integration)
+export type AIProvider = 'anthropic' | 'openrouter';
+
+export interface AIProviderConfig {
+  provider: AIProvider;
+  model: string;
+  hasAnthropicKey: boolean;
+  hasOpenRouterKey: boolean;
+}
+
+export interface AIMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface AIResponse {
+  content: string;
+  model: string;
+  provider: AIProvider;
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+  };
+}
+
+export interface OpenRouterModel {
+  id: string;
+  name: string;
+  contextLength: number;
+  pricing: {
+    prompt: string;
+    completion: string;
+  };
+  isFree: boolean;
+}

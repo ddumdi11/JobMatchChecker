@@ -1,23 +1,14 @@
 /**
- * AI Extraction Service - Claude API integration for job field extraction
+ * AI Extraction Service - AI integration for job field extraction
  *
- * Feature: 005-job-offer-management
- * Phase: 3.3 Implementation (GREEN)
- * Task: T013
+ * Uses aiProviderService.sendPrompt() to support Anthropic and OpenRouter.
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+import { sendPrompt } from './aiProviderService';
 import type { AIExtractionResult } from '../../shared/types';
 
 /**
- * Extract job fields from unstructured text using Claude API
- *
- * @param text - Raw job description text (pasted by user)
- * @returns AIExtractionResult with extracted fields, confidence level, and missing fields
- *
- * @throws Error if API key is missing
- * @throws Error if rate limit exceeded
- * @throws Error if network error occurs
+ * Extract job fields from unstructured text using the configured AI provider
  */
 export async function extractJobFields(text: string): Promise<AIExtractionResult> {
   // Handle empty text
@@ -30,27 +21,6 @@ export async function extractJobFields(text: string): Promise<AIExtractionResult
       error: 'No text provided for extraction'
     };
   }
-
-  // Check for API key
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    return {
-      success: false,
-      fields: {},
-      confidence: 'low',
-      missingRequired: ['title', 'company', 'postedDate'],
-      error: 'Anthropic API key not configured. Please set ANTHROPIC_API_KEY environment variable.'
-    };
-  }
-
-  // Initialize Anthropic client
-  const anthropic = new Anthropic({
-    apiKey: apiKey
-  });
-
-  // Create AbortController for 30-second timeout
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
 
   try {
     const prompt = `Extract structured job offer fields from the following job posting text.
@@ -93,39 +63,17 @@ ${text}
 
 Return ONLY valid JSON, no explanation or markdown. If a field cannot be extracted, omit it from the JSON.`;
 
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 1024,
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ]
-    }, {
-      signal: controller.signal as any
-    });
-
-    clearTimeout(timeoutId);
-
-    // Extract text content from response
-    const responseText = message.content
-      .filter((block: any) => block.type === 'text')
-      .map((block: any) => block.text)
-      .join('');
-
-    // Debug logging (can be removed later)
-    if (process.env.NODE_ENV === 'test') {
-      console.log('[AI Extraction Debug] Raw response:', responseText.substring(0, 200));
-    }
+    const response = await sendPrompt(
+      [{ role: 'user', content: prompt }],
+      { maxTokens: 1024 }
+    );
 
     // Try to extract JSON from markdown code blocks if present
-    let jsonText = responseText.trim();
+    let jsonText = response.content.trim();
     const jsonBlockMatch = jsonText.match(/```json\s*([\s\S]*?)\s*```/);
     if (jsonBlockMatch) {
       jsonText = jsonBlockMatch[1].trim();
     } else {
-      // Also try without "json" tag
       const codeBlockMatch = jsonText.match(/```\s*([\s\S]*?)\s*```/);
       if (codeBlockMatch) {
         jsonText = codeBlockMatch[1].trim();
@@ -139,7 +87,6 @@ Return ONLY valid JSON, no explanation or markdown. If a field cannot be extract
     } catch (parseError) {
       if (process.env.NODE_ENV === 'test') {
         console.error('[AI Extraction Debug] JSON parse failed. Text:', jsonText.substring(0, 200));
-        console.error('[AI Extraction Debug] Parse error:', parseError);
       }
       return {
         success: false,
@@ -203,10 +150,8 @@ Return ONLY valid JSON, no explanation or markdown. If a field cannot be extract
     const extractedCount = Object.keys(extractedData).length;
 
     if (missingCritical.length > 0) {
-      // Missing title or company = truly low confidence
       confidence = 'low';
     } else if (missingSupplementary.length > 0 || extractedCount < 3) {
-      // Missing only date or few fields extracted = medium
       confidence = 'medium';
     }
 
@@ -225,16 +170,8 @@ Return ONLY valid JSON, no explanation or markdown. If a field cannot be extract
     };
 
   } catch (error: any) {
-    clearTimeout(timeoutId);
-
-    // Debug logging
-    if (process.env.NODE_ENV === 'test') {
-      console.error('[AI Extraction Debug] Caught error:', error.name, error.message);
-      console.error('[AI Extraction Debug] Error status:', error.status);
-    }
-
     // Handle timeout
-    if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+    if (error.message?.includes('Timeout') || error.message?.includes('abgebrochen')) {
       return {
         success: false,
         fields: {
@@ -244,30 +181,19 @@ Return ONLY valid JSON, no explanation or markdown. If a field cannot be extract
         },
         confidence: 'low',
         missingRequired: ['title', 'company', 'postedDate'],
-        error: 'Extraction timed out after 30 seconds',
-        warnings: ['Extraction timed out after 30 seconds. Please try again or enter fields manually.']
+        error: error.message,
+        warnings: ['Extraktion abgebrochen. Bitte versuchen Sie es erneut oder geben Sie die Felder manuell ein.']
       };
     }
 
     // Handle rate limit
-    if (error.status === 429 || error.message?.includes('rate limit')) {
+    if (error.message?.includes('Rate-Limit') || error.message?.includes('rate limit')) {
       return {
         success: false,
         fields: {},
         confidence: 'low',
         missingRequired: ['title', 'company', 'postedDate'],
-        error: 'Rate limit exceeded. Please try again in a few moments.'
-      };
-    }
-
-    // Handle network errors
-    if (error.message?.includes('network') || error.message?.includes('ECONNREFUSED')) {
-      return {
-        success: false,
-        fields: {},
-        confidence: 'low',
-        missingRequired: ['title', 'company', 'postedDate'],
-        error: 'Network error. Please check your internet connection and try again.'
+        error: error.message
       };
     }
 
@@ -281,7 +207,7 @@ Return ONLY valid JSON, no explanation or markdown. If a field cannot be extract
       },
       confidence: 'low',
       missingRequired: ['title', 'company', 'postedDate'],
-      error: `AI extraction failed: ${error.message}`
+      error: `AI-Extraktion fehlgeschlagen: ${error.message}`
     };
   }
 }
