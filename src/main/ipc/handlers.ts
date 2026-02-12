@@ -602,6 +602,27 @@ export function registerIpcHandlers() {
     }
   });
 
+  // Skills CSV export
+  ipcMain.handle('skills:exportToCsv', async (_, csvContent: string) => {
+    try {
+      const result = await dialog.showSaveDialog({
+        title: 'Skills als CSV exportieren',
+        defaultPath: 'skills-export.csv',
+        filters: [{ name: 'CSV-Dateien', extensions: ['csv'] }]
+      });
+      if (result.canceled || !result.filePath) {
+        return { success: false };
+      }
+      // Write with BOM for Excel compatibility
+      const bom = '\uFEFF';
+      fs.writeFileSync(result.filePath, bom + csvContent, 'utf-8');
+      return { success: true, filePath: result.filePath };
+    } catch (error: any) {
+      log.error('Error exporting skills CSV:', error);
+      throw error;
+    }
+  });
+
   // Preferences operations
   ipcMain.handle(IPC_CHANNELS.PREFERENCES_GET, async () => {
     try {

@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld('api', {
   skillsDetectConflicts: (csvContent: string) => ipcRenderer.invoke('skills:detectConflicts', csvContent),
   skillsApplyResolutions: (conflicts: any[], resolutions: any[]) => ipcRenderer.invoke('skills:applyResolutions', conflicts, resolutions),
   skillsImportNewOnly: (csvContent: string) => ipcRenderer.invoke('skills:importNewOnly', csvContent),
+  skillsExportToCsv: (csvContent: string) => ipcRenderer.invoke('skills:exportToCsv', csvContent),
 
   // Preferences operations
   getPreferences: () => ipcRenderer.invoke(IPC_CHANNELS.PREFERENCES_GET),

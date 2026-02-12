@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Button,
@@ -11,6 +11,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  InputAdornment,
   List,
   ListItem,
   ListItemText,
@@ -26,7 +27,10 @@ import {
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  Download as DownloadIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import { SkillLevel, MAX_SKILLS_PER_PROFILE } from '../../shared/types';
 import { useProfileStore, Skill } from '../store/profileStore';
@@ -59,6 +63,8 @@ export const SkillsManager: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   // Form state for new/edit skill
   const [skillForm, setSkillForm] = useState({
@@ -162,14 +168,61 @@ export const SkillsManager: React.FC = () => {
     setSuccessMessage(null);
   };
 
-  // Group skills by category
-  const groupedSkills = skills.reduce((acc, skill) => {
-    if (!acc[skill.category]) {
-      acc[skill.category] = [];
+  // Get unique categories from actual skills for the filter dropdown
+  const skillCategories = useMemo(() => {
+    const cats = new Set(skills.map(s => s.category));
+    return Array.from(cats).sort();
+  }, [skills]);
+
+  // Filter and group skills
+  const filteredSkills = useMemo(() => {
+    return skills.filter(skill => {
+      const matchesSearch = searchTerm === '' ||
+        skill.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        skill.category.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = categoryFilter === 'all' || skill.category === categoryFilter;
+      return matchesSearch && matchesCategory;
+    });
+  }, [skills, searchTerm, categoryFilter]);
+
+  const groupedSkills = useMemo(() => {
+    return filteredSkills.reduce((acc, skill) => {
+      if (!acc[skill.category]) {
+        acc[skill.category] = [];
+      }
+      acc[skill.category].push(skill);
+      return acc;
+    }, {} as Record<string, Skill[]>);
+  }, [filteredSkills]);
+
+  // RFC 4180 compliant CSV field escaping
+  const escapeCsvField = (value: string): string => {
+    if (value.includes('"') || value.includes(',') || value.includes('\n')) {
+      return `"${value.replace(/"/g, '""')}"`;
     }
-    acc[skill.category].push(skill);
-    return acc;
-  }, {} as Record<string, Skill[]>);
+    return value;
+  };
+
+  // CSV Export handler
+  const handleExportCsv = async () => {
+    const header = 'name,category,level,yearsOfExperience';
+    const rows = skills.map(skill => {
+      const name = escapeCsvField(skill.name);
+      const category = escapeCsvField(skill.category);
+      const years = skill.yearsOfExperience ?? '';
+      return `${name},${category},${skill.level},${years}`;
+    });
+    const csvContent = [header, ...rows].join('\n');
+
+    try {
+      const result = await window.api.skillsExportToCsv(csvContent);
+      if (result.success) {
+        setSuccessMessage(`${skills.length} Skills als CSV exportiert`);
+      }
+    } catch (err: any) {
+      useProfileStore.setState({ skillsError: `CSV-Export fehlgeschlagen: ${err.message || 'Unbekannter Fehler'}` });
+    }
+  };
 
   return (
     <Paper elevation={2} sx={{ p: 3 }}>
@@ -181,6 +234,15 @@ export const SkillsManager: React.FC = () => {
           {skills.length} / {MAX_SKILLS_PER_PROFILE}
         </Typography>
         <Button
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          onClick={handleExportCsv}
+          disabled={skills.length === 0 || isLoading}
+          sx={{ mr: 1 }}
+        >
+          CSV-Export
+        </Button>
+        <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => handleOpenDialog()}
@@ -190,6 +252,45 @@ export const SkillsManager: React.FC = () => {
         </Button>
       </Box>
 
+      {/* Search and filter bar */}
+      {skills.length > 0 && (
+        <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+          <TextField
+            size="small"
+            placeholder="Skills durchsuchen..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            sx={{ flexGrow: 1 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon color="action" />
+                </InputAdornment>
+              ),
+              endAdornment: searchTerm && (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearchTerm('')}>
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              )
+            }}
+          />
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <Select
+              value={categoryFilter}
+              onChange={e => setCategoryFilter(e.target.value)}
+              displayEmpty
+            >
+              <MenuItem value="all">Alle Kategorien</MenuItem>
+              {skillCategories.map(cat => (
+                <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+      )}
+
       {/* Error display */}
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => useProfileStore.setState({ skillsError: null })}>
@@ -197,9 +298,20 @@ export const SkillsManager: React.FC = () => {
         </Alert>
       )}
 
+      {/* Filtered count indicator */}
+      {(searchTerm || categoryFilter !== 'all') && (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          {filteredSkills.length} von {skills.length} Skills angezeigt
+        </Typography>
+      )}
+
       {/* Grouped skills display */}
       {Object.keys(groupedSkills).length === 0 ? (
-        <Alert severity="info">No skills added yet. Click &quot;Add Skill&quot; to get started.</Alert>
+        skills.length === 0 ? (
+          <Alert severity="info">Noch keine Skills vorhanden. Klicke &quot;Skill hinzufügen&quot; um zu starten.</Alert>
+        ) : (
+          <Alert severity="info">Keine Skills gefunden für die aktuelle Suche.</Alert>
+        )
       ) : (
         Object.entries(groupedSkills).map(([category, categorySkills]) => (
           <Box key={category} sx={{ mb: 3 }}>
