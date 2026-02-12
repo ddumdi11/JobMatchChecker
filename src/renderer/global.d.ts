@@ -33,6 +33,7 @@ interface Window {
     skillsDetectConflicts: (csvContent: string) => Promise<any>;
     skillsApplyResolutions: (conflicts: any[], resolutions: any[]) => Promise<any>;
     skillsImportNewOnly: (csvContent: string) => Promise<any>;
+    skillsExportToCsv: (csvContent: string) => Promise<{ success: boolean; filePath?: string }>;
     // Preferences operations
     getPreferences: () => Promise<any>;
     updatePreferences: (data: any) => Promise<any>;
