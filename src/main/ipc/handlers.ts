@@ -343,6 +343,15 @@ export function registerIpcHandlers() {
 
   ipcMain.handle(IPC_CHANNELS.AI_SET_PROVIDER_CONFIG, async (_, config) => {
     try {
+      if (!config || typeof config !== 'object') {
+        throw new Error('Ungültige Konfiguration');
+      }
+      if (config.provider && config.provider !== 'anthropic' && config.provider !== 'openrouter') {
+        throw new Error(`Unbekannter Provider: ${config.provider}`);
+      }
+      if (config.model !== undefined && (typeof config.model !== 'string' || !config.model.trim())) {
+        throw new Error('Ungültiger Modellname');
+      }
       aiProviderService.saveProviderConfig(config);
       return { success: true };
     } catch (error: any) {
