@@ -195,12 +195,20 @@ export const SkillsManager: React.FC = () => {
     }, {} as Record<string, Skill[]>);
   }, [filteredSkills]);
 
+  // RFC 4180 compliant CSV field escaping
+  const escapeCsvField = (value: string): string => {
+    if (value.includes('"') || value.includes(',') || value.includes('\n')) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+    return value;
+  };
+
   // CSV Export handler
   const handleExportCsv = async () => {
     const header = 'name,category,level,yearsOfExperience';
     const rows = skills.map(skill => {
-      const name = skill.name.includes(',') ? `"${skill.name}"` : skill.name;
-      const category = skill.category.includes(',') ? `"${skill.category}"` : skill.category;
+      const name = escapeCsvField(skill.name);
+      const category = escapeCsvField(skill.category);
       const years = skill.yearsOfExperience ?? '';
       return `${name},${category},${skill.level},${years}`;
     });
@@ -211,8 +219,8 @@ export const SkillsManager: React.FC = () => {
       if (result.success) {
         setSuccessMessage(`${skills.length} Skills als CSV exportiert`);
       }
-    } catch (err) {
-      // Error handled silently - user cancelled dialog
+    } catch (err: any) {
+      useProfileStore.setState({ skillsError: `CSV-Export fehlgeschlagen: ${err.message || 'Unbekannter Fehler'}` });
     }
   };
 
@@ -232,7 +240,7 @@ export const SkillsManager: React.FC = () => {
           disabled={skills.length === 0 || isLoading}
           sx={{ mr: 1 }}
         >
-          CSV Export
+          CSV-Export
         </Button>
         <Button
           variant="contained"
@@ -300,7 +308,7 @@ export const SkillsManager: React.FC = () => {
       {/* Grouped skills display */}
       {Object.keys(groupedSkills).length === 0 ? (
         skills.length === 0 ? (
-          <Alert severity="info">Noch keine Skills vorhanden. Klicke &quot;Add Skill&quot; um zu starten.</Alert>
+          <Alert severity="info">Noch keine Skills vorhanden. Klicke &quot;Skill hinzufügen&quot; um zu starten.</Alert>
         ) : (
           <Alert severity="info">Keine Skills gefunden für die aktuelle Suche.</Alert>
         )
