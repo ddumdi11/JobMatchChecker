@@ -42,10 +42,10 @@ contextBridge.exposeInMainWorld('api', {
   skillsExportToCsv: (csvContent: string) => ipcRenderer.invoke('skills:exportToCsv', csvContent),
 
   // AI Provider operations
-  getAiProviderConfig: () => ipcRenderer.invoke('ai:getProviderConfig'),
-  setAiProviderConfig: (config: any) => ipcRenderer.invoke('ai:setProviderConfig', config),
-  getAiModels: (forceRefresh?: boolean) => ipcRenderer.invoke('ai:getModels', forceRefresh),
-  testAiConnection: (provider: string, apiKey: string, model?: string) => ipcRenderer.invoke('ai:testConnection', provider, apiKey, model),
+  getAiProviderConfig: () => ipcRenderer.invoke(IPC_CHANNELS.AI_GET_PROVIDER_CONFIG),
+  setAiProviderConfig: (config: any) => ipcRenderer.invoke(IPC_CHANNELS.AI_SET_PROVIDER_CONFIG, config),
+  getAiModels: (forceRefresh?: boolean) => ipcRenderer.invoke(IPC_CHANNELS.AI_GET_MODELS, forceRefresh),
+  testAiConnection: (provider: string, apiKey: string, model?: string) => ipcRenderer.invoke(IPC_CHANNELS.AI_TEST_CONNECTION, provider, apiKey, model),
   saveOpenRouterApiKey: (apiKey: string) => ipcRenderer.invoke('saveOpenRouterApiKey', apiKey),
   getOpenRouterApiKey: () => ipcRenderer.invoke('getOpenRouterApiKey'),
 

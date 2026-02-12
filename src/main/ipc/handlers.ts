@@ -362,7 +362,10 @@ export function registerIpcHandlers() {
 
   ipcMain.handle(IPC_CHANNELS.AI_TEST_CONNECTION, async (_, provider: string, apiKey: string, model?: string) => {
     try {
-      return await aiProviderService.testConnection(provider as any, apiKey, model);
+      if (provider !== 'anthropic' && provider !== 'openrouter') {
+        return { success: false, error: `Unbekannter Provider: ${provider}` };
+      }
+      return await aiProviderService.testConnection(provider, apiKey, model);
     } catch (error: any) {
       log.error('Error testing AI connection:', error);
       throw error;

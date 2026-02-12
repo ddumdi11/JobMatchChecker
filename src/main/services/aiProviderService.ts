@@ -27,7 +27,10 @@ export function getProviderConfig(): AIProviderConfig {
   const providerRow = db.prepare('SELECT value FROM app_settings WHERE key = ?').get('ai_provider') as { value: string } | undefined;
   const modelRow = db.prepare('SELECT value FROM app_settings WHERE key = ?').get('ai_model') as { value: string } | undefined;
 
-  const provider = (providerRow?.value as AIProvider) || AI_PROVIDER_DEFAULTS.defaultProvider;
+  const rawProvider = providerRow?.value;
+  const provider: AIProvider = (rawProvider === 'anthropic' || rawProvider === 'openrouter')
+    ? rawProvider
+    : AI_PROVIDER_DEFAULTS.defaultProvider;
   const model = modelRow?.value || (
     provider === 'anthropic'
       ? AI_PROVIDER_DEFAULTS.defaultAnthropicModel
@@ -236,6 +239,10 @@ async function sendToOpenRouter(
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || '';
 
+    if (!content) {
+      log.warn('OpenRouter returned empty content', { model, status: response.status, choices: data.choices?.length ?? 0 });
+    }
+
     return {
       content,
       model: data.model || model,
@@ -265,8 +272,14 @@ export async function getAvailableModels(forceRefresh = false): Promise<OpenRout
     return cachedModels;
   }
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), AI_PROVIDER_DEFAULTS.openRouterTimeout);
+
   try {
-    const response = await fetch(AI_PROVIDER_DEFAULTS.openRouterModelsUrl);
+    const response = await fetch(AI_PROVIDER_DEFAULTS.openRouterModelsUrl, {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`Modell-Liste konnte nicht geladen werden (${response.status})`);
@@ -281,7 +294,7 @@ export async function getAvailableModels(forceRefresh = false): Promise<OpenRout
         prompt: m.pricing?.prompt || '0',
         completion: m.pricing?.completion || '0',
       },
-      isFree: m.pricing?.prompt === '0' && m.pricing?.completion === '0',
+      isFree: parseFloat(m.pricing?.prompt || '0') === 0 && parseFloat(m.pricing?.completion || '0') === 0,
     }));
 
     // Sort: free models first, then by name
@@ -296,6 +309,7 @@ export async function getAvailableModels(forceRefresh = false): Promise<OpenRout
     log.info(`Loaded ${models.length} OpenRouter models (${models.filter(m => m.isFree).length} free)`);
     return models;
   } catch (error: any) {
+    clearTimeout(timeoutId);
     log.error('Error fetching OpenRouter models:', error);
 
     // Return cached models if available, even if stale
@@ -316,6 +330,12 @@ export async function testConnection(
   apiKey: string,
   model?: string
 ): Promise<{ success: boolean; error?: string }> {
+  const controller = new AbortController();
+  const timeout = provider === 'anthropic'
+    ? AI_PROVIDER_DEFAULTS.anthropicTimeout
+    : AI_PROVIDER_DEFAULTS.openRouterTimeout;
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
   try {
     if (provider === 'anthropic') {
       const testModel = model || AI_PROVIDER_DEFAULTS.defaultAnthropicModel;
@@ -324,7 +344,10 @@ export async function testConnection(
         model: testModel,
         max_tokens: 10,
         messages: [{ role: 'user', content: 'Hi' }],
+      }, {
+        signal: controller.signal as any,
       });
+      clearTimeout(timeoutId);
       return { success: true };
     } else {
       // OpenRouter: use the selected model (or fall back to config/default)
@@ -342,7 +365,9 @@ export async function testConnection(
           max_tokens: 10,
           messages: [{ role: 'user', content: 'Hi' }],
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorBody = await response.text();
@@ -355,6 +380,10 @@ export async function testConnection(
       return { success: true };
     }
   } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+      return { success: false, error: 'Verbindungstest nach Timeout abgebrochen.' };
+    }
     log.error(`Connection test failed for ${provider}:`, error);
     return { success: false, error: error.message };
   }

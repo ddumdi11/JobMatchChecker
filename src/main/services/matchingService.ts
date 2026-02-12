@@ -183,7 +183,7 @@ function validateAndAdjustScore(result: MatchingResult): MatchingResult {
 }
 
 /**
- * Build the matching prompt for Claude AI
+ * Build the matching prompt for AI-based job matching
  */
 function buildMatchingPrompt(profile: any, skills: any[], preferences: any, job: any): string {
   // Format skills by category

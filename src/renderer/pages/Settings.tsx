@@ -29,14 +29,8 @@ import {
   Check as CheckIcon,
   Refresh as RefreshIcon
 } from '@mui/icons-material';
-
-interface OpenRouterModel {
-  id: string;
-  name: string;
-  contextLength: number;
-  pricing: { prompt: string; completion: string };
-  isFree: boolean;
-}
+import { AI_PROVIDER_DEFAULTS } from '../../shared/constants';
+import type { OpenRouterModel } from '../../shared/types';
 
 export default function Settings() {
   // Provider state
@@ -122,6 +116,10 @@ export default function Settings() {
     setError(null);
     setVerificationStatus('none');
 
+    if (newProvider === 'anthropic') {
+      setSelectedModel(AI_PROVIDER_DEFAULTS.defaultAnthropicModel);
+    }
+
     // Load models when switching to OpenRouter
     if (newProvider === 'openrouter' && models.length === 0) {
       loadModels();
@@ -186,6 +184,15 @@ export default function Settings() {
 
   // Filter models based on freeOnly toggle
   const filteredModels = freeOnly ? models.filter(m => m.isFree) : models;
+
+  // Re-validate selected model when freeOnly filter changes
+  useEffect(() => {
+    if (provider !== 'openrouter' || models.length === 0) return;
+    const visible = freeOnly ? models.filter(m => m.isFree) : models;
+    if (!visible.some(m => m.id === selectedModel) && visible.length > 0) {
+      setSelectedModel(visible[0].id);
+    }
+  }, [freeOnly, models, provider, selectedModel]);
 
   // Find selected model details
   const selectedModelInfo = models.find(m => m.id === selectedModel);
