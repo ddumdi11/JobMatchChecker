@@ -197,7 +197,7 @@ export const SkillsManager: React.FC = () => {
 
   // CSV Export handler
   const handleExportCsv = async () => {
-    const header = 'Name,Kategorie,Level,Jahre Erfahrung';
+    const header = 'name,category,level,yearsOfExperience';
     const rows = skills.map(skill => {
       const name = skill.name.includes(',') ? `"${skill.name}"` : skill.name;
       const category = skill.category.includes(',') ? `"${skill.category}"` : skill.category;

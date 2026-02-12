@@ -62,12 +62,39 @@ export interface SkillConflict {
  * - Escaped quotes ("")
  * - Strict value validation for confidence and marketRelevance with minimal normalizing
  */
+// Header aliases for robust CSV import (supports German and English headers)
+const HEADER_ALIASES: Record<string, string> = {
+  'name': 'name',
+  'Name': 'name',
+  'category': 'category',
+  'kategorie': 'category',
+  'Kategorie': 'category',
+  'level': 'level',
+  'Level': 'level',
+  'yearsofexperience': 'yearsOfExperience',
+  'yearsOfExperience': 'yearsOfExperience',
+  'jahre erfahrung': 'yearsOfExperience',
+  'Jahre Erfahrung': 'yearsOfExperience',
+  'skilltype': 'skillType',
+  'skillType': 'skillType',
+  'futureskillcategory': 'futureSkillCategory',
+  'futureSkillCategory': 'futureSkillCategory',
+  'assessmentmethod': 'assessmentMethod',
+  'assessmentMethod': 'assessmentMethod',
+  'certifications': 'certifications',
+  'notes': 'notes',
+  'confidence': 'confidence',
+  'marketrelevance': 'marketRelevance',
+  'marketRelevance': 'marketRelevance',
+};
+
 export function parseSkillsCsv(csvContent: string): SkillImportRow[] {
   const records = parseCsvContent(csvContent);
   if (records.length < 2) return [];
 
-  // First record is header
-  const headers = records[0].map(h => h.trim().replace(/^["']|["']$/g, ''));
+  // First record is header - normalize via aliases
+  const rawHeaders = records[0].map(h => h.trim().replace(/^["']|["']$/g, ''));
+  const headers = rawHeaders.map(h => HEADER_ALIASES[h] || HEADER_ALIASES[h.toLowerCase()] || h);
   const rows: SkillImportRow[] = [];
 
   // Process data records
