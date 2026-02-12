@@ -319,7 +319,7 @@ Der Skills-Match-Anteil (40%) ergibt sich aus dem DURCHSCHNITT aller Erfüllungs
 **ANTI-PATTERN - Vermeide binäre Bewertung!**
 FALSCH: "Kandidat hat ITSM (egal welches Level) → volle Punkte für ITSM"
 RICHTIG: "Kandidat hat ITSM Level 4/10, Job fordert Level 7 → nur 57% Erfüllung für diesen Skill"
-Ein Skill bei Level 3/10 darf MAXIMAL 30% zur Erfüllung einer Anforderung auf Level 8+ beitragen.
+Ein Skill bei Level 3/10 erfüllt eine Anforderung auf Level 8 nur zu ca. 37% (3/8 = 0.375).
 
 **Kalibrierungsbeispiele für realistische Scores:**
 - 85-100%: Kandidat erfüllt fast alle Anforderungen auf dem geforderten Level oder höher
