@@ -1,48 +1,34 @@
 # JobMatchChecker - Wiederaufnahme-Datei
 
-> **Letzte Aktualisierung:** 2026-02-12
+> **Letzte Aktualisierung:** 2026-02-13
 > **Status:** MVP funktionsfähig, aktive Weiterentwicklung
 
-## Session 11.02.2026 - Zusammenfassung
+## Session 12.02.2026 - Zusammenfassung
 
-### Erledigte Fixes
+### OpenRouter Integration (PR #53) ✅
 
-**PR #50: Session Findings - Bugs, UX & Matching** ✅
+Multi-Provider AI-Abstraktion: Anthropic SDK + OpenRouter als alternative Provider.
 
-Vollständiger Workflow-Test mit echtem Stellenangebot ergab 7 Findings, alle behoben:
+- **aiProviderService.ts** (NEU): Zentrale Abstraktionsschicht mit `sendPrompt()`, Provider-Config in `app_settings`, API-Keys in `electron-store`
+- **Settings UI**: Provider-Auswahl (Anthropic/OpenRouter), Modell-Dropdown mit Free-Filter, Verbindungstest
+- **Migration**: `aiExtractionService.ts` + `matchingService.ts` nutzen jetzt `sendPrompt()` statt direktem Anthropic SDK
+- **IPC**: 6 neue Handler (Provider-Config, Modelle, Connection-Test, OpenRouter-Key)
+- **CodeRabbit**: Alle 11 Findings adressiert (Timeouts, Validierung, Type-Safety, Model-Reset)
+- **Validierung**: Qwen3 Free liefert vergleichbare Scores wie Claude Sonnet (50% vs 48%)
 
-- **BUG-1:** Quelle-Feld wird jetzt korrekt gespeichert (getOrCreateJobSource + Feld-Transformation in updateJob)
-- **BUG-2:** Datum (postedDate) ist jetzt editierbar im Formular
-- **UX-1:** AI Confidence zeigt "medium" statt "low" wenn nur Datum fehlt
-- **UX-2:** Gehaltsfelder zeigen jetzt "€/Jahr" als Einheit
-- **UX-5:** AI-Prompt ignoriert Email-Header/Nachrichten-Envelope
-- **UX-6:** Remote-Default "0% - Vor Ort" bei keiner Remote-Angabe
-- **MATCH-2:** Level-basierte Sprachrichtlinien im Matching-Prompt
+### Session 11.02.2026
 
-CodeRabbit Review: 4 weitere Findings adressiert (State-Update, Timezone, undefined-Check, await)
+**PR #50: Session Findings (7 Bugs/UX/Matching)** ✅
+**PR #51: Skills-Suche + CSV-Export** ✅
+**PR #52: Level-Proportionale Score-Gewichtung** ✅
+**Skills-Cleanup**: 132 → ~80 Skills, Levels kalibriert
 
-**PR #49: Status-Dropdown & Farben** ✅
+### Session 05-11.02.2026
 
-- Status direkt in JobDetail änderbar (Dropdown mit farbigen Chips)
-- Konsistente Farben: Neu=Hellblau, Interessant=Grün, Beworben=Orange, Abgelehnt=Rot, Archiviert=Grau
-
-## Session 05-11.02.2026 - Zusammenfassung
-
-**PR #48: Clear State & Stale Matching Fix** ✅
-- State wird nach Job-Speichern korrekt zurückgesetzt
-- Bulk-Matching-Count zeigt aktuelle Werte
-
-**PR #47: File Import (MD/Text/PDF)** ✅
-- Jobs aus Markdown-, Text- und PDF-Dateien importieren
-
-**PR #46: Kontextabhängige Snackbar-Meldungen** ✅
-- Skill-Aktionen zeigen spezifische Erfolgs-/Fehlermeldungen
-
-**Weitere Fixes (direkt in main):**
-- Keyboard-Shortcuts (Ctrl+M, Ctrl+E, Ctrl+S)
-- Filter-Bug behoben: Match-Score-Range versteckt keine ungematchten Jobs mehr
-- TypeScript-Fehler in Renderer-Komponenten aufgelöst
-- GitHub Pages Landing Page
+**PR #48:** Clear State & Stale Matching Fix ✅
+**PR #47:** File Import (MD/Text/PDF) ✅
+**PR #46:** Kontextabhängige Snackbar-Meldungen ✅
+Weitere: Keyboard-Shortcuts, Filter-Bug, TypeScript-Fixes, GitHub Pages
 
 ## Schnellstart für neue Session
 
@@ -76,6 +62,9 @@ npx tsc --noEmit
 - **UX: Snackbar-Meldungen** - Kontextabhängige Erfolgs-/Fehlermeldungen (PR #46)
 - **Status-Dropdown** - Status direkt in JobDetail änderbar (PR #49)
 - **Session Findings** - 7 Bugs/UX-Fixes (PR #50)
+- **Skills-Suche + CSV-Export** - Suchfeld, Kategorie-Filter, CSV-Export (PR #51)
+- **Score-Gewichtung** - Level-proportionale Bewertung (PR #52)
+- **OpenRouter Integration** - Multi-Provider AI (Anthropic + OpenRouter, 200+ Modelle) (PR #53)
 - **Keyboard-Shortcuts** - Ctrl+M (Match), Ctrl+E (Edit), Ctrl+S (Save)
 
 ### Bekannte Issues (nicht kritisch)
@@ -84,36 +73,21 @@ npx tsc --noEmit
    - Einige Type-Mismatches in tsc --noEmit
    - Beeinträchtigen Runtime nicht
 
-2. **UX-Issue: PreferencesPanel Location Deletion**
-   - Locations können nicht entfernt werden (kein `onDelete` Handler)
-
-3. **PreferencesPanel: Englische Labels**
+2. **PreferencesPanel: Englische Labels**
    - Einige Labels noch auf Englisch statt Deutsch (CodeRabbit Nitpick)
 
 ## Backlog (priorisiert)
 
 | Prio | Item | Aufwand | Impact |
 |------|------|---------|--------|
-| 1 | MATCH-1: Score-Gewichtung überarbeiten | Groß | Hoch (Kernfunktion) |
-| 2 | UX-3: Skills-Suche/Filter | Mittel | Hoch (Usability) |
-| 3 | UX-4: Skills CSV-Export | Mittel | Mittel |
-| 4 | FEAT-1: Skills Duplikat-Erkennung | Groß | Mittel |
-| 5 | FEAT-2: Ctrl+F / findInPage | Mittel | Mittel |
-| 6 | FEAT-3: Default-Kategorie "IT Infrastructure" | Klein | Klein |
-| 7 | PreferencesPanel: Location Deletion | Klein | Klein |
-| 8 | PreferencesPanel: Labels übersetzen | Klein | Klein |
+| 1 | FEAT-1: Skills Duplikat-Erkennung | Groß | Mittel |
+| 2 | FEAT-2: Ctrl+F / findInPage | Mittel | Mittel |
+| 3 | FEAT-3: Default-Kategorie "IT Infrastructure" | Klein | Klein |
+| 4 | MATCH-3: Gehalts-Warnung in Preferences | Klein | Niedrig |
+| 5 | PreferencesPanel: Labels übersetzen | Klein | Klein |
+| 6 | CodeRabbit Nitpicks PR #53 (6 Stück) | Klein | Klein |
 
 ### Details zu wichtigsten Backlog-Items
-
-**MATCH-1: Score-Gewichtung (Groß/Hoch)**
-- Score-Sprung von 42% auf 78% durch zwei niedrig bewertete Skills unrealistisch
-- Binäres "Skill vorhanden" dominiert über tatsächliches Level
-- Kern: Gewichtung muss Level-basiert statt nur existenz-basiert sein
-
-**UX-3: Skills-Suche (Mittel/Hoch)**
-- Bei 132 Skills keine Suche/Filter möglich
-- Kein Ctrl+F in Electron
-- Suchfeld + optional Kategorie-Filter
 
 **FEAT-1: Skills Duplikat-Erkennung (Groß/Mittel)**
 - Case-Sensitivity: "Docker" vs "docker"
@@ -126,8 +100,9 @@ npx tsc --noEmit
 src/
 ├── main/                    # Electron Main Process
 │   ├── services/           # Business Logic
-│   │   ├── matchingService.ts    # AI-Matching mit Claude API
-│   │   ├── aiExtractionService.ts # AI-Extraktion aus Text
+│   │   ├── aiProviderService.ts  # AI-Abstraktionsschicht (Anthropic + OpenRouter)
+│   │   ├── matchingService.ts    # AI-Matching via sendPrompt()
+│   │   ├── aiExtractionService.ts # AI-Extraktion via sendPrompt()
 │   │   ├── exportService.ts      # Markdown/PDF Export
 │   │   ├── skillsImportService.ts # Skills-Import mit Konfliktauflösung
 │   │   └── jobService.ts         # Job CRUD + Merge + Source-Resolution
@@ -153,6 +128,7 @@ src/
 
 | Feature | Hauptdateien |
 |---------|--------------|
+| AI Provider | `aiProviderService.ts`, `Settings.tsx`, `constants.ts` (AI_PROVIDER_DEFAULTS) |
 | Job Matching | `matchingService.ts`, `JobList.tsx`, `JobDetail.tsx` |
 | AI Extraktion | `aiExtractionService.ts`, `JobAdd.tsx` |
 | Export (MD/PDF/ZIP) | `exportService.ts`, `JobDetail.tsx`, `JobList.tsx` |
