@@ -41,6 +41,14 @@ contextBridge.exposeInMainWorld('api', {
   skillsImportNewOnly: (csvContent: string) => ipcRenderer.invoke('skills:importNewOnly', csvContent),
   skillsExportToCsv: (csvContent: string) => ipcRenderer.invoke('skills:exportToCsv', csvContent),
 
+  // AI Provider operations
+  getAiProviderConfig: () => ipcRenderer.invoke(IPC_CHANNELS.AI_GET_PROVIDER_CONFIG),
+  setAiProviderConfig: (config: any) => ipcRenderer.invoke(IPC_CHANNELS.AI_SET_PROVIDER_CONFIG, config),
+  getAiModels: (forceRefresh?: boolean) => ipcRenderer.invoke(IPC_CHANNELS.AI_GET_MODELS, forceRefresh),
+  testAiConnection: (provider: string, apiKey: string, model?: string) => ipcRenderer.invoke(IPC_CHANNELS.AI_TEST_CONNECTION, provider, apiKey, model),
+  saveOpenRouterApiKey: (apiKey: string) => ipcRenderer.invoke('saveOpenRouterApiKey', apiKey),
+  getOpenRouterApiKey: () => ipcRenderer.invoke('getOpenRouterApiKey'),
+
   // Preferences operations
   getPreferences: () => ipcRenderer.invoke(IPC_CHANNELS.PREFERENCES_GET),
   updatePreferences: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.PREFERENCES_UPDATE, data),

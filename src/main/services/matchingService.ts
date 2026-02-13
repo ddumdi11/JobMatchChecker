@@ -1,6 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { getDatabase } from '../database/db';
 import * as log from 'electron-log';
+import { sendPrompt } from './aiProviderService';
 
 /**
  * Matching result structure returned by AI analysis
@@ -27,19 +27,16 @@ export interface MatchingResult {
 }
 
 /**
- * Match a job offer against the user's profile using Claude AI
+ * Match a job offer against the user's profile using the configured AI provider
  * @param jobId - ID of the job to match
- * @param apiKey - Anthropic API key
  * @returns Matching result with score, gaps, and recommendations
  */
-export async function matchJob(jobId: number, apiKey: string): Promise<MatchingResult> {
+export async function matchJob(jobId: number): Promise<MatchingResult> {
   const db = getDatabase();
 
   try {
     // 1. Load User Profile
     const profile = db.prepare('SELECT * FROM user_profile WHERE id = 1').get() as any;
-    // Note: user_profile_id may be NULL for older skills, so we load all skills
-    // TODO: Migrate existing skills to have user_profile_id = 1
     const skills = db.prepare(`
       SELECT s.*, sc.name as category_name
       FROM skills s
@@ -50,9 +47,6 @@ export async function matchJob(jobId: number, apiKey: string): Promise<MatchingR
 
     log.info(`Loaded profile: ${profile?.first_name} ${profile?.last_name}`);
     log.info(`Loaded ${skills.length} skills from database`);
-    if (skills.length > 0) {
-      log.info(`First skill: ${JSON.stringify(skills[0])}`);
-    }
 
     if (!profile) {
       throw new Error('Kein Profil gefunden. Bitte erstelle zuerst ein Profil.');
@@ -73,30 +67,20 @@ export async function matchJob(jobId: number, apiKey: string): Promise<MatchingR
     // 3. Construct Prompt
     const prompt = buildMatchingPrompt(profile, skills, preferences, job);
 
-    // 4. Call Claude API
-    log.info('Calling Claude API for job matching...');
-    const client = new Anthropic({ apiKey });
-
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 2000,
-      messages: [{
-        role: 'user',
-        content: prompt
-      }]
-    });
+    // 4. Call AI via provider abstraction
+    log.info('Calling AI for job matching...');
+    const aiResponse = await sendPrompt(
+      [{ role: 'user', content: prompt }],
+      { maxTokens: 2000 }
+    );
 
     // 5. Parse Response
-    const firstBlock = response.content[0];
-    if (firstBlock.type !== 'text') {
-      throw new Error('Unexpected response type from Claude API');
-    }
-    const rawResult = parseMatchingResponse(firstBlock.text);
+    const rawResult = parseMatchingResponse(aiResponse.content);
 
     // 5b. Plausibility check: validate score against reported gaps
     const result = validateAndAdjustScore(rawResult);
 
-    // 6. Save to matching_results table
+    // 6. Save to matching_results table (store actual model used)
     db.prepare(`
       INSERT INTO matching_results (
         job_id, prompt_id, match_score, match_category,
@@ -111,7 +95,7 @@ export async function matchJob(jobId: number, apiKey: string): Promise<MatchingR
       JSON.stringify(result.gaps),
       JSON.stringify(result.strengths),
       result.reasoning,
-      'claude-sonnet-4-5-20250929'
+      aiResponse.model
     );
 
     // 7. Update match_score in job_offers table
@@ -122,7 +106,7 @@ export async function matchJob(jobId: number, apiKey: string): Promise<MatchingR
       WHERE id = ?
     `).run(result.matchScore, jobId);
 
-    log.info(`Matching completed for job ${jobId}: ${result.matchScore}%`);
+    log.info(`Matching completed for job ${jobId}: ${result.matchScore}% (model: ${aiResponse.model})`);
     return result;
 
   } catch (error: any) {
@@ -199,7 +183,7 @@ function validateAndAdjustScore(result: MatchingResult): MatchingResult {
 }
 
 /**
- * Build the matching prompt for Claude AI
+ * Build the matching prompt for AI-based job matching
  */
 function buildMatchingPrompt(profile: any, skills: any[], preferences: any, job: any): string {
   // Format skills by category
@@ -439,13 +423,11 @@ function parseMatchingResponse(text: string): MatchingResult {
 
 /**
  * Bulk match all jobs that don't have a match score yet (or rematch all)
- * @param apiKey - Anthropic API key
  * @param rematchAll - If true, rematch all jobs including those with existing scores
  * @param onProgress - Callback for progress updates
  * @returns Summary of bulk matching results
  */
 export async function bulkMatchJobs(
-  apiKey: string,
   rematchAll: boolean = false,
   onProgress?: (current: number, total: number, jobTitle: string) => void
 ): Promise<{ matched: number; failed: number; skipped: number; errors: string[] }> {
@@ -485,7 +467,7 @@ export async function bulkMatchJobs(
       }
 
       try {
-        await matchJob(job.id, apiKey);
+        await matchJob(job.id);
         matched++;
         log.info(`Matched job ${i + 1}/${total}: ${job.title}`);
       } catch (error: any) {
@@ -513,13 +495,11 @@ export async function bulkMatchJobs(
 
 /**
  * Match specific jobs by their IDs
- * @param apiKey - Anthropic API key
  * @param jobIds - Array of job IDs to match
  * @param onProgress - Callback for progress updates
  * @returns Summary of matching results
  */
 export async function matchSelectedJobs(
-  apiKey: string,
   jobIds: number[],
   onProgress?: (current: number, total: number, jobTitle: string) => void
 ): Promise<{ matched: number; failed: number; skipped: number; errors: string[] }> {
@@ -555,7 +535,7 @@ export async function matchSelectedJobs(
       }
 
       try {
-        await matchJob(job.id, apiKey);
+        await matchJob(job.id);
         matched++;
         log.info(`Matched job ${i + 1}/${total}: ${job.title}`);
       } catch (error: any) {

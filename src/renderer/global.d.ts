@@ -34,6 +34,13 @@ interface Window {
     skillsApplyResolutions: (conflicts: any[], resolutions: any[]) => Promise<any>;
     skillsImportNewOnly: (csvContent: string) => Promise<any>;
     skillsExportToCsv: (csvContent: string) => Promise<{ success: boolean; filePath?: string }>;
+    // AI Provider operations
+    getAiProviderConfig: () => Promise<{ provider: string; model: string; hasAnthropicKey: boolean; hasOpenRouterKey: boolean }>;
+    setAiProviderConfig: (config: { provider?: string; model?: string }) => Promise<{ success: boolean }>;
+    getAiModels: (forceRefresh?: boolean) => Promise<Array<{ id: string; name: string; contextLength: number; pricing: { prompt: string; completion: string }; isFree: boolean }>>;
+    testAiConnection: (provider: string, apiKey: string, model?: string) => Promise<{ success: boolean; error?: string }>;
+    saveOpenRouterApiKey: (apiKey: string) => Promise<{ success: boolean }>;
+    getOpenRouterApiKey: () => Promise<string | null>;
     // Preferences operations
     getPreferences: () => Promise<any>;
     updatePreferences: (data: any) => Promise<any>;

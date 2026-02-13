@@ -3,7 +3,6 @@ import * as log from 'electron-log';
 import * as fs from 'fs';
 import * as path from 'path';
 import Store from 'electron-store';
-import Anthropic from '@anthropic-ai/sdk';
 import { IPC_CHANNELS } from '../../shared/constants';
 import { getDatabase } from '../database/db';
 import { backupDatabase, restoreDatabase, runMigrations } from '../database/db';
@@ -13,6 +12,7 @@ import * as matchingService from '../services/matchingService';
 import * as importService from '../services/importService';
 import * as skillsImportService from '../services/skillsImportService';
 import * as exportService from '../services/exportService';
+import * as aiProviderService from '../services/aiProviderService';
 
 const store = new Store();
 
@@ -248,14 +248,7 @@ export function registerIpcHandlers() {
   // Matching operations
   ipcMain.handle('matchJob', async (_, jobId: number) => {
     try {
-      // Get API key from electron-store
-      const apiKey = store.get('anthropic_api_key') as string;
-
-      if (!apiKey) {
-        throw new Error('Anthropic API-Key nicht konfiguriert. Bitte in Einstellungen hinterlegen.');
-      }
-
-      const result = await matchingService.matchJob(jobId, apiKey);
+      const result = await matchingService.matchJob(jobId);
       return { success: true, data: result };
     } catch (error: any) {
       log.error('Error in matchJob:', error);
@@ -276,13 +269,7 @@ export function registerIpcHandlers() {
   // Bulk match all jobs
   ipcMain.handle('bulkMatchJobs', async (_, rematchAll: boolean) => {
     try {
-      const apiKey = store.get('anthropic_api_key') as string;
-
-      if (!apiKey) {
-        throw new Error('Anthropic API-Key nicht konfiguriert. Bitte in Einstellungen hinterlegen.');
-      }
-
-      const result = await matchingService.bulkMatchJobs(apiKey, rematchAll);
+      const result = await matchingService.bulkMatchJobs(rematchAll);
       return { success: true, data: result };
     } catch (error: any) {
       log.error('Error in bulkMatchJobs:', error);
@@ -293,13 +280,7 @@ export function registerIpcHandlers() {
   // Match selected jobs by ID
   ipcMain.handle('matchSelectedJobs', async (_, jobIds: number[]) => {
     try {
-      const apiKey = store.get('anthropic_api_key') as string;
-
-      if (!apiKey) {
-        throw new Error('Anthropic API-Key nicht konfiguriert. Bitte in Einstellungen hinterlegen.');
-      }
-
-      const result = await matchingService.matchSelectedJobs(apiKey, jobIds);
+      const result = await matchingService.matchSelectedJobs(jobIds);
       return { success: true, data: result };
     } catch (error: any) {
       log.error('Error in matchSelectedJobs:', error);
@@ -340,20 +321,82 @@ export function registerIpcHandlers() {
 
   ipcMain.handle('verifyApiKey', async (_, apiKey: string) => {
     try {
-      const client = new Anthropic({ apiKey });
-
-      // Mini-Test-Call to verify API key
-      await client.messages.create({
-        model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 10,
-        messages: [{ role: 'user', content: 'Hi' }]
-      });
-
-      log.info('API key verified successfully');
-      return { success: true };
+      return await aiProviderService.testConnection('anthropic', apiKey);
     } catch (error: any) {
       log.error('Error verifying API key:', error);
       return { success: false, error: error.message };
+    }
+  });
+
+  // ==========================================================================
+  // AI Provider operations (OpenRouter Integration)
+  // ==========================================================================
+
+  ipcMain.handle(IPC_CHANNELS.AI_GET_PROVIDER_CONFIG, async () => {
+    try {
+      return aiProviderService.getProviderConfig();
+    } catch (error: any) {
+      log.error('Error getting AI provider config:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.AI_SET_PROVIDER_CONFIG, async (_, config) => {
+    try {
+      if (!config || typeof config !== 'object') {
+        throw new Error('Ungültige Konfiguration');
+      }
+      if (config.provider && config.provider !== 'anthropic' && config.provider !== 'openrouter') {
+        throw new Error(`Unbekannter Provider: ${config.provider}`);
+      }
+      if (config.model !== undefined && (typeof config.model !== 'string' || !config.model.trim())) {
+        throw new Error('Ungültiger Modellname');
+      }
+      aiProviderService.saveProviderConfig(config);
+      return { success: true };
+    } catch (error: any) {
+      log.error('Error setting AI provider config:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.AI_GET_MODELS, async (_, forceRefresh?: boolean) => {
+    try {
+      return await aiProviderService.getAvailableModels(forceRefresh);
+    } catch (error: any) {
+      log.error('Error getting AI models:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.AI_TEST_CONNECTION, async (_, provider: string, apiKey: string, model?: string) => {
+    try {
+      if (provider !== 'anthropic' && provider !== 'openrouter') {
+        return { success: false, error: `Unbekannter Provider: ${provider}` };
+      }
+      return await aiProviderService.testConnection(provider, apiKey, model);
+    } catch (error: any) {
+      log.error('Error testing AI connection:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('saveOpenRouterApiKey', async (_, apiKey: string) => {
+    try {
+      aiProviderService.saveApiKey('openrouter', apiKey);
+      return { success: true };
+    } catch (error: any) {
+      log.error('Error saving OpenRouter API key:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('getOpenRouterApiKey', async () => {
+    try {
+      return aiProviderService.getApiKey('openrouter');
+    } catch (error: any) {
+      log.error('Error getting OpenRouter API key:', error);
+      return null;
     }
   });
 

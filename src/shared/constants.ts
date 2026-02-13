@@ -79,7 +79,24 @@ export const IPC_CHANNELS = {
   DB_MIGRATE: 'db:migrate',
 
   // Testing
-  TEST_MIGRATION: 'test-migration'
+  TEST_MIGRATION: 'test-migration',
+
+  // AI Provider operations
+  AI_GET_PROVIDER_CONFIG: 'ai:getProviderConfig',
+  AI_SET_PROVIDER_CONFIG: 'ai:setProviderConfig',
+  AI_GET_MODELS: 'ai:getModels',
+  AI_TEST_CONNECTION: 'ai:testConnection'
+} as const;
+
+export const AI_PROVIDER_DEFAULTS = {
+  defaultProvider: 'anthropic' as const,
+  defaultAnthropicModel: 'claude-sonnet-4-5-20250929',
+  defaultOpenRouterModel: 'deepseek/deepseek-chat-v3-0324:free',
+  openRouterBaseUrl: 'https://openrouter.ai/api/v1',
+  openRouterModelsUrl: 'https://openrouter.ai/api/v1/models',
+  anthropicTimeout: 30_000,
+  openRouterTimeout: 60_000,
+  modelCacheTtl: 3_600_000, // 1 hour
 } as const;
 
 export const DEFAULT_MATCHING_PROMPT = `You are an expert career advisor and job matching assistant.
