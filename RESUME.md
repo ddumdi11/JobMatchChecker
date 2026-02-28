@@ -65,6 +65,7 @@ npx tsc --noEmit
 - **Skills-Suche + CSV-Export** - Suchfeld, Kategorie-Filter, CSV-Export (PR #51)
 - **Score-Gewichtung** - Level-proportionale Bewertung (PR #52)
 - **OpenRouter Integration** - Multi-Provider AI (Anthropic + OpenRouter, 200+ Modelle) (PR #53)
+- **URL-Cleanup** - LinkedIn URL-Normalisierung für Nanobot-Integration (PR #54)
 - **Keyboard-Shortcuts** - Ctrl+M (Match), Ctrl+E (Edit), Ctrl+S (Save)
 
 ### Bekannte Issues (nicht kritisch)
@@ -121,7 +122,8 @@ src/
 │   └── store/             # Zustand State Management
 │       └── jobStore.ts    # createJob/updateJob mit Feld-Transformation
 ├── shared/
-│   └── types.ts           # SINGLE SOURCE OF TRUTH für Types
+│   ├── types.ts           # SINGLE SOURCE OF TRUTH für Types
+│   └── urlUtils.ts        # URL-Bereinigung (LinkedIn, XING, etc.)
 ```
 
 ## Wichtige Dateien für Änderungen

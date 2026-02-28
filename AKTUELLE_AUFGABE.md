@@ -1,11 +1,23 @@
-# Aktuelle Aufgabe: Session 13.02.2026
+# Aktuelle Aufgabe: Session 28.02.2026
 
-**Stand:** 2026-02-13
+**Stand:** 2026-02-28
 **Status:** Alles synchronisiert, bereit für nächste Aufgaben
 
 ---
 
 ## ✅ Zuletzt erledigt
+
+### Session 28.02.2026
+
+**PR #54: LinkedIn URL-Cleanup** ✅ (gemerged 28.02.)
+
+- `cleanJobUrl()` Utility in `src/shared/urlUtils.ts`
+- LinkedIn-URLs: Kanonisches Format `/jobs/view/{ID}/`, Tracking-Parameter entfernt
+- XING-URLs: Unverändert (Sicherheit), andere URLs: Query-Parameter entfernt
+- Integration in `jobService.ts` (createJob + updateJob) und `aiExtractionService.ts`
+- Hostname-basierte Erkennung (nicht Substring) gegen URL-Spoofing
+- 23 Unit-Tests inkl. 6 negative Hostname-Spoofing-Tests
+- CodeRabbit: Alle 3 Findings adressiert (2 Commits)
 
 ### Session 12.02.2026
 
@@ -39,6 +51,7 @@
 - Bulk Matching (Neue/Alle/Ausgewählte)
 - Bulk Export (PDF + ZIP)
 - Status-Dropdown, Keyboard-Shortcuts, Unsaved-Changes-Tracking
+- LinkedIn URL-Cleanup für Nanobot-Integration (PR #54)
 
 ### 💡 Backlog
 
