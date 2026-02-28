@@ -9,22 +9,29 @@ export function cleanJobUrl(url: string | null | undefined): string | null | und
   const trimmed = url.trim();
   if (!trimmed) return url;
 
+  // URL parsen für hostname-basierte Erkennung
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    return trimmed; // Ungültige URL nicht verändern
+  }
+
+  const hostname = parsed.hostname;
+
   // LinkedIn: Job-ID extrahieren und kanonische URL bauen
-  const linkedinMatch = trimmed.match(/linkedin\.com\/(?:comm\/)?jobs\/view\/(\d+)/);
-  if (linkedinMatch) {
-    return `https://www.linkedin.com/jobs/view/${linkedinMatch[1]}/`;
+  if (hostname === 'linkedin.com' || hostname.endsWith('.linkedin.com')) {
+    const jobIdMatch = parsed.pathname.match(/\/(?:comm\/)?jobs\/view\/(\d+)/);
+    if (jobIdMatch) {
+      return `https://www.linkedin.com/jobs/view/${jobIdMatch[1]}/`;
+    }
   }
 
   // XING: Nicht verändern (Tracking-Links können Server-Aktionen auslösen)
-  if (trimmed.includes('xing.com')) {
+  if (hostname === 'xing.com' || hostname.endsWith('.xing.com')) {
     return trimmed;
   }
 
   // Andere URLs: Query-Parameter entfernen
-  try {
-    const parsed = new URL(trimmed);
-    return `${parsed.origin}${parsed.pathname}`;
-  } catch {
-    return trimmed; // Ungültige URL nicht verändern
-  }
+  return `${parsed.origin}${parsed.pathname}`;
 }

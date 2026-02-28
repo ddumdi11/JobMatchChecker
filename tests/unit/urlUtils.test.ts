@@ -52,6 +52,38 @@ describe('cleanJobUrl', () => {
     });
   });
 
+  describe('Hostname spoofing (negative tests)', () => {
+    it('should not treat linkedin.com in path as LinkedIn URL', () => {
+      const url = 'https://example.com/redirect/linkedin.com/jobs/view/123';
+      expect(cleanJobUrl(url)).toBe('https://example.com/redirect/linkedin.com/jobs/view/123');
+    });
+
+    it('should not treat linkedin.com in query as LinkedIn URL', () => {
+      const url = 'https://tracking.example.com/click?url=linkedin.com/jobs/view/123';
+      expect(cleanJobUrl(url)).toBe('https://tracking.example.com/click');
+    });
+
+    it('should not match notlinkedin.com as LinkedIn', () => {
+      const url = 'https://notlinkedin.com/jobs/view/123';
+      expect(cleanJobUrl(url)).toBe('https://notlinkedin.com/jobs/view/123');
+    });
+
+    it('should not match linkedin.com.evil.com as LinkedIn', () => {
+      const url = 'https://linkedin.com.evil.com/jobs/view/123';
+      expect(cleanJobUrl(url)).toBe('https://linkedin.com.evil.com/jobs/view/123');
+    });
+
+    it('should not treat xing.com in path as XING URL', () => {
+      const url = 'https://example.com/redirect/xing.com/jobs?ref=email';
+      expect(cleanJobUrl(url)).toBe('https://example.com/redirect/xing.com/jobs');
+    });
+
+    it('should not match myxingpartner.com as XING', () => {
+      const url = 'https://myxingpartner.com/jobs?ref=email';
+      expect(cleanJobUrl(url)).toBe('https://myxingpartner.com/jobs');
+    });
+  });
+
   describe('Other URLs', () => {
     it('should strip query parameters from other job portals', () => {
       expect(cleanJobUrl(
