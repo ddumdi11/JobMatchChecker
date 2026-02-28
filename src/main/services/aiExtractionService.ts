@@ -6,6 +6,7 @@
 
 import { sendPrompt } from './aiProviderService';
 import type { AIExtractionResult } from '../../shared/types';
+import { cleanJobUrl } from '../../shared/urlUtils';
 
 /**
  * Extract job fields from unstructured text using the configured AI provider
@@ -115,7 +116,9 @@ Return ONLY valid JSON, no explanation or markdown. If a field cannot be extract
     if (extractedData.remoteOption) fields.remoteOption = extractedData.remoteOption;
     if (extractedData.salaryRange) fields.salaryRange = extractedData.salaryRange;
     if (extractedData.contractType) fields.contractType = extractedData.contractType;
-    if (extractedData.url) fields.url = extractedData.url;
+    if (extractedData.url && typeof extractedData.url === 'string') {
+      fields.url = cleanJobUrl(extractedData.url) as string;
+    }
     // Store extracted requirements in notes field (no separate DB column)
     if (extractedData.requirements && Array.isArray(extractedData.requirements) && extractedData.requirements.length > 0) {
       fields.notes = `Anforderungen:\n- ${extractedData.requirements.join('\n- ')}`;

@@ -19,6 +19,7 @@ import type {
   MergeFieldComparison,
   MergeFieldSource
 } from '../../shared/types';
+import { cleanJobUrl } from '../../shared/urlUtils';
 
 /**
  * Custom error class for validation errors
@@ -217,7 +218,7 @@ export async function createJob(data: JobOfferInput): Promise<JobOffer> {
     data.sourceId,
     data.title,
     data.company,
-    data.url || null,
+    cleanJobUrl(data.url) || null,
     postedIso,
     deadlineIso,
     data.location || null,
@@ -411,7 +412,7 @@ export async function updateJob(id: number, data: Partial<JobOfferInput>): Promi
 
   if (data.url !== undefined) {
     updates.push('url = ?');
-    params.push(data.url || null);
+    params.push(cleanJobUrl(data.url) || null);
   }
 
   if (data.postedDate !== undefined) {
