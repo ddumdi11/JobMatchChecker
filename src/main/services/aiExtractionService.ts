@@ -4,7 +4,7 @@
  * Uses aiProviderService.sendPrompt() to support Anthropic and OpenRouter.
  */
 
-import { sendPrompt } from './aiProviderService';
+import { sendPrompt, AiTimeoutError } from './aiProviderService';
 import type { AIExtractionResult } from '../../shared/types';
 import { cleanJobUrl } from '../../shared/urlUtils';
 import { TIMEOUT_EXTRACTION_MS } from '../../shared/constants';
@@ -174,8 +174,8 @@ Return ONLY valid JSON, no explanation or markdown. If a field cannot be extract
     };
 
   } catch (error: any) {
-    // Handle timeout
-    if (error.message?.includes('Timeout') || error.message?.includes('abgebrochen')) {
+    // Handle timeout (typed error from the provider layer)
+    if (error instanceof AiTimeoutError) {
       return {
         success: false,
         fields: {
