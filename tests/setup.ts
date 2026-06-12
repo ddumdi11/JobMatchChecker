@@ -1,24 +1,43 @@
 /**
  * Vitest global setup file
  *
- * This file runs once before all tests to configure the test environment.
+ * Runs once per test file (vitest setupFiles) before that file's tests.
+ * Each file gets its OWN freshly-migrated SQLite database in the OS temp dir,
+ * so DB-backed tests have a real schema + seed data (incl. job_sources) and
+ * never collide with other test files.
+ *
  * Feature: 005-job-offer-management
  */
 
 import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 import dotenv from 'dotenv';
+import Knex from 'knex';
 
-// Load environment variables from .env file
+// Load environment variables from .env (provides ANTHROPIC_API_KEY locally)
 dotenv.config();
 
-// Set test database path BEFORE any imports that might use it
-const TEST_DATA_DIR = path.join(__dirname, 'data');
-const TEST_DB_PATH = path.join(TEST_DATA_DIR, 'test.db');
+// Unique per-file database path — avoids cross-file contamination and SQLite
+// file locks without deleting a possibly still-open database file.
+const uniqueId = `${process.env.VITEST_WORKER_ID || '0'}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+const TEST_DB_PATH = path.join(os.tmpdir(), 'jobmatch-vitest', `test-${uniqueId}.db`);
+fs.mkdirSync(path.dirname(TEST_DB_PATH), { recursive: true });
 
-// Configure environment for tests
 process.env.DB_PATH = TEST_DB_PATH;
 process.env.NODE_ENV = 'test';
 
-console.log(`[Test Setup] DB_PATH set to: ${TEST_DB_PATH}`);
-console.log(`[Test Setup] NODE_ENV set to: test`);
+// Apply all migrations (schema + seed data) so DB-backed services work against
+// a real database. Uses the same migrations the app ships with.
+const migrationsDir = path.join(__dirname, '../src/main/database/migrations');
+const knex = Knex({
+  client: 'better-sqlite3',
+  connection: { filename: TEST_DB_PATH },
+  useNullAsDefault: true,
+  migrations: { directory: migrationsDir, extension: 'js' },
+});
+await knex.migrate.latest();
+await knex.destroy();
+
+console.log(`[Test Setup] Migrated test DB at: ${TEST_DB_PATH}`);
 console.log(`[Test Setup] ANTHROPIC_API_KEY ${process.env.ANTHROPIC_API_KEY ? 'is set ✓' : 'is NOT set ✗'}`);
