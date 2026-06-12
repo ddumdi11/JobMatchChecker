@@ -99,6 +99,14 @@ export const AI_PROVIDER_DEFAULTS = {
   modelCacheTtl: 3_600_000, // 1 hour
 } as const;
 
+/**
+ * Per-use-case timeouts for AI requests (ms).
+ * Matching produces large JSON answers (up to 2000 tokens) from a big prompt
+ * and needs more headroom than the smaller extraction call.
+ */
+export const TIMEOUT_MATCHING_MS = 120_000;
+export const TIMEOUT_EXTRACTION_MS = 30_000;
+
 export const DEFAULT_MATCHING_PROMPT = `You are an expert career advisor and job matching assistant.
 
 Analyze the following job offer and user profile to determine compatibility.
