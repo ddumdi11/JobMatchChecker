@@ -1,0 +1,37 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # --ignore-scripts skips the `postinstall` electron-rebuild (which would
+      # build better-sqlite3 for Electron's ABI) and other native/download
+      # scripts (puppeteer Chromium). CI runs under plain Node, not Electron.
+      - name: Install dependencies (skip native/electron postinstall)
+        run: npm ci --ignore-scripts
+
+      # Build the one native module the test suite actually uses against the
+      # CI Node ABI. keytar/puppeteer are not imported by the test paths.
+      - name: Build better-sqlite3 for the Node ABI
+        run: npm rebuild better-sqlite3
+
+      # CI=true (set automatically by GitHub Actions) makes vitest.config.ts
+      # exclude the Electron-renderer contract tests. Live-API tests skip
+      # themselves when ANTHROPIC_API_KEY is absent.
+      - name: Run tests
+        run: npx vitest run
