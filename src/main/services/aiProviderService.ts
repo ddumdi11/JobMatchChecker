@@ -14,6 +14,18 @@ import type { AIProvider, AIProviderConfig, AIMessage, AIResponse, OpenRouterMod
 
 const store = new Store();
 
+/**
+ * Thrown when an AI request is aborted by its timeout.
+ * Distinct type so the retry logic can target ONLY timeouts (not 429 / other errors).
+ */
+export class AiTimeoutError extends Error {
+  constructor(public readonly timeoutMs: number, public readonly provider: AIProvider) {
+    const label = provider === 'anthropic' ? 'Anthropic' : 'OpenRouter';
+    super(`${label}-Anfrage nach ${Math.round(timeoutMs / 1000)} Sekunden abgebrochen (Timeout).`);
+    this.name = 'AiTimeoutError';
+  }
+}
+
 // In-memory cache for OpenRouter models
 let cachedModels: OpenRouterModel[] | null = null;
 let modelsCacheTimestamp = 0;
@@ -89,16 +101,42 @@ export function getApiKey(provider: 'anthropic' | 'openrouter'): string | null {
  */
 export async function sendPrompt(
   messages: AIMessage[],
-  options?: { maxTokens?: number; temperature?: number }
+  options?: { maxTokens?: number; temperature?: number; timeoutMs?: number; retries?: number }
 ): Promise<AIResponse> {
   const config = getProviderConfig();
   const maxTokens = options?.maxTokens ?? 2000;
   const temperature = options?.temperature;
+  const retries = options?.retries ?? 1;
 
-  if (config.provider === 'anthropic') {
-    return sendToAnthropic(messages, config.model, maxTokens, temperature);
-  } else {
-    return sendToOpenRouter(messages, config.model, maxTokens, temperature);
+  // Per-call timeout, falling back to the provider default if not specified
+  const defaultTimeout = config.provider === 'anthropic'
+    ? AI_PROVIDER_DEFAULTS.anthropicTimeout
+    : AI_PROVIDER_DEFAULTS.openRouterTimeout;
+  const timeoutMs = options?.timeoutMs ?? defaultTimeout;
+
+  let attempt = 0;
+  while (true) {
+    try {
+      const result = config.provider === 'anthropic'
+        ? await sendToAnthropic(messages, config.model, maxTokens, timeoutMs, temperature)
+        : await sendToOpenRouter(messages, config.model, maxTokens, timeoutMs, temperature);
+
+      if (attempt > 0) {
+        log.info(`AI-Anfrage nach Retry erfolgreich (Versuch ${attempt + 1}/${retries + 1}, provider: ${config.provider}).`);
+      }
+      return result;
+    } catch (error: any) {
+      // Retry ONLY on timeout/abort — never on 429 or other API errors
+      if (error instanceof AiTimeoutError && attempt < retries) {
+        attempt++;
+        log.warn(
+          `AI-Anfrage nach ${Math.round(timeoutMs / 1000)}s abgebrochen (Timeout). ` +
+          `Starte Retry ${attempt}/${retries} (provider: ${config.provider}).`
+        );
+        continue;
+      }
+      throw error;
+    }
   }
 }
 
@@ -109,6 +147,7 @@ async function sendToAnthropic(
   messages: AIMessage[],
   model: string,
   maxTokens: number,
+  timeoutMs: number,
   temperature?: number
 ): Promise<AIResponse> {
   const apiKey = store.get('anthropic_api_key') as string;
@@ -131,7 +170,7 @@ async function sendToAnthropic(
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), AI_PROVIDER_DEFAULTS.anthropicTimeout);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const params: any = {
@@ -170,7 +209,7 @@ async function sendToAnthropic(
     clearTimeout(timeoutId);
 
     if (error.name === 'AbortError' || error.message?.includes('aborted')) {
-      throw new Error('Anthropic-Anfrage nach 30 Sekunden abgebrochen (Timeout).');
+      throw new AiTimeoutError(timeoutMs, 'anthropic');
     }
     if (error.status === 429) {
       throw new Error('Rate-Limit erreicht. Bitte warte einen Moment und versuche es erneut.');
@@ -186,6 +225,7 @@ async function sendToOpenRouter(
   messages: AIMessage[],
   model: string,
   maxTokens: number,
+  timeoutMs: number,
   temperature?: number
 ): Promise<AIResponse> {
   const apiKey = store.get('openrouter_api_key') as string;
@@ -194,7 +234,7 @@ async function sendToOpenRouter(
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), AI_PROVIDER_DEFAULTS.openRouterTimeout);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const body: any = {
@@ -256,7 +296,7 @@ async function sendToOpenRouter(
     clearTimeout(timeoutId);
 
     if (error.name === 'AbortError') {
-      throw new Error('OpenRouter-Anfrage nach 60 Sekunden abgebrochen (Timeout). Kostenlose Modelle können langsamer sein.');
+      throw new AiTimeoutError(timeoutMs, 'openrouter');
     }
     throw error;
   }

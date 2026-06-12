@@ -1,6 +1,7 @@
 import { getDatabase } from '../database/db';
 import * as log from 'electron-log';
 import { sendPrompt } from './aiProviderService';
+import { TIMEOUT_MATCHING_MS } from '../../shared/constants';
 
 /**
  * Matching result structure returned by AI analysis
@@ -71,7 +72,7 @@ export async function matchJob(jobId: number): Promise<MatchingResult> {
     log.info('Calling AI for job matching...');
     const aiResponse = await sendPrompt(
       [{ role: 'user', content: prompt }],
-      { maxTokens: 2000 }
+      { maxTokens: 2000, timeoutMs: TIMEOUT_MATCHING_MS }
     );
 
     // 5. Parse Response
