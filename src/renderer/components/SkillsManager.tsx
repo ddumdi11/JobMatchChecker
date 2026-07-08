@@ -204,13 +204,17 @@ export const SkillsManager: React.FC = () => {
   };
 
   // CSV Export handler
+  // The leading `id` column enables duplicate-free re-import: on import an
+  // existing skill is matched by id first, so corrected names/categories update
+  // the original instead of creating a duplicate. Files without an id column
+  // (older exports) still import via the name+category fallback.
   const handleExportCsv = async () => {
-    const header = 'name,category,level,yearsOfExperience';
+    const header = 'id,name,category,level,yearsOfExperience';
     const rows = skills.map(skill => {
       const name = escapeCsvField(skill.name);
       const category = escapeCsvField(skill.category);
       const years = skill.yearsOfExperience ?? '';
-      return `${name},${category},${skill.level},${years}`;
+      return `${skill.id ?? ''},${name},${category},${skill.level},${years}`;
     });
     const csvContent = [header, ...rows].join('\n');
 

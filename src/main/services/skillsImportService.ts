@@ -26,6 +26,7 @@ import type {
 // =============================================================================
 
 export interface SkillImportRow {
+  id?: number | string; // Stable skill id (from export). Used for duplicate-free re-import.
   name: string;
   category: string;
   level?: number | string; // Can be numeric or string like "5" or "Beginner/Intermediate/Advanced/Expert"
@@ -64,6 +65,9 @@ export interface SkillConflict {
  */
 // Header aliases for robust CSV import (supports German and English headers)
 const HEADER_ALIASES: Record<string, string> = {
+  'id': 'id',
+  'ID': 'id',
+  'Id': 'id',
   'name': 'name',
   'Name': 'name',
   'category': 'category',
@@ -318,22 +322,26 @@ export function normalizeSkillLevel(level: string | number | undefined): SkillLe
 export function getCategoryId(categoryName: string): number {
   const db = getDatabase();
 
-  // Try to find existing category
-  const existing = db.prepare('SELECT id FROM skill_categories WHERE name = ?').get(categoryName) as { id: number } | undefined;
-  if (existing) return existing.id;
+  // Reuse an existing category matched case-insensitively + trimmed, so a
+  // corrected category that only differs in casing/whitespace does not spawn a
+  // duplicate category (and thus a duplicate skill).
+  const existing = findCategoryId(categoryName);
+  if (existing !== null) return existing;
 
-  // Create new category
-  const result = db.prepare('INSERT INTO skill_categories (name, sort_order) VALUES (?, 999)').run(categoryName);
+  // Create new category (store the provided casing, trimmed)
+  const result = db.prepare('INSERT INTO skill_categories (name, sort_order) VALUES (?, 999)').run(categoryName.trim());
   return result.lastInsertRowid as number;
 }
 
 /**
- * Read-only category lookup (does not create new categories)
- * Returns category ID if exists, null otherwise
+ * Read-only category lookup (does not create new categories).
+ * Matches case-insensitively and trimmed. Returns category ID if exists, null otherwise.
  */
 export function findCategoryId(categoryName: string): number | null {
   const db = getDatabase();
-  const existing = db.prepare('SELECT id FROM skill_categories WHERE name = ?').get(categoryName) as { id: number } | undefined;
+  const existing = db.prepare(
+    'SELECT id FROM skill_categories WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))'
+  ).get(categoryName) as { id: number } | undefined;
   return existing ? existing.id : null;
 }
 
@@ -342,7 +350,9 @@ export function findCategoryId(categoryName: string): number | null {
 // =============================================================================
 
 /**
- * Check if skill already exists (by name + category)
+ * Check if skill already exists (by name + category).
+ * Name comparison is trimmed + case-insensitive to avoid duplicates from
+ * cosmetic differences.
  */
 export function findExistingSkill(name: string, categoryId: number): HardSkill | null {
   const db = getDatabase();
@@ -351,12 +361,69 @@ export function findExistingSkill(name: string, categoryId: number): HardSkill |
     SELECT s.*, sc.name as category
     FROM skills s
     LEFT JOIN skill_categories sc ON s.category_id = sc.id
-    WHERE s.name = ? AND s.category_id = ?
+    WHERE LOWER(TRIM(s.name)) = LOWER(TRIM(?)) AND s.category_id = ?
   `).get(name, categoryId) as any;
 
   if (!row) return null;
 
   return rowToSkill(row);
+}
+
+/**
+ * Look up a skill by its stable primary-key id.
+ */
+export function findSkillById(id: number): HardSkill | null {
+  const db = getDatabase();
+
+  const row = db.prepare(`
+    SELECT s.*, sc.name as category
+    FROM skills s
+    LEFT JOIN skill_categories sc ON s.category_id = sc.id
+    WHERE s.id = ?
+  `).get(id) as any;
+
+  if (!row) return null;
+
+  return rowToSkill(row);
+}
+
+/**
+ * Parse an import row's id field to a positive integer, or null if absent/invalid.
+ */
+function parseSkillId(id: number | string | undefined): number | null {
+  if (id === undefined || id === null || id === '') return null;
+  const n = typeof id === 'number' ? id : parseInt(String(id).trim(), 10);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/**
+ * How an import row was matched to an existing skill.
+ */
+export interface SkillMatch {
+  skill: HardSkill;
+  matchedBy: 'id' | 'nameCategory';
+}
+
+/**
+ * Resolve an import row to an existing skill, in priority order:
+ *   a) by stable id (if present and found in DB)
+ *   b) fallback by name + category (trimmed, case-insensitive)
+ * Returns null if neither matches (→ new skill).
+ */
+export function resolveExistingSkill(row: SkillImportRow, categoryId: number | null): SkillMatch | null {
+  const id = parseSkillId(row.id);
+  if (id !== null) {
+    const byId = findSkillById(id);
+    if (byId) return { skill: byId, matchedBy: 'id' };
+    // id given but not in this DB → fall through to name+category
+  }
+
+  if (categoryId !== null) {
+    const byNameCategory = findExistingSkill(row.name, categoryId);
+    if (byNameCategory) return { skill: byNameCategory, matchedBy: 'nameCategory' };
+  }
+
+  return null;
 }
 
 /**
@@ -417,44 +484,84 @@ export function importSkills(rows: SkillImportRow[]): SkillImportResult {
           : row.certifications;
       }
 
-      // Check for existing skill
-      const existing = findExistingSkill(row.name, categoryId);
+      // Resolve existing skill: id first, then name+category fallback
+      const match = resolveExistingSkill(row, categoryId);
 
-      if (existing) {
+      if (match) {
+        const existing = match.skill;
         // Determine if we should update
         const hasNewMetadata = row.skillType || row.futureSkillCategory || row.assessmentMethod || row.confidence || row.marketRelevance;
         const shouldUpdateLevel = level > existing.level;
+        // An id match may also rename the skill / move it to another category
+        const renamed = match.matchedBy === 'id' &&
+          (row.name.trim() !== existing.name || (row.category || '').trim().toLowerCase() !== (existing.category || '').toLowerCase());
 
-        if (shouldUpdateLevel || hasNewMetadata) {
+        if (shouldUpdateLevel || hasNewMetadata || renamed) {
           // Only update level if new level is higher, otherwise keep existing level
           const finalLevel = shouldUpdateLevel ? level : existing.level;
 
-          db.prepare(`
-            UPDATE skills
-            SET level = ?,
-                years_experience = COALESCE(?, years_experience),
-                skill_type = COALESCE(?, skill_type),
-                future_skill_category = COALESCE(?, future_skill_category),
-                assessment_method = COALESCE(?, assessment_method),
-                certifications = COALESCE(?, certifications),
-                notes = COALESCE(?, notes),
-                confidence = COALESCE(?, confidence),
-                market_relevance = COALESCE(?, market_relevance),
-                last_assessed = CURRENT_TIMESTAMP,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-          `).run(
-            finalLevel,
-            yearsExp,
-            row.skillType,
-            row.futureSkillCategory,
-            row.assessmentMethod,
-            certificationsStr,
-            row.notes,
-            row.confidence,
-            row.marketRelevance,
-            existing.id
-          );
+          if (match.matchedBy === 'id') {
+            // ID match: keep update semantics (level only rises, COALESCE-protected
+            // fields) but additionally allow name + category to change.
+            db.prepare(`
+              UPDATE skills
+              SET name = ?,
+                  category_id = ?,
+                  level = ?,
+                  years_experience = COALESCE(?, years_experience),
+                  skill_type = COALESCE(?, skill_type),
+                  future_skill_category = COALESCE(?, future_skill_category),
+                  assessment_method = COALESCE(?, assessment_method),
+                  certifications = COALESCE(?, certifications),
+                  notes = COALESCE(?, notes),
+                  confidence = COALESCE(?, confidence),
+                  market_relevance = COALESCE(?, market_relevance),
+                  last_assessed = CURRENT_TIMESTAMP,
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+            `).run(
+              row.name.trim(),
+              categoryId,
+              finalLevel,
+              yearsExp,
+              row.skillType,
+              row.futureSkillCategory,
+              row.assessmentMethod,
+              certificationsStr,
+              row.notes,
+              row.confidence,
+              row.marketRelevance,
+              existing.id
+            );
+          } else {
+            // name+category match: name/category are the matching key, keep them
+            db.prepare(`
+              UPDATE skills
+              SET level = ?,
+                  years_experience = COALESCE(?, years_experience),
+                  skill_type = COALESCE(?, skill_type),
+                  future_skill_category = COALESCE(?, future_skill_category),
+                  assessment_method = COALESCE(?, assessment_method),
+                  certifications = COALESCE(?, certifications),
+                  notes = COALESCE(?, notes),
+                  confidence = COALESCE(?, confidence),
+                  market_relevance = COALESCE(?, market_relevance),
+                  last_assessed = CURRENT_TIMESTAMP,
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+            `).run(
+              finalLevel,
+              yearsExp,
+              row.skillType,
+              row.futureSkillCategory,
+              row.assessmentMethod,
+              certificationsStr,
+              row.notes,
+              row.confidence,
+              row.marketRelevance,
+              existing.id
+            );
+          }
           result.updated++;
         } else {
           result.skipped++;
@@ -539,37 +646,45 @@ export function importSkillsFromJson(jsonContent: string): SkillImportResult {
  */
 export interface ConflictDetectionResult {
   newSkills: SkillImportRow[];      // Skills that don't exist yet
-  conflicts: SkillConflict[];       // Skills that already exist with different data
+  conflicts: SkillConflict[];       // Skills that already exist with different data (name+category matches)
   identical: number;                 // Count of skills identical to existing ones
+  autoUpdates: SkillImportRow[];    // Skills matched by stable id → applied as updates, never a dialog conflict
 }
 
 /**
- * Detect conflicts before importing
- * Returns skills that can be imported directly and skills with conflicts
+ * Detect conflicts before importing.
+ * Rows matched by stable id are returned as `autoUpdates` (applied automatically,
+ * may include a rename/recategorize) rather than as dialog conflicts. Only
+ * name+category matches with differences become `conflicts`.
  */
 export function detectConflicts(rows: SkillImportRow[]): ConflictDetectionResult {
   const result: ConflictDetectionResult = {
     newSkills: [],
     conflicts: [],
-    identical: 0
+    identical: 0,
+    autoUpdates: []
   };
 
   for (const row of rows) {
     // Use read-only lookup to avoid creating categories during detection
     const categoryId = findCategoryId(row.category);
 
-    // If category doesn't exist, this is definitely a new skill
-    if (categoryId === null) {
+    const match = resolveExistingSkill(row, categoryId);
+
+    if (!match) {
+      // No id and no name+category match → new skill
       result.newSkills.push(row);
       continue;
     }
 
-    const existing = findExistingSkill(row.name, categoryId);
+    if (match.matchedBy === 'id') {
+      // ID match → auto-update (never a manual conflict), even on rename/recategorize
+      result.autoUpdates.push(row);
+      continue;
+    }
 
-    if (!existing) {
-      // New skill, no conflict
-      result.newSkills.push(row);
-    } else {
+    {
+      const existing = match.skill;
       // Check if there are any differences
       const newLevel = normalizeSkillLevel(row.level);
 
@@ -598,7 +713,8 @@ export function detectConflicts(rows: SkillImportRow[]): ConflictDetectionResult
         result.conflicts.push({
           existingSkill: existing,
           newSkill: row,
-          categoryId
+          // Non-null here: a nameCategory match requires a resolved category
+          categoryId: categoryId as number
         });
       } else {
         result.identical++;
@@ -757,13 +873,16 @@ export function applyResolutions(
 }
 
 /**
- * Import only new skills (without conflicts)
+ * Import the non-conflicting rows: brand-new skills AND id-matched auto-updates
+ * (which may include renames/recategorizations). Only name+category conflicts,
+ * which require manual resolution, are left out (counted as skipped here).
  */
 export function importNewSkillsOnly(rows: SkillImportRow[]): SkillImportResult {
   const detection = detectConflicts(rows);
+  const toApply = [...detection.newSkills, ...detection.autoUpdates];
 
-  // Only import new skills, skip conflicts
-  if (detection.newSkills.length === 0) {
+  // Nothing to apply automatically
+  if (toApply.length === 0) {
     return {
       success: true,
       imported: 0,
@@ -773,7 +892,9 @@ export function importNewSkillsOnly(rows: SkillImportRow[]): SkillImportResult {
     };
   }
 
-  const result = importSkills(detection.newSkills);
+  // importSkills re-resolves each row: new skills are inserted, id-matched rows
+  // are updated (counted as `updated`).
+  const result = importSkills(toApply);
   result.skipped += detection.conflicts.length + detection.identical;
   return result;
 }
