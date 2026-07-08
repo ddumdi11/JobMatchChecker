@@ -159,6 +159,7 @@ testdata/
 
 # Claude Code local settings (machine-specific, keep out of the repo)
 .claude/settings.json
+.claude/settings.local.json
 
 # Keep empty directories
 !.gitkeep
