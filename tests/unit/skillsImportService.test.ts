@@ -149,4 +149,27 @@ describe('Unit: skillsImportService — stable-id re-import', () => {
     expect(roundtripped).toBeTruthy();
     expect(roundtripped.level).toBe(7);
   });
+
+  it('name+category match with a differing field is a conflict (not autoUpdate) and importNewSkillsOnly skips it', () => {
+    importSkills([{ name: 'TypeScript', category: 'Programmiersprachen', level: 6, notes: 'original' }]);
+
+    // Same name+category, NO id, but a differing field (notes) → genuine conflict
+    // that needs manual resolution, not an auto-update.
+    const rows = [{ name: 'TypeScript', category: 'Programmiersprachen', level: 6, notes: 'changed' }];
+
+    const detection = detectConflicts(rows);
+    expect(detection.conflicts.length).toBe(1);
+    expect(detection.autoUpdates.length).toBe(0);
+    expect(detection.newSkills.length).toBe(0);
+
+    // importNewSkillsOnly applies new skills + id-matched auto-updates only, so it
+    // must skip this conflict and leave the existing skill untouched.
+    const r = importNewSkillsOnly(rows);
+    expect(r.imported).toBe(0);
+    expect(r.updated).toBe(0);
+    expect(r.skipped).toBe(1);
+
+    expect(countSkills()).toBe(1);
+    expect(getSkillByName('TypeScript').notes).toBe('original');
+  });
 });

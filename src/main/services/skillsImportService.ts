@@ -492,11 +492,11 @@ export function importSkills(rows: SkillImportRow[]): SkillImportResult {
         // Determine if we should update
         const hasNewMetadata = row.skillType || row.futureSkillCategory || row.assessmentMethod || row.confidence || row.marketRelevance;
         const shouldUpdateLevel = level > existing.level;
-        // An id match may also rename the skill / move it to another category
-        const renamed = match.matchedBy === 'id' &&
+        // An id match may also rename the skill and/or move it to another category
+        const nameOrCategoryChanged = match.matchedBy === 'id' &&
           (row.name.trim() !== existing.name || (row.category || '').trim().toLowerCase() !== (existing.category || '').toLowerCase());
 
-        if (shouldUpdateLevel || hasNewMetadata || renamed) {
+        if (shouldUpdateLevel || hasNewMetadata || nameOrCategoryChanged) {
           // Only update level if new level is higher, otherwise keep existing level
           const finalLevel = shouldUpdateLevel ? level : existing.level;
 
