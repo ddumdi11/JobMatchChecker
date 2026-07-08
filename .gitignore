@@ -157,6 +157,9 @@ bash.exe.stackdump
 kopie.7z
 testdata/
 
+# Claude Code local settings (machine-specific, keep out of the repo)
+.claude/settings.json
+
 # Keep empty directories
 !.gitkeep
 !backups/.gitkeep
