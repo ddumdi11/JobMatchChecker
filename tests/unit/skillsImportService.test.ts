@@ -9,6 +9,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { getDatabase } from '../../src/main/database/db';
 import {
   importSkills,
+  importSkillsFromCsv,
+  parseSkillsCsv,
   detectConflicts,
   importNewSkillsOnly,
 } from '../../src/main/services/skillsImportService';
@@ -103,5 +105,48 @@ describe('Unit: skillsImportService — stable-id re-import', () => {
     expect(r.updated).toBe(1);
     expect(countSkills()).toBe(1);
     expect(getSkillByName('Rust Lang')).toBeTruthy();
+  });
+
+  it('strips a UTF-8 BOM before the first header (id format, no \\ufeff mismatch)', () => {
+    const bom = String.fromCharCode(0xfeff);
+    const csv = bom + 'id,name,category,level,yearsOfExperience\n7,Python,Programmiersprachen,6,3';
+    const rows = parseSkillsCsv(csv);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe('7');
+    expect(rows[0].name).toBe('Python');
+    expect(rows[0].category).toBe('Programmiersprachen');
+  });
+
+  it('strips a UTF-8 BOM in the old (id-less) format so the name column matches', () => {
+    const bom = String.fromCharCode(0xfeff);
+    const csv = bom + 'name,category,level\nGo,Programmiersprachen,4';
+    const rows = parseSkillsCsv(csv);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].name).toBe('Go');
+    expect(rows[0].category).toBe('Programmiersprachen');
+  });
+
+  it('preserves a Unicode skill name through an export→import roundtrip (dedup match)', () => {
+    const unicodeName = 'KI-Markt- & Tool-Evaluation (Watch→Audit→Build)';
+
+    const r1 = importSkills([{ name: unicodeName, category: 'Domain Knowledge', level: 5 }]);
+    expect(r1.imported).toBe(1);
+    const id = getSkillByName(unicodeName).id;
+
+    // Mimic the CSV export line (name has no comma/quote/newline → unquoted).
+    // Bump the level so the id-match produces a real update (not a skip),
+    // proving the Unicode name parsed correctly and matched the original.
+    const csv = `id,name,category,level,yearsOfExperience\n${id},${unicodeName},Domain Knowledge,7,`;
+    const r2 = importSkillsFromCsv(csv);
+
+    expect(r2.imported).toBe(0); // matched an existing skill, not inserted as new
+    expect(r2.updated).toBe(1);
+    expect(countSkills()).toBe(1); // no duplicate
+    // Name survived the roundtrip byte-for-byte (would be falsy if "→"/"&" got mangled)
+    const roundtripped = getSkillByName(unicodeName);
+    expect(roundtripped).toBeTruthy();
+    expect(roundtripped.level).toBe(7);
   });
 });
