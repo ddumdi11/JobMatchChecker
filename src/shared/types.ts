@@ -261,7 +261,8 @@ export interface JobDuplicateMatch {
 
 /** Ergebnis der Bestandsprüfung beim Hinzufügen eines Jobs. */
 export interface JobDuplicateCheckResult {
-  safe: JobDuplicateMatch | null;   // SICHER: identischer echter URL-Key
+  safe: JobDuplicateMatch | null;   // SICHER: identischer URL-Key UND gleicher normalisierter Titel
+  conflicting: JobDuplicateMatch[]; // WIDERSPRÜCHLICH: identischer URL-Key, aber abweichender Titel (evtl. fehlerhafte Importdaten)
   possible: JobDuplicateMatch[];    // MÖGLICH: Titel + Firma gleich, URL-Key abweichend
 }
 
@@ -274,7 +275,7 @@ export interface JobDuplicateCandidate {
   excludeJobId?: number | null;    // beim Bearbeiten sich selbst ausschließen
 }
 
-export type DuplicateGroupKind = 'safe' | 'possible';
+export type DuplicateGroupKind = 'safe' | 'conflicting' | 'possible';
 
 /** Ein Job innerhalb einer Dublettengruppe des Bereinigungs-Scans. */
 export interface DuplicateGroupJob {
@@ -295,6 +296,7 @@ export interface DuplicateGroup {
 export interface DuplicateScanResult {
   groups: DuplicateGroup[];
   safeGroupCount: number;
+  conflictingGroupCount: number;
   possibleGroupCount: number;
 }
 

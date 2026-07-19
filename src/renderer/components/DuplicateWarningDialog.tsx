@@ -16,57 +16,59 @@ import { formatGermanDate, formatScore } from '../../shared/formatUtils';
 
 interface DuplicateWarningDialogProps {
   open: boolean;
-  /** Sicherer Treffer (identische URL) – Auslöser der Blockade. */
-  safeMatch: JobDuplicateMatch | null;
+  /** Titel des Dialogs (kontextabhängig). */
+  title?: string;
+  /** Haupt-Treffer, die im Warnhinweis hervorgehoben werden. */
+  matches: JobDuplicateMatch[];
   /** Optionale mögliche Treffer (Titel+Firma) – nur informativ. */
   possibleMatches?: JobDuplicateMatch[];
   /** Beschriftung des Bestätigen-Buttons (kontextabhängig). */
   proceedLabel?: string;
-  /** Kontextabhängige Rückfrage im Body (add/save vs. extract). */
+  /** Kontextabhängige Rückfrage im Body. */
   question?: string;
   onCancel: () => void;
   onProceed: () => void;
 }
 
 /**
- * Blockierender Hinweis-Dialog beim Hinzufügen eines Jobs, wenn ein sicherer
- * Dublettentreffer (identische URL) im Bestand existiert.
+ * Hinweis-Dialog beim Hinzufügen/Analysieren eines Jobs, wenn ein oder mehrere
+ * Treffer im Bestand existieren (identischer URL-Key). Bietet Abbrechen bzw.
+ * Trotzdem-fortfahren an.
  */
 export default function DuplicateWarningDialog({
   open,
-  safeMatch,
+  title = 'Job bereits vorhanden',
+  matches,
   possibleMatches = [],
   proceedLabel = 'Trotzdem hinzufügen',
-  question = 'Dieser Job scheint bereits im Bestand zu sein (identische URL). Möchtest du ihn trotzdem hinzufügen?',
+  question = 'Dieser Job scheint bereits im Bestand zu sein (identische URL und gleicher Titel). Möchtest du ihn trotzdem hinzufügen?',
   onCancel,
   onProceed
 }: DuplicateWarningDialogProps) {
-  const job = safeMatch?.job;
-
   return (
     <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <WarningIcon color="warning" />
-        Job bereits vorhanden
+        {title}
       </DialogTitle>
       <DialogContent>
-        {job && (
-          <Alert severity="warning" sx={{ mb: 2 }}>
+        {matches.map(m => (
+          <Alert key={m.job.id} severity="warning" sx={{ mb: 2 }}>
             <Typography variant="body2" fontWeight="bold">
-              {job.title} – {job.company}
+              {m.job.title} – {m.job.company}
             </Typography>
             <Typography variant="body2">
-              hinzugefügt am {formatGermanDate(job.createdAt)}, Score {formatScore(job.matchScore)}
+              hinzugefügt am {formatGermanDate(m.job.createdAt)}, Score {formatScore(m.job.matchScore)}
             </Typography>
-            {job.url && (
+            {m.job.url && (
               <Typography variant="caption" component="div" sx={{ mt: 0.5, wordBreak: 'break-all' }}>
-                <Link href={job.url} target="_blank" rel="noopener noreferrer">
-                  {job.url}
+                <Link href={m.job.url} target="_blank" rel="noopener noreferrer">
+                  {m.job.url}
                 </Link>
               </Typography>
             )}
           </Alert>
-        )}
+        ))}
 
         <DialogContentText>{question}</DialogContentText>
 

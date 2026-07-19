@@ -41,8 +41,8 @@ async function makeJob(overrides: Partial<JobOfferInput> = {}) {
   } as JobOfferInput);
 }
 
-describe('findJobDuplicates – SICHER (identischer URL-Key)', () => {
-  it('erkennt identische LinkedIn-Stelle trotz abweichender Tracking-URL', async () => {
+describe('findJobDuplicates – SICHER (URL-Key UND gleicher Titel)', () => {
+  it('erkennt identische Stelle trotz abweichender Tracking-URL (gleicher Titel)', async () => {
     const existing = await makeJob({
       title: 'Java Developer',
       company: 'Acme',
@@ -51,35 +51,57 @@ describe('findJobDuplicates – SICHER (identischer URL-Key)', () => {
     });
 
     const res = await jobService.findJobDuplicates({
-      title: 'Ganz anderer Titel',
-      company: 'Andere Firma',
+      title: 'Java Developer', // gleicher Titel
+      company: 'Acme',
       url: 'https://www.linkedin.com/comm/jobs/view/555/?trackingId=x&trk=eml'
     });
 
     expect(res.safe).not.toBeNull();
     expect(res.safe!.job.id).toBe(existing.id);
     expect(res.safe!.job.matchScore).toBe(42);
+    expect(res.conflicting).toHaveLength(0);
+    expect(res.possible).toHaveLength(0);
+  });
+});
+
+describe('findJobDuplicates – WIDERSPRÜCHLICH (URL-Key gleich, Titel abweichend)', () => {
+  it('identische URL mit ABWEICHENDEM Titel → conflicting, NICHT safe', async () => {
+    const existing = await makeJob({
+      title: 'Java Developer',
+      company: 'Acme',
+      url: 'https://www.linkedin.com/jobs/view/555/'
+    });
+
+    const res = await jobService.findJobDuplicates({
+      title: 'Ganz anderer Titel',
+      company: 'Andere Firma',
+      url: 'https://www.linkedin.com/comm/jobs/view/555/?trackingId=x&trk=eml'
+    });
+
+    expect(res.safe).toBeNull();
+    expect(res.conflicting).toHaveLength(1);
+    expect(res.conflicting[0].job.id).toBe(existing.id);
     expect(res.possible).toHaveLength(0);
   });
 
-  it('findet einen sicheren Treffer über eine der mehreren Rohtext-URLs (Pre-AI)', async () => {
+  it('Pre-AI (nur URLs, kein Titel): URL-Treffer → conflicting statt safe', async () => {
     const existing = await makeJob({
       url: 'https://www.linkedin.com/jobs/view/777/'
     });
 
     const res = await jobService.findJobDuplicates({
-      // Mehrere URLs wie aus einer Mail: Firmenseite + Job-Link (currentJobId)
       urls: [
         'https://acme.example.com/karriere',
         'https://www.linkedin.com/jobs/search/?currentJobId=777&keywords=java'
       ]
     });
 
-    expect(res.safe).not.toBeNull();
-    expect(res.safe!.job.id).toBe(existing.id);
+    expect(res.safe).toBeNull();
+    expect(res.conflicting).toHaveLength(1);
+    expect(res.conflicting[0].job.id).toBe(existing.id);
   });
 
-  it('degenerierte Fallback-URL (kein /jobs/view/{ID}) löst KEINEN sicheren Treffer aus', async () => {
+  it('degenerierte Fallback-URL (kein /jobs/view/{ID}) löst weder safe noch conflicting aus', async () => {
     await makeJob({
       title: 'Something',
       company: 'Somewhere',
@@ -93,6 +115,7 @@ describe('findJobDuplicates – SICHER (identischer URL-Key)', () => {
     });
 
     expect(res.safe).toBeNull();
+    expect(res.conflicting).toHaveLength(0);
   });
 });
 
@@ -111,6 +134,7 @@ describe('findJobDuplicates – MÖGLICH (Titel + Firma)', () => {
     });
 
     expect(res.safe).toBeNull();
+    expect(res.conflicting).toHaveLength(0);
     expect(res.possible).toHaveLength(1);
     expect(res.possible[0].job.id).toBe(existing.id);
   });
@@ -155,18 +179,20 @@ describe('findJobDuplicates – MÖGLICH (Titel + Firma)', () => {
     });
 
     expect(res.safe).toBeNull();
+    expect(res.conflicting).toHaveLength(0);
     expect(res.possible).toHaveLength(0);
   });
 });
 
 describe('scanDuplicateGroups', () => {
-  it('bildet eine sichere Gruppe nach URL-Key; neuester bleibt, ältere vorausgewählt', async () => {
-    const older = await makeJob({ title: 'Erst', company: 'A', url: 'https://www.linkedin.com/jobs/view/1000/' });
-    const newer = await makeJob({ title: 'Zweit', company: 'B', url: 'https://www.linkedin.com/jobs/view/1000/' });
+  it('bildet eine sichere Gruppe (gleicher URL-Key UND gleicher Titel); neuester bleibt, ältere vorausgewählt', async () => {
+    const older = await makeJob({ title: 'Java Developer', company: 'A', url: 'https://www.linkedin.com/jobs/view/1000/' });
+    const newer = await makeJob({ title: 'Java Developer', company: 'B', url: 'https://www.linkedin.com/jobs/view/1000/' });
 
     const scan = await jobService.scanDuplicateGroups();
 
     expect(scan.safeGroupCount).toBe(1);
+    expect(scan.conflictingGroupCount).toBe(0);
     expect(scan.possibleGroupCount).toBe(0);
 
     const group = scan.groups.find(g => g.kind === 'safe')!;
@@ -181,13 +207,40 @@ describe('scanDuplicateGroups', () => {
     expect(olderEntry.suggestDelete).toBe(true); // sichere Gruppe → vorausgewählt
   });
 
+  it('gruppiert gleiche XING-Stelle (gleiche numerische ID, anderer Slug/Tracking, gleicher Titel) als sicher', async () => {
+    await makeJob({ title: 'QA Engineer', company: 'Peak One', url: 'https://www.xing.com/jobs/muenchen-qa-engineer-424242?ijt=aaa' });
+    await makeJob({ title: 'QA Engineer', company: 'Peak One', url: 'https://www.xing.com/jobs/qa-engineer-424242?ijt=bbb' });
+
+    const scan = await jobService.scanDuplicateGroups();
+
+    expect(scan.safeGroupCount).toBe(1);
+    expect(scan.conflictingGroupCount).toBe(0);
+  });
+
+  it('gruppiert gleiche URL mit UNTERSCHIEDLICHEN Titeln als WIDERSPRÜCHLICH (nie vorausgewählt)', async () => {
+    // Muster des kaputten nanobot-Imports: identische URL, verschiedene Stellen
+    await makeJob({ title: 'Werkstudent Marketing', company: 'X', url: 'https://www.linkedin.com/jobs/view/3000/' });
+    await makeJob({ title: 'Senior Data Engineer', company: 'Y', url: 'https://www.linkedin.com/jobs/view/3000/' });
+
+    const scan = await jobService.scanDuplicateGroups();
+
+    expect(scan.safeGroupCount).toBe(0);
+    expect(scan.conflictingGroupCount).toBe(1);
+
+    const group = scan.groups.find(g => g.kind === 'conflicting')!;
+    expect(group.jobs).toHaveLength(2);
+    // Widersprüchliche Gruppe: NIE vorausgewählt
+    expect(group.jobs.every(j => j.suggestDelete === false)).toBe(true);
+  });
+
   it('bildet eine mögliche Gruppe nach Titel+Firma; NICHT vorausgewählt', async () => {
-    await makeJob({ title: 'Data Scientist', company: 'Hooli', url: 'https://www.xing.com/jobs/ds-1' });
+    await makeJob({ title: 'Data Scientist', company: 'Hooli', url: 'https://www.xing.com/jobs/ds-role-777001' });
     await makeJob({ title: 'data scientist', company: 'HOOLI', url: 'https://www.linkedin.com/jobs/view/2000/' });
 
     const scan = await jobService.scanDuplicateGroups();
 
     expect(scan.safeGroupCount).toBe(0);
+    expect(scan.conflictingGroupCount).toBe(0);
     expect(scan.possibleGroupCount).toBe(1);
 
     const group = scan.groups.find(g => g.kind === 'possible')!;
@@ -196,13 +249,14 @@ describe('scanDuplicateGroups', () => {
     expect(group.jobs.filter(j => j.isNewest)).toHaveLength(1);
   });
 
-  it('gruppiert zwei verschiedene Jobs mit identischem degeneriertem URL-Key NICHT als sichere Dubletten', async () => {
+  it('gruppiert zwei verschiedene Jobs mit identischem degeneriertem URL-Key NICHT (weder sicher noch widersprüchlich)', async () => {
     await makeJob({ title: 'Role One', company: 'CompOne', url: 'https://www.linkedin.com/jobs/search/?keywords=java' });
     await makeJob({ title: 'Role Two', company: 'CompTwo', url: 'https://www.linkedin.com/jobs/search/?keywords=python' });
 
     const scan = await jobService.scanDuplicateGroups();
 
     expect(scan.safeGroupCount).toBe(0);
+    expect(scan.conflictingGroupCount).toBe(0);
     expect(scan.groups).toHaveLength(0); // auch keine mögliche Gruppe (Titel+Firma verschieden)
   });
 });

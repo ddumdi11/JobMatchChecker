@@ -18,6 +18,7 @@ import {
 import {
   Warning as WarningIcon,
   InfoOutlined as InfoIcon,
+  ErrorOutline as ConflictIcon,
   DeleteSweep as DeleteSweepIcon
 } from '@mui/icons-material';
 import type { DuplicateScanResult, DuplicateGroup } from '../../shared/types';
@@ -94,7 +95,7 @@ export default function DuplicateCleanupDialog({ open, onClose, onDeleted }: Dup
 
   const summary = useMemo(() => {
     if (!scan) return '';
-    return `${scan.safeGroupCount} sichere · ${scan.possibleGroupCount} mögliche Dublettengruppen`;
+    return `${scan.safeGroupCount} sichere · ${scan.conflictingGroupCount} widersprüchliche · ${scan.possibleGroupCount} mögliche Gruppen`;
   }, [scan]);
 
   const handleDeleteConfirmed = async () => {
@@ -115,15 +116,17 @@ export default function DuplicateCleanupDialog({ open, onClose, onDeleted }: Dup
 
   const renderGroup = (group: DuplicateGroup, index: number) => {
     const isSafe = group.kind === 'safe';
+    const isConflicting = group.kind === 'conflicting';
+    const chip = isSafe
+      ? { icon: <WarningIcon />, color: 'warning' as const, label: 'Sicher' }
+      : isConflicting
+        ? { icon: <ConflictIcon />, color: 'error' as const, label: 'Widersprüchlich' }
+        : { icon: <InfoIcon />, color: 'info' as const, label: 'Möglich' };
+
     return (
       <Box key={`${group.kind}-${group.key}-${index}`} sx={{ mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-          <Chip
-            size="small"
-            icon={isSafe ? <WarningIcon /> : <InfoIcon />}
-            color={isSafe ? 'warning' : 'info'}
-            label={isSafe ? 'Sicher' : 'Möglich'}
-          />
+          <Chip size="small" icon={chip.icon} color={chip.color} label={chip.label} />
           <Typography variant="body2" color="text.secondary">
             {group.reason}
           </Typography>
@@ -131,6 +134,9 @@ export default function DuplicateCleanupDialog({ open, onClose, onDeleted }: Dup
 
         {group.jobs.map(entry => {
           const job = entry.job;
+          // In widersprüchlichen Gruppen sind es verschiedene Stellen – kein
+          // "neuester bleibt": alle Einträge frei wählbar, nichts vorausgewählt.
+          const showKeepMarker = entry.isNewest && !isConflicting;
           return (
             <Box
               key={job.id}
@@ -142,15 +148,15 @@ export default function DuplicateCleanupDialog({ open, onClose, onDeleted }: Dup
                   <Checkbox
                     size="small"
                     checked={selected.has(job.id)}
-                    disabled={entry.isNewest}
+                    disabled={showKeepMarker}
                     onChange={() => toggle(job.id)}
                   />
                 }
                 label={
                   <Box>
-                    <Typography variant="body2" fontWeight={entry.isNewest ? 'bold' : 'normal'}>
+                    <Typography variant="body2" fontWeight={showKeepMarker ? 'bold' : 'normal'}>
                       {job.title} – {job.company}
-                      {entry.isNewest && (
+                      {showKeepMarker && (
                         <Chip
                           size="small"
                           label="bleibt (neuester)"
@@ -211,9 +217,21 @@ export default function DuplicateCleanupDialog({ open, onClose, onDeleted }: Dup
         {!loading && hasGroups && (
           <>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              {summary}. Pro Gruppe bleibt der neueste Eintrag erhalten; markierte Einträge werden
-              gelöscht. Sichere Dubletten sind vorausgewählt, mögliche nicht.
+              {summary}. Bei sicheren/möglichen Gruppen bleibt der neueste Eintrag erhalten; markierte
+              Einträge werden gelöscht. Sichere Dubletten sind vorausgewählt, mögliche und
+              widersprüchliche nicht.
             </Typography>
+            {scan!.conflictingGroupCount > 0 && (
+              <Alert severity="warning" icon={<ConflictIcon />} sx={{ mb: 2 }}>
+                <Typography variant="body2" fontWeight="bold">
+                  Widersprüchliche Gruppen: identische URL bei unterschiedlichen Titeln
+                </Typography>
+                <Typography variant="body2">
+                  Das deutet auf fehlerhafte Importdaten hin (verschiedene Stellen mit derselben
+                  URL). Hier ist nichts vorausgewählt – bitte einzeln prüfen, bevor du löschst.
+                </Typography>
+              </Alert>
+            )}
             {scan!.groups.map(renderGroup)}
           </>
         )}

@@ -197,9 +197,46 @@ describe('getJobUrlKey', () => {
     )).toBe('https://www.stepstone.de/job/123');
   });
 
-  it('should keep XING URLs as their own key', () => {
-    const xingUrl = 'https://www.xing.com/jobs/some-role-12345';
-    expect(getJobUrlKey(xingUrl)).toBe(xingUrl);
+  // --- XING (feat/duplicate-detection-hardening) ---
+  it('should derive the XING key from the trailing numeric ID (strip tracking)', () => {
+    expect(getJobUrlKey(
+      'https://www.xing.com/jobs/muenchen-senior-qa-engineer-135791113?ijt=abc123def'
+    )).toBe('https://www.xing.com/jobs/135791113');
+  });
+
+  it('should give the same XING key with and without tracking', () => {
+    const withTracking = getJobUrlKey('https://www.xing.com/jobs/berlin-java-dev-99887766?ijt=xyz');
+    const withoutTracking = getJobUrlKey('https://www.xing.com/jobs/berlin-java-dev-99887766');
+    expect(withTracking).toBe('https://www.xing.com/jobs/99887766');
+    expect(withoutTracking).toBe('https://www.xing.com/jobs/99887766');
+    expect(withTracking).toBe(withoutTracking);
+  });
+
+  it('should give the same XING key when only the slug differs (same numeric ID)', () => {
+    const a = getJobUrlKey('https://www.xing.com/jobs/senior-qa-engineer-135791113');
+    const b = getJobUrlKey('https://www.xing.com/jobs/qa-lead-135791113?ijt=other');
+    expect(a).toBe(b);
+  });
+
+  it('should give different XING keys for different numeric IDs', () => {
+    const a = getJobUrlKey('https://www.xing.com/jobs/role-111');
+    const b = getJobUrlKey('https://www.xing.com/jobs/role-222');
+    expect(a).not.toBe(b);
+    expect(a).toBe('https://www.xing.com/jobs/111');
+    expect(b).toBe('https://www.xing.com/jobs/222');
+  });
+
+  it('should be query-invariant for generic non-LinkedIn portals', () => {
+    const a = getJobUrlKey('https://www.jobware.de/stellenangebote/12345?src=newsletter&utm=x');
+    const b = getJobUrlKey('https://www.jobware.de/stellenangebote/12345');
+    expect(a).toBe('https://www.jobware.de/stellenangebote/12345');
+    expect(a).toBe(b);
+  });
+
+  it('should return null for degenerate generic listing/search paths', () => {
+    expect(getJobUrlKey('https://www.jobware.de/jobs')).toBeNull();
+    expect(getJobUrlKey('https://example.com/search?q=java')).toBeNull();
+    expect(getJobUrlKey('https://example.com/stellenangebote/')).toBeNull();
   });
 
   it('should return null for a bare domain without a specific path', () => {

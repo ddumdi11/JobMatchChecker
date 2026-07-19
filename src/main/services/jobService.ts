@@ -738,14 +738,18 @@ function loadAllJobs(): JobOffer[] {
 }
 
 /**
- * Prüft einen Kandidaten gegen den Bestand (zwei Stufen):
- * - SICHER: identischer echter URL-Key (getJobUrlKey; degenerierte
- *   Fallback-Keys ohne Job-ID zählen NICHT).
- * - MÖGLICH: normalisierter Titel UND Firma stimmen überein, kein sicherer
- *   URL-Treffer (z. B. gleiche Stelle via XING und LinkedIn).
+ * Prüft einen Kandidaten gegen den Bestand (drei Stufen):
+ * - SICHER: identischer echter URL-Key (getJobUrlKey) UND gleicher
+ *   normalisierter Titel. (URLs können falsch zugeordnet sein – daher genügt
+ *   der Key allein NICHT.)
+ * - WIDERSPRÜCHLICH: identischer URL-Key, aber abweichender (oder – im
+ *   Pre-AI-Scan – noch unbekannter) Titel → nicht blockierend, nur Warnhinweis.
+ * - MÖGLICH: normalisierter Titel UND Firma stimmen überein, URL-Key abweichend
+ *   (z. B. gleiche Stelle via XING und LinkedIn).
  *
  * `candidate.urls` erlaubt es, mehrere aus einem Rohtext extrahierte URLs
- * mitzugeben (Pre-AI-Scan) – ein Treffer bei irgendeiner gilt als sicher.
+ * mitzugeben (Pre-AI-Scan). Ohne Kandidatentitel kann kein sicherer Treffer
+ * entstehen – ein URL-Treffer landet dann in WIDERSPRÜCHLICH.
  */
 export async function findJobDuplicates(
   candidate: JobDuplicateCandidate
@@ -760,24 +764,34 @@ export async function findJobDuplicates(
   const excludeId = candidate.excludeJobId ?? null;
   const normTitle = normalizeForMatch(candidate.title);
   const normCompany = normalizeForMatch(candidate.company);
+  const hasTitle = normTitle !== '';
   const canMatchTitleCompany = normTitle !== '' && normCompany !== '';
 
   const jobs = loadAllJobs();
 
   let safe: JobDuplicateMatch | null = null;
+  const conflicting: JobDuplicateMatch[] = [];
   const possible: JobDuplicateMatch[] = [];
 
   for (const job of jobs) {
     if (excludeId != null && job.id === excludeId) continue;
 
-    // SICHER: identischer echter URL-Key
+    // Identischer echter URL-Key?
     const rowKey = getJobUrlKey(job.url);
     if (rowKey && candidateKeys.has(rowKey)) {
-      // Bei mehreren sicheren Treffern den neuesten behalten
-      if (!safe || job.createdAt > safe.job.createdAt) {
-        safe = { job, reason: 'Identische URL' };
+      if (hasTitle && normalizeForMatch(job.title) === normTitle) {
+        // SICHER: Key + Titel stimmen überein (neuesten behalten)
+        if (!safe || job.createdAt > safe.job.createdAt) {
+          safe = { job, reason: 'Identische URL und gleicher Titel' };
+        }
+      } else {
+        // WIDERSPRÜCHLICH: Key gleich, Titel abweichend/unbekannt
+        conflicting.push({
+          job,
+          reason: hasTitle ? 'Identische URL, abweichender Titel' : 'Identische URL im Bestand'
+        });
       }
-      continue; // sichere Treffer nicht zusätzlich als MÖGLICH werten
+      continue; // URL-Treffer nicht zusätzlich als MÖGLICH werten
     }
 
     // MÖGLICH: Titel + Firma gleich, URL-Key abweichend
@@ -789,11 +803,12 @@ export async function findJobDuplicates(
   }
 
   // Neueste zuerst (stabiler Tiebreak über id)
-  possible.sort((a, b) =>
-    (b.job.createdAt.getTime() - a.job.createdAt.getTime()) || (b.job.id - a.job.id)
-  );
+  const byNewest = (a: JobDuplicateMatch, b: JobDuplicateMatch) =>
+    (b.job.createdAt.getTime() - a.job.createdAt.getTime()) || (b.job.id - a.job.id);
+  conflicting.sort(byNewest);
+  possible.sort(byNewest);
 
-  return { safe, possible };
+  return { safe, conflicting, possible };
 }
 
 /**
@@ -827,37 +842,55 @@ function buildDuplicateGroup(
 
 /**
  * Scannt den gesamten Bestand auf Dubletten:
- * - Sichere Gruppen: gleicher echter URL-Key (getJobUrlKey), >1 Job.
+ * - Nach echtem URL-Key gruppieren (>1 Job):
+ *   - alle Titel identisch → SICHER (ältere vorausgewählt).
+ *   - unterschiedliche Titel → WIDERSPRÜCHLICH (identische URL, verschiedene
+ *     Stellen → vermutlich fehlerhafte Importdaten; KEINE Vorauswahl).
  * - Mögliche Gruppen: gleicher normalisierter Titel+Firma, >1 Job, wobei Jobs
- *   aus sicheren Gruppen ausgeklammert werden (Doppelzählung vermeiden).
- * Pro Gruppe bleibt der neueste; ältere werden vorgeschlagen (sicher =
- * vorausgewählt, möglich = nicht vorausgewählt).
+ *   aus URL-Key-Gruppen ausgeklammert werden (Doppelzählung vermeiden).
+ * Pro Gruppe bleibt der neueste (created_at).
  */
 export async function scanDuplicateGroups(): Promise<DuplicateScanResult> {
   const jobs = loadAllJobs();
   const groups: DuplicateGroup[] = [];
 
-  // 1) Sichere Gruppen nach echtem URL-Key
-  const safeMap = new Map<string, JobOffer[]>();
+  // 1) Nach echtem URL-Key gruppieren
+  const keyMap = new Map<string, JobOffer[]>();
   for (const job of jobs) {
     const key = getJobUrlKey(job.url);
-    if (!key) continue; // degenerierte/leere Keys nicht als sicher gruppieren
-    const arr = safeMap.get(key);
+    if (!key) continue; // degenerierte/leere Keys nicht als Key-Gruppe werten
+    const arr = keyMap.get(key);
     if (arr) arr.push(job);
-    else safeMap.set(key, [job]);
+    else keyMap.set(key, [job]);
   }
 
-  const safeJobIds = new Set<number>();
-  for (const [key, arr] of safeMap) {
+  const keyGroupedIds = new Set<number>();
+  for (const [key, arr] of keyMap) {
     if (arr.length < 2) continue;
-    arr.forEach(j => safeJobIds.add(j.id));
-    groups.push(buildDuplicateGroup('safe', key, 'Identische URL', arr, true));
+    arr.forEach(j => keyGroupedIds.add(j.id));
+
+    const distinctTitles = new Set(arr.map(j => normalizeForMatch(j.title)));
+    if (distinctTitles.size === 1) {
+      // SICHER: identische URL UND gleicher Titel
+      groups.push(buildDuplicateGroup('safe', key, 'Identische URL und gleicher Titel', arr, true));
+    } else {
+      // WIDERSPRÜCHLICH: identische URL, aber verschiedene Titel → keine Vorauswahl
+      groups.push(
+        buildDuplicateGroup(
+          'conflicting',
+          key,
+          'Identische URL, unterschiedliche Titel – vermutlich fehlerhafte Importdaten',
+          arr,
+          false
+        )
+      );
+    }
   }
 
   // 2) Mögliche Gruppen nach normalisiertem Titel + Firma
   const possibleMap = new Map<string, JobOffer[]>();
   for (const job of jobs) {
-    if (safeJobIds.has(job.id)) continue; // bereits sicher gruppiert
+    if (keyGroupedIds.has(job.id)) continue; // bereits über URL-Key gruppiert
     const nt = normalizeForMatch(job.title);
     const nc = normalizeForMatch(job.company);
     if (!nt || !nc) continue;
@@ -875,9 +908,10 @@ export async function scanDuplicateGroups(): Promise<DuplicateScanResult> {
   }
 
   const safeGroupCount = groups.filter(g => g.kind === 'safe').length;
+  const conflictingGroupCount = groups.filter(g => g.kind === 'conflicting').length;
   const possibleGroupCount = groups.filter(g => g.kind === 'possible').length;
 
-  return { groups, safeGroupCount, possibleGroupCount };
+  return { groups, safeGroupCount, conflictingGroupCount, possibleGroupCount };
 }
 
 /**
