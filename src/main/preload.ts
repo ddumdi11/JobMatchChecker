@@ -21,6 +21,11 @@ contextBridge.exposeInMainWorld('api', {
   createMergePreview: (existingJobId: number, newData: any) => ipcRenderer.invoke('job:createMergePreview', existingJobId, newData),
   mergeJobs: (existingJobId: number, fields: any[]) => ipcRenderer.invoke('job:merge', existingJobId, fields),
 
+  // Duplicate detection & cleanup (feat/job-duplicate-handling)
+  checkJobDuplicate: (candidate: any) => ipcRenderer.invoke('job:checkDuplicate', candidate),
+  scanJobDuplicates: () => ipcRenderer.invoke('job:scanDuplicates'),
+  deleteJobs: (ids: number[]) => ipcRenderer.invoke('job:deleteJobs', ids),
+
   // Profile operations
   createProfile: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_CREATE, data),
   updateProfile: (data: any) => ipcRenderer.invoke(IPC_CHANNELS.PROFILE_UPDATE, data),

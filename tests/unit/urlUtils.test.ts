@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cleanJobUrl } from '../../src/shared/urlUtils';
+import { cleanJobUrl, getJobUrlKey, extractUrls } from '../../src/shared/urlUtils';
 
 describe('cleanJobUrl', () => {
 
@@ -37,6 +37,32 @@ describe('cleanJobUrl', () => {
     it('should preserve the job ID as string (no precision loss)', () => {
       const result = cleanJobUrl('https://www.linkedin.com/jobs/view/9007199254740993/');
       expect(result).toBe('https://www.linkedin.com/jobs/view/9007199254740993/');
+    });
+
+    it('should canonicalize /jobs/search/?currentJobId= to /jobs/view/{ID}/', () => {
+      expect(cleanJobUrl(
+        'https://www.linkedin.com/jobs/search/?currentJobId=4377827138&keywords=java'
+      )).toBe('https://www.linkedin.com/jobs/view/4377827138/');
+    });
+
+    it('should canonicalize /jobs/collections/…?currentJobId= to /jobs/view/{ID}/', () => {
+      expect(cleanJobUrl(
+        'https://www.linkedin.com/jobs/collections/recommended/?currentJobId=4377827138&discover=recommended'
+      )).toBe('https://www.linkedin.com/jobs/view/4377827138/');
+    });
+
+    it('should prefer the path job ID even when a currentJobId query is also present', () => {
+      expect(cleanJobUrl(
+        'https://www.linkedin.com/jobs/view/1111111111/?currentJobId=2222222222'
+      )).toBe('https://www.linkedin.com/jobs/view/1111111111/');
+    });
+
+    it('should not invent an ID for /jobs/search/ without currentJobId (degenerate fallback)', () => {
+      // Ohne currentJobId bleibt nur der generische origin+pathname-Fallback
+      // (Pfad inkl. Trailing-Slash) – KEINE erfundene Job-ID.
+      expect(cleanJobUrl(
+        'https://www.linkedin.com/jobs/search/?keywords=java'
+      )).toBe('https://www.linkedin.com/jobs/search/');
     });
   });
 
@@ -130,5 +156,90 @@ describe('cleanJobUrl', () => {
     it('should return invalid URLs unchanged', () => {
       expect(cleanJobUrl('not-a-url')).toBe('not-a-url');
     });
+  });
+});
+
+describe('getJobUrlKey', () => {
+  it('should return the canonical URL for a LinkedIn job-view link', () => {
+    expect(getJobUrlKey(
+      'https://www.linkedin.com/comm/jobs/view/4377827138/?trk=eml'
+    )).toBe('https://www.linkedin.com/jobs/view/4377827138/');
+  });
+
+  it('should return the canonical URL for a currentJobId query link', () => {
+    expect(getJobUrlKey(
+      'https://www.linkedin.com/jobs/search/?currentJobId=4377827138'
+    )).toBe('https://www.linkedin.com/jobs/view/4377827138/');
+  });
+
+  it('should return null for a degenerate LinkedIn search URL (no job ID)', () => {
+    expect(getJobUrlKey(
+      'https://www.linkedin.com/jobs/search/?keywords=java'
+    )).toBeNull();
+  });
+
+  it('should return null for a degenerate LinkedIn collections URL (no job ID)', () => {
+    expect(getJobUrlKey(
+      'https://www.linkedin.com/jobs/collections/recommended/'
+    )).toBeNull();
+  });
+
+  it('should give two degenerate LinkedIn URLs the same (null) key so they are NOT grouped as safe', () => {
+    const a = getJobUrlKey('https://www.linkedin.com/jobs/search/?keywords=java');
+    const b = getJobUrlKey('https://www.linkedin.com/jobs/search/?keywords=python');
+    expect(a).toBeNull();
+    expect(b).toBeNull();
+  });
+
+  it('should use the cleaned URL as key for specific non-LinkedIn portals', () => {
+    expect(getJobUrlKey(
+      'https://www.stepstone.de/job/123?ref=google'
+    )).toBe('https://www.stepstone.de/job/123');
+  });
+
+  it('should keep XING URLs as their own key', () => {
+    const xingUrl = 'https://www.xing.com/jobs/some-role-12345';
+    expect(getJobUrlKey(xingUrl)).toBe(xingUrl);
+  });
+
+  it('should return null for a bare domain without a specific path', () => {
+    expect(getJobUrlKey('https://www.stepstone.de/')).toBeNull();
+    expect(getJobUrlKey('https://www.stepstone.de')).toBeNull();
+  });
+
+  it('should return null for empty/invalid input', () => {
+    expect(getJobUrlKey(null)).toBeNull();
+    expect(getJobUrlKey(undefined)).toBeNull();
+    expect(getJobUrlKey('')).toBeNull();
+    expect(getJobUrlKey('not-a-url')).toBeNull();
+  });
+});
+
+describe('extractUrls', () => {
+  it('should extract all http(s) URLs from free text in order', () => {
+    const text = `Schau dir die Firma an: https://acme.example.com/about
+      und die Stelle hier: https://www.linkedin.com/jobs/view/123/ – viel Erfolg!`;
+    expect(extractUrls(text)).toEqual([
+      'https://acme.example.com/about',
+      'https://www.linkedin.com/jobs/view/123/'
+    ]);
+  });
+
+  it('should strip trailing punctuation', () => {
+    expect(extractUrls('Link: https://example.com/job/9.')).toEqual([
+      'https://example.com/job/9'
+    ]);
+  });
+
+  it('should deduplicate repeated URLs', () => {
+    const text = 'https://example.com/a und nochmal https://example.com/a';
+    expect(extractUrls(text)).toEqual(['https://example.com/a']);
+  });
+
+  it('should return an empty array when there is no URL', () => {
+    expect(extractUrls('kein link hier')).toEqual([]);
+    expect(extractUrls('')).toEqual([]);
+    expect(extractUrls(null)).toEqual([]);
+    expect(extractUrls(undefined)).toEqual([]);
   });
 });

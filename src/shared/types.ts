@@ -251,6 +251,53 @@ export interface MergePreview {
   fields: MergeFieldComparison[];
 }
 
+// Duplicate detection & cleanup types (feat/job-duplicate-handling)
+
+/** Ein konkreter Dublettentreffer gegen den Bestand. */
+export interface JobDuplicateMatch {
+  job: JobOffer;
+  reason: string; // menschenlesbarer Grund (z. B. "Identische URL")
+}
+
+/** Ergebnis der Bestandsprüfung beim Hinzufügen eines Jobs. */
+export interface JobDuplicateCheckResult {
+  safe: JobDuplicateMatch | null;   // SICHER: identischer echter URL-Key
+  possible: JobDuplicateMatch[];    // MÖGLICH: Titel + Firma gleich, URL-Key abweichend
+}
+
+/** Eingabe für die Bestandsprüfung. */
+export interface JobDuplicateCandidate {
+  title?: string | null;
+  company?: string | null;
+  url?: string | null;
+  urls?: string[] | null;          // zusätzliche URLs aus Rohtext (Pre-AI-Scan)
+  excludeJobId?: number | null;    // beim Bearbeiten sich selbst ausschließen
+}
+
+export type DuplicateGroupKind = 'safe' | 'possible';
+
+/** Ein Job innerhalb einer Dublettengruppe des Bereinigungs-Scans. */
+export interface DuplicateGroupJob {
+  job: JobOffer;
+  isNewest: boolean;      // neuester nach created_at → bleibt erhalten
+  suggestDelete: boolean; // Vorauswahl zum Löschen (nur sichere Gruppen)
+}
+
+/** Eine Gruppe zusammengehöriger (mutmaßlicher) Dubletten. */
+export interface DuplicateGroup {
+  kind: DuplicateGroupKind;
+  key: string;    // URL-Key (safe) bzw. normTitle||normCompany (possible)
+  reason: string;
+  jobs: DuplicateGroupJob[]; // sortiert, neuester zuerst
+}
+
+/** Gesamtergebnis des Bereinigungs-Scans. */
+export interface DuplicateScanResult {
+  groups: DuplicateGroup[];
+  safeGroupCount: number;
+  possibleGroupCount: number;
+}
+
 // Skills Import types
 export interface SkillImportResult {
   success: boolean;
