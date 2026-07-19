@@ -81,6 +81,10 @@ export default function JobAdd() {
   // Verhindert parallele Dubletten-Checks/AI-Calls (Doppelklick, Ctrl+S/Enter)
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
   const dupCheckInFlightRef = useRef(false);
+  // Merkt, dass die (nicht-blockierende) Widersprüchlich-Warnung beim Speichern
+  // schon einmal gezeigt wurde – so hält der erste Save-Klick an (Warnung wird
+  // sichtbar), der nächste speichert. Wird bei Feldänderungen zurückgesetzt.
+  const conflictWarnedRef = useRef(false);
 
   // Form state (initialized from extraction or empty)
   const [formData, setFormData] = useState({
@@ -430,6 +434,8 @@ export default function JobAdd() {
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const value = event.target.value;
+    // Geänderte Eingaben → Widersprüchlich-Warnung ggf. erneut zeigen
+    conflictWarnedRef.current = false;
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -494,15 +500,24 @@ export default function JobAdd() {
           company: formData.company,
           url: formData.source_url || undefined
         });
-        // Nur ein SICHERER Treffer (Key + Titel) blockiert. Widersprüchliche
-        // Treffer (URL gleich, Titel abweichend) blockieren NICHT – sie
-        // erscheinen als nicht-blockierender Hinweis im Formular.
+        // Save-Zeit-Ergebnis in die Inline-Hinweise übernehmen – so ist die
+        // Anzeige (safe/conflicting/possible) auch dann aktuell, wenn der
+        // debounced Live-Check noch nicht gelaufen ist.
+        setFormDuplicates(res);
+
         if (res.safe) {
+          // SICHER (Key + Titel): hart blockieren, auf Bestätigung warten.
           setDupMatches([res.safe]);
           setDupPossible(res.possible);
           setDupContext('save');
           setDupDialogOpen(true);
-          blocked = true; // auf Bestätigung warten
+          blocked = true;
+        } else if (res.conflicting.length > 0 && !conflictWarnedRef.current) {
+          // WIDERSPRÜCHLICH (URL gleich, Titel abweichend): nicht-blockierend,
+          // aber sichtbar machen – ersten Save-Klick anhalten, damit der Nutzer
+          // die Warnung sieht; der nächste Klick speichert.
+          conflictWarnedRef.current = true;
+          blocked = true;
         }
       } catch (err) {
         console.error('Pre-save duplicate check failed:', err);
@@ -588,6 +603,7 @@ export default function JobAdd() {
     });
     setShowForm(false);
     setFormDuplicates(null);
+    conflictWarnedRef.current = false;
     clearExtractionResult();
   };
 
