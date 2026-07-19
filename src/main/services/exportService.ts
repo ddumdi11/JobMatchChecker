@@ -962,3 +962,170 @@ export async function exportBulkToZip(jobIds: number[]): Promise<{ success: bool
     return { success: false, error: error.message };
   }
 }
+
+// ============================================================================
+// CSV-Export (Feature: feat/jobs-csv-export)
+// ============================================================================
+
+/**
+ * Spaltenprofil: bestimmt Auswahl UND Serialisierung der Zellen. Neue Profile
+ * (z. B. später "nanobot" für jobs_processed.csv mit Rohwerten) sind ein reiner
+ * Konfigurationseintrag in CSV_PROFILES – der übrige Service bleibt unverändert.
+ */
+export type CsvColumnProfile = 'standard' | 'nanobot';
+
+interface JobCsvRow {
+  title: string;
+  company: string;
+  match_score: number | null;
+  match_category: string | null;
+  status: string;
+  source_name: string | null;
+  url: string | null;
+  created_at: string;
+  posted_date: string | null;
+}
+
+interface CsvColumn {
+  header: string;
+  value: (row: JobCsvRow) => string;
+}
+
+/**
+ * Formatiert einen gespeicherten Datumswert als lokales ISO-Datum (YYYY-MM-DD)
+ * – EXAKT wie die UI (`new Date(raw)` → lokale Kalendertag-Anzeige). Damit ist
+ * das Export-Datum immer identisch zum in der App angezeigten "hinzugefügt am".
+ *
+ * Bewusst NICHT über SQLites `date(...,'localtime')`: `created_at`
+ * (`CURRENT_TIMESTAMP`, "YYYY-MM-DD HH:MM:SS" ohne Zeitzone) wird von JS
+ * `new Date` als LOKALZEIT interpretiert, `posted_date` (`toISOString()`, mit
+ * "Z") dagegen als UTC. Nur die JS-Spiegelung trifft für beide Spalten den
+ * gleichen Kalendertag wie die UI.
+ */
+function toLocalIsoDate(raw: string | Date | null | undefined): string {
+  if (!raw) return '';
+  const d = raw instanceof Date ? raw : new Date(raw);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+const CSV_PROFILES: Record<CsvColumnProfile, CsvColumn[]> = {
+  standard: [
+    { header: 'Titel', value: r => r.title ?? '' },
+    { header: 'Firma', value: r => r.company ?? '' },
+    { header: 'Match-Score', value: r => (r.match_score == null ? '' : String(r.match_score)) },
+    { header: 'Match-Kategorie', value: r => (r.match_category ? getCategoryLabel(r.match_category) : '') },
+    { header: 'Status', value: r => getStatusLabel(r.status) },
+    { header: 'Quelle', value: r => r.source_name ?? '' },
+    { header: 'URL', value: r => r.url ?? '' },
+    { header: 'hinzugefügt am', value: r => toLocalIsoDate(r.created_at) },
+    { header: 'veröffentlicht am', value: r => toLocalIsoDate(r.posted_date) }
+  ],
+  // "nanobot" (jobs_processed.csv, Rückkanal zur Pipeline) folgt später mit
+  // Rohwerten – dann hier als weiterer Eintrag ergänzen.
+  nanobot: []
+};
+
+/** RFC4180-konformes Quoting: nur bei , " CR LF, innere " verdoppelt. */
+function csvCell(value: string): string {
+  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+export interface ExportJobsCsvOptions {
+  dateFrom?: string | null; // 'YYYY-MM-DD' inklusive (lokaler "hinzugefügt am"-Tag)
+  dateTo?: string | null;   // 'YYYY-MM-DD' inklusive
+  profile?: CsvColumnProfile;
+}
+
+/**
+ * Baut den CSV-Inhalt (inkl. BOM) für den gewählten Datumsbereich und das
+ * Spaltenprofil. Reine Funktion ohne Dialog/FS → direkt testbar.
+ */
+export function generateJobsCsv(options: ExportJobsCsvOptions = {}): { csv: string; count: number } {
+  const profile = options.profile ?? 'standard';
+  const columns = CSV_PROFILES[profile];
+  if (!columns || columns.length === 0) {
+    throw new Error(`CSV-Profil "${profile}" ist nicht implementiert`);
+  }
+
+  const db = getDatabase();
+  const rows = db.prepare(`
+    SELECT
+      jo.title, jo.company, jo.match_score, jo.status, jo.url,
+      jo.created_at, jo.posted_date,
+      js.name AS source_name,
+      (
+        SELECT m.match_category FROM matching_results m
+        WHERE m.job_id = jo.id
+        ORDER BY m.created_at DESC, m.id DESC
+        LIMIT 1
+      ) AS match_category
+    FROM job_offers jo
+    LEFT JOIN job_sources js ON jo.source_id = js.id
+    ORDER BY jo.created_at ASC, jo.id ASC
+  `).all() as JobCsvRow[];
+
+  const from = options.dateFrom || null;
+  const to = options.dateTo || null;
+
+  // Filter auf den lokalen "hinzugefügt am"-Tag (identisch zur UI-Anzeige)
+  const filtered = rows.filter(r => {
+    const added = toLocalIsoDate(r.created_at);
+    if (!added) return false;
+    if (from && added < from) return false;
+    if (to && added > to) return false;
+    return true;
+  });
+
+  const BOM = String.fromCharCode(0xFEFF); // UTF-8 BOM (Excel-freundlich)
+  const lines: string[] = [];
+  lines.push(columns.map(c => csvCell(c.header)).join(','));
+  for (const r of filtered) {
+    lines.push(columns.map(c => csvCell(c.value(r))).join(','));
+  }
+  // CRLF-Zeilenenden (Excel/RFC4180), abschließendes CRLF auch bei Header-only
+  const csv = BOM + lines.join('\r\n') + '\r\n';
+  return { csv, count: filtered.length };
+}
+
+/**
+ * Exportiert Jobs als CSV-Datei (mit Speichern-Dialog). Wrapper um
+ * generateJobsCsv – analog zu exportToMarkdown/-Pdf.
+ */
+export async function exportJobsCsv(
+  options: ExportJobsCsvOptions = {}
+): Promise<{ success: boolean; filePath?: string; error?: string; count?: number }> {
+  try {
+    const { csv, count } = generateJobsCsv(options);
+
+    const from = options.dateFrom || 'alle';
+    const to = options.dateTo || 'alle';
+    const defaultFilename = `jobs-export_${from}_bis_${to}.csv`;
+
+    const result = await dialog.showSaveDialog({
+      title: 'Jobs als CSV exportieren',
+      defaultPath: defaultFilename,
+      filters: [
+        { name: 'CSV-Dateien', extensions: ['csv'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (result.canceled || !result.filePath) {
+      return { success: false, error: 'Export abgebrochen' };
+    }
+
+    // csv enthält bereits das BOM
+    fs.writeFileSync(result.filePath, csv, 'utf-8');
+    log.info(`Exported ${count} jobs to CSV: ${result.filePath}`);
+    shell.showItemInFolder(result.filePath);
+
+    return { success: true, filePath: result.filePath, count };
+  } catch (error: any) {
+    log.error('Error exporting jobs CSV:', error);
+    return { success: false, error: error.message };
+  }
+}
