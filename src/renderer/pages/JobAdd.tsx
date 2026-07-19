@@ -70,8 +70,10 @@ export default function JobAdd() {
 
   // Dubletten-Erkennung (feat/job-duplicate-handling)
   const [dupDialogOpen, setDupDialogOpen] = useState(false);
-  const [dupSafe, setDupSafe] = useState<JobDuplicateMatch | null>(null);
-  // Mögliche Treffer aus derselben Prüfung wie dupSafe (für den save-Kontext)
+  // Treffer, die im Dialog hervorgehoben werden (save: sicherer Treffer;
+  // extract: URL-Treffer mit noch unbekanntem Titel = widersprüchlich)
+  const [dupMatches, setDupMatches] = useState<JobDuplicateMatch[]>([]);
+  // Mögliche Treffer aus derselben Prüfung (für den save-Kontext)
   const [dupPossible, setDupPossible] = useState<JobDuplicateMatch[]>([]);
   const [dupContext, setDupContext] = useState<'extract' | 'save'>('save');
   // Live-Hinweise im Formular (sicher + möglich), nicht blockierend
@@ -79,6 +81,10 @@ export default function JobAdd() {
   // Verhindert parallele Dubletten-Checks/AI-Calls (Doppelklick, Ctrl+S/Enter)
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
   const dupCheckInFlightRef = useRef(false);
+  // Merkt, dass die (nicht-blockierende) Widersprüchlich-Warnung beim Speichern
+  // schon einmal gezeigt wurde – so hält der erste Save-Klick an (Warnung wird
+  // sichtbar), der nächste speichert. Wird bei Feldänderungen zurückgesetzt.
+  const conflictWarnedRef = useRef(false);
 
   // Form state (initialized from extraction or empty)
   const [formData, setFormData] = useState({
@@ -290,8 +296,12 @@ export default function JobAdd() {
         const urls = extractUrls(jobText);
         if (urls.length > 0) {
           const res = await window.api.checkJobDuplicate({ urls });
-          if (res.safe) {
-            setDupSafe(res.safe);
+          // Ohne Titel kann es keinen "sicheren" Treffer geben – ein URL-Treffer
+          // landet in `conflicting`. Vor dem (kostenpflichtigen) AI-Call einen
+          // nicht-blockierenden Hinweis geben.
+          const hits = res.safe ? [res.safe, ...res.conflicting] : res.conflicting;
+          if (hits.length > 0) {
+            setDupMatches(hits);
             setDupPossible([]);
             setDupContext('extract');
             setDupDialogOpen(true);
@@ -424,6 +434,8 @@ export default function JobAdd() {
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const value = event.target.value;
+    // Geänderte Eingaben → Widersprüchlich-Warnung ggf. erneut zeigen
+    conflictWarnedRef.current = false;
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -488,12 +500,24 @@ export default function JobAdd() {
           company: formData.company,
           url: formData.source_url || undefined
         });
+        // Save-Zeit-Ergebnis in die Inline-Hinweise übernehmen – so ist die
+        // Anzeige (safe/conflicting/possible) auch dann aktuell, wenn der
+        // debounced Live-Check noch nicht gelaufen ist.
+        setFormDuplicates(res);
+
         if (res.safe) {
-          setDupSafe(res.safe);
+          // SICHER (Key + Titel): hart blockieren, auf Bestätigung warten.
+          setDupMatches([res.safe]);
           setDupPossible(res.possible);
           setDupContext('save');
           setDupDialogOpen(true);
-          blocked = true; // auf Bestätigung warten
+          blocked = true;
+        } else if (res.conflicting.length > 0 && !conflictWarnedRef.current) {
+          // WIDERSPRÜCHLICH (URL gleich, Titel abweichend): nicht-blockierend,
+          // aber sichtbar machen – ersten Save-Klick anhalten, damit der Nutzer
+          // die Warnung sieht; der nächste Klick speichert.
+          conflictWarnedRef.current = true;
+          blocked = true;
         }
       } catch (err) {
         console.error('Pre-save duplicate check failed:', err);
@@ -579,6 +603,7 @@ export default function JobAdd() {
     });
     setShowForm(false);
     setFormDuplicates(null);
+    conflictWarnedRef.current = false;
     clearExtractionResult();
   };
 
@@ -749,6 +774,22 @@ export default function JobAdd() {
               </Typography>
             </Alert>
           )}
+          {formDuplicates && formDuplicates.conflicting.length > 0 && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <Typography variant="body2" fontWeight="bold" gutterBottom>
+                Identische URL, aber anderer Titel — evtl. fehlerhafte Importdaten:
+              </Typography>
+              <ul style={{ margin: 0, paddingLeft: 20 }}>
+                {formDuplicates.conflicting.map(m => (
+                  <li key={m.job.id}>
+                    <Typography variant="body2">
+                      {m.job.title} – {m.job.company} (hinzugefügt am {formatGermanDate(m.job.createdAt)})
+                    </Typography>
+                  </li>
+                ))}
+              </ul>
+            </Alert>
+          )}
           {formDuplicates && formDuplicates.possible.length > 0 && (
             <Alert severity="info" sx={{ mb: 2 }}>
               <Typography variant="body2" fontWeight="bold" gutterBottom>
@@ -904,13 +945,14 @@ export default function JobAdd() {
       {/* Blockierender Dubletten-Dialog (sicherer Treffer) */}
       <DuplicateWarningDialog
         open={dupDialogOpen}
-        safeMatch={dupSafe}
+        title={dupContext === 'extract' ? 'Mögliche Dublette gefunden' : 'Job bereits vorhanden'}
+        matches={dupMatches}
         possibleMatches={dupContext === 'save' ? dupPossible : []}
         proceedLabel={dupContext === 'extract' ? 'Trotzdem analysieren' : 'Trotzdem hinzufügen'}
         question={
           dupContext === 'extract'
-            ? 'Dieser Job scheint bereits im Bestand zu sein (identische URL). Möchtest du ihn trotzdem mit AI analysieren?'
-            : 'Dieser Job scheint bereits im Bestand zu sein (identische URL). Möchtest du ihn trotzdem hinzufügen?'
+            ? 'Es gibt bereits Job(s) mit dieser URL im Bestand (evtl. eine andere Stelle). Möchtest du den Text trotzdem mit AI analysieren?'
+            : 'Dieser Job scheint bereits im Bestand zu sein (identische URL und gleicher Titel). Möchtest du ihn trotzdem hinzufügen?'
         }
         onCancel={handleDupCancel}
         onProceed={handleDupProceed}
