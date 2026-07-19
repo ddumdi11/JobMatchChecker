@@ -126,6 +126,34 @@ export function registerIpcHandlers() {
     }
   });
 
+  // Duplicate detection & cleanup (feat/job-duplicate-handling)
+  ipcMain.handle('job:checkDuplicate', async (_, candidate) => {
+    try {
+      return await jobService.findJobDuplicates(candidate);
+    } catch (error: any) {
+      log.error('Error in job:checkDuplicate:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('job:scanDuplicates', async () => {
+    try {
+      return await jobService.scanDuplicateGroups();
+    } catch (error: any) {
+      log.error('Error in job:scanDuplicates:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('job:deleteJobs', async (_, ids: number[]) => {
+    try {
+      return await jobService.deleteJobs(ids);
+    } catch (error: any) {
+      log.error('Error in job:deleteJobs:', error);
+      throw error;
+    }
+  });
+
   // Profile operations
   ipcMain.handle(IPC_CHANNELS.PROFILE_CREATE, async (_, data) => {
     try {

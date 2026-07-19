@@ -22,6 +22,22 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useJobStore } from '../store/jobStore';
 import { useUnsavedChangesContext } from '../components/Layout';
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
+import DuplicateWarningDialog from '../components/DuplicateWarningDialog';
+import { extractUrls } from '../../shared/urlUtils';
+import type { JobDuplicateMatch, JobDuplicateCheckResult } from '../../shared/types';
+
+// Helfer für Dubletten-Hinweise
+function formatDupDate(value: Date | string | null | undefined): string {
+  if (!value) return 'unbekannt';
+  const d = value instanceof Date ? value : new Date(value);
+  return isNaN(d.getTime())
+    ? 'unbekannt'
+    : d.toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' });
+}
+
+function formatDupScore(score: number | null | undefined): string {
+  return score === null || score === undefined ? '—' : `${score}`;
+}
 
 /**
  * JobAdd Page - Add new job offers with AI extraction
@@ -63,6 +79,13 @@ export default function JobAdd() {
   const [isSaving, setIsSaving] = useState(false); // Prevent double-save
   const [saveSuccessful, setSaveSuccessful] = useState(false); // Track successful save for navigation
   const [fileWarning, setFileWarning] = useState<string | null>(null);
+
+  // Dubletten-Erkennung (feat/job-duplicate-handling)
+  const [dupDialogOpen, setDupDialogOpen] = useState(false);
+  const [dupSafe, setDupSafe] = useState<JobDuplicateMatch | null>(null);
+  const [dupContext, setDupContext] = useState<'extract' | 'save'>('save');
+  // Live-Hinweise im Formular (sicher + möglich), nicht blockierend
+  const [formDuplicates, setFormDuplicates] = useState<JobDuplicateCheckResult | null>(null);
 
   // Form state (initialized from extraction or empty)
   const [formData, setFormData] = useState({
@@ -244,18 +267,40 @@ export default function JobAdd() {
     }
   };
 
-  // Handle AI extraction
+  // Run the actual AI extraction (form auto-updates via useEffect on extractionResult)
+  const runExtraction = async () => {
+    try {
+      await extractJobFromText(jobText);
+    } catch (err) {
+      console.error('Extraction failed:', err);
+    }
+  };
+
+  // Handle AI extraction – prüft VOR dem API-Call auf sichere Dubletten
+  // (spart Tokens): alle http(s)-URLs aus dem Rohtext extrahieren, bereinigen
+  // und gegen den Bestand prüfen. Treffer bei irgendeiner URL = sicherer Verdacht.
   const handleExtract = async () => {
     if (!jobText.trim()) {
       return;
     }
 
     try {
-      await extractJobFromText(jobText);
-      // Form will auto-update via useEffect when extractionResult changes
+      const urls = extractUrls(jobText);
+      if (urls.length > 0) {
+        const res = await window.api.checkJobDuplicate({ urls });
+        if (res.safe) {
+          setDupSafe(res.safe);
+          setDupContext('extract');
+          setDupDialogOpen(true);
+          return; // auf Nutzerentscheidung warten, kein API-Call
+        }
+      }
     } catch (err) {
-      console.error('Extraction failed:', err);
+      // Prüfung ist "best effort" – bei Fehler normal weiter analysieren
+      console.error('Pre-AI duplicate check failed:', err);
     }
+
+    await runExtraction();
   };
 
   // Sync extraction result to form
@@ -383,13 +428,8 @@ export default function JobAdd() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  // Handle save
-  const handleSave = useCallback(async () => {
-    // Prevent double-save
-    if (isSaving || !formData.title || !formData.company) {
-      return;
-    }
-
+  // Perform the actual save (create/update) – nach evtl. Dubletten-Bestätigung
+  const doSave = useCallback(async () => {
     setIsSaving(true);
 
     try {
@@ -417,11 +457,86 @@ export default function JobAdd() {
       console.error('Failed to save job:', err);
       setIsSaving(false); // Re-enable save button on error
     }
-  }, [isSaving, formData, isEditMode, id, updateJob, createJob, setIsDirty, navigate, clearExtractionResult]);
+  }, [formData, isEditMode, id, updateJob, createJob, setIsDirty, navigate, clearExtractionResult]);
+
+  // Handle save – prüft beim Neuanlegen VOR dem Speichern auf sichere Dubletten
+  // (blockierend). Mögliche Dubletten sind nicht blockierend (Hinweis im Formular).
+  const handleSave = useCallback(async () => {
+    // Prevent double-save
+    if (isSaving || !formData.title || !formData.company) {
+      return;
+    }
+
+    if (!isEditMode) {
+      try {
+        const res = await window.api.checkJobDuplicate({
+          title: formData.title,
+          company: formData.company,
+          url: formData.source_url || undefined
+        });
+        if (res.safe) {
+          setDupSafe(res.safe);
+          setDupContext('save');
+          setDupDialogOpen(true);
+          return; // auf Bestätigung warten
+        }
+      } catch (err) {
+        console.error('Pre-save duplicate check failed:', err);
+      }
+    }
+
+    await doSave();
+  }, [isSaving, formData.title, formData.company, formData.source_url, isEditMode, doSave]);
 
   // Keyboard shortcut: Ctrl+S for save
   const canSave = showForm && formData.title && formData.company && !isSaving;
   useKeyboardShortcut('ctrl+s', handleSave, { disabled: !canSave });
+
+  // Live-Dublettenprüfung im Formular (debounced, nicht blockierend).
+  // Zeigt sichere Treffer als Warnung und mögliche Treffer als Hinweis an.
+  useEffect(() => {
+    const title = formData.title.trim();
+    const company = formData.company.trim();
+
+    if (!showForm || !title || !company) {
+      setFormDuplicates(null);
+      return;
+    }
+
+    let cancelled = false;
+    const handle = setTimeout(async () => {
+      try {
+        const res = await window.api.checkJobDuplicate({
+          title,
+          company,
+          url: formData.source_url || undefined,
+          excludeJobId: isEditMode && id ? parseInt(id, 10) : undefined
+        });
+        if (!cancelled) setFormDuplicates(res);
+      } catch (err) {
+        if (!cancelled) console.error('Duplicate check failed:', err);
+      }
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [showForm, formData.title, formData.company, formData.source_url, isEditMode, id]);
+
+  // Dialog: "Trotzdem hinzufügen" – kontextabhängig weiter analysieren bzw. speichern
+  const handleDupProceed = async () => {
+    setDupDialogOpen(false);
+    if (dupContext === 'extract') {
+      await runExtraction();
+    } else {
+      await doSave();
+    }
+  };
+
+  const handleDupCancel = () => {
+    setDupDialogOpen(false);
+  };
 
   // Handle clear
   const handleClear = () => {
@@ -441,6 +556,7 @@ export default function JobAdd() {
       status: 'new'
     });
     setShowForm(false);
+    setFormDuplicates(null);
     clearExtractionResult();
   };
 
@@ -594,6 +710,36 @@ export default function JobAdd() {
             <Divider sx={{ mb: 3 }} />
           </Box>
 
+          {/* Dubletten-Hinweise (nicht blockierend) */}
+          {formDuplicates?.safe && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              <Typography variant="body2" fontWeight="bold">
+                Job bereits vorhanden
+              </Typography>
+              <Typography variant="body2">
+                {formDuplicates.safe.job.title} – {formDuplicates.safe.job.company} (hinzugefügt am{' '}
+                {formatDupDate(formDuplicates.safe.job.createdAt)}, Score{' '}
+                {formatDupScore(formDuplicates.safe.job.matchScore)})
+              </Typography>
+            </Alert>
+          )}
+          {formDuplicates && formDuplicates.possible.length > 0 && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="body2" fontWeight="bold" gutterBottom>
+                Mögliche Dublette von:
+              </Typography>
+              <ul style={{ margin: 0, paddingLeft: 20 }}>
+                {formDuplicates.possible.map(m => (
+                  <li key={m.job.id}>
+                    <Typography variant="body2">
+                      {m.job.title} – {m.job.company} (hinzugefügt am {formatDupDate(m.job.createdAt)})
+                    </Typography>
+                  </li>
+                ))}
+              </ul>
+            </Alert>
+          )}
+
           {/* Form Fields */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {/* Title */}
@@ -728,6 +874,16 @@ export default function JobAdd() {
           )}
         </Paper>
       )}
+
+      {/* Blockierender Dubletten-Dialog (sicherer Treffer) */}
+      <DuplicateWarningDialog
+        open={dupDialogOpen}
+        safeMatch={dupSafe}
+        possibleMatches={dupContext === 'save' ? (formDuplicates?.possible ?? []) : []}
+        proceedLabel={dupContext === 'extract' ? 'Trotzdem analysieren' : 'Trotzdem hinzufügen'}
+        onCancel={handleDupCancel}
+        onProceed={handleDupProceed}
+      />
     </Container>
   );
 }

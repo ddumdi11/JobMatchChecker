@@ -17,6 +17,10 @@ interface Window {
     // Merge operations
     createMergePreview: (existingJobId: number, newData: any) => Promise<any>;
     mergeJobs: (existingJobId: number, fields: any[]) => Promise<any>;
+    // Duplicate detection & cleanup (feat/job-duplicate-handling)
+    checkJobDuplicate: (candidate: import('../shared/types').JobDuplicateCandidate) => Promise<import('../shared/types').JobDuplicateCheckResult>;
+    scanJobDuplicates: () => Promise<import('../shared/types').DuplicateScanResult>;
+    deleteJobs: (ids: number[]) => Promise<{ deleted: number }>;
     // Profile operations
     createProfile: (data: any) => Promise<any>;
     updateProfile: (data: any) => Promise<any>;

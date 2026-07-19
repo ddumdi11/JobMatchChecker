@@ -53,10 +53,12 @@ import {
   AutoAwesome as AutoAwesomeIcon,
   Refresh as RefreshIcon,
   PictureAsPdf as PdfIcon,
-  FolderZip as FolderZipIcon
+  FolderZip as FolderZipIcon,
+  DeleteSweep as DeleteSweepIcon
 } from '@mui/icons-material';
 import { CircularProgress, LinearProgress } from '@mui/material';
 import { useJobStore } from '../store/jobStore';
+import DuplicateCleanupDialog from '../components/DuplicateCleanupDialog';
 
 /**
  * JobList Page - Display all job offers with filtering, sorting, and pagination
@@ -113,11 +115,31 @@ export default function JobList() {
   // Selection state for selective matching
   const [selectedJobIds, setSelectedJobIds] = useState<Set<number>>(new Set());
 
+  // Duplicate cleanup dialog state (feat/job-duplicate-handling)
+  const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
+
   // Bulk export state
   const [isBulkExporting, setIsBulkExporting] = useState(false);
   const [exportSnackbarOpen, setExportSnackbarOpen] = useState(false);
   const [exportSnackbarMessage, setExportSnackbarMessage] = useState('');
   const [exportSnackbarSeverity, setExportSnackbarSeverity] = useState<'success' | 'error'>('success');
+
+  // Refresh nach Dubletten-Bereinigung
+  const handleDuplicatesDeleted = useCallback(async (deleted: number) => {
+    setSelectedJobIds(new Set());
+    await fetchJobs();
+    try {
+      const count = await window.api.getUnmatchedJobCount();
+      setUnmatchedCount(count);
+    } catch {
+      /* Zähler-Refresh ist unkritisch */
+    }
+    setExportSnackbarSeverity('success');
+    setExportSnackbarMessage(
+      deleted > 0 ? `${deleted} Dublette(n) gelöscht.` : 'Keine Jobs gelöscht.'
+    );
+    setExportSnackbarOpen(true);
+  }, [fetchJobs]);
 
   // Check if any extended filters are active
   const hasActiveExtendedFilters =
@@ -777,6 +799,19 @@ export default function JobList() {
               </Button>
             </span>
           </Tooltip>
+          <Tooltip title="Bestand auf Dubletten prüfen und bereinigen">
+            <span>
+              <Button
+                variant="outlined"
+                startIcon={<DeleteSweepIcon />}
+                onClick={() => setCleanupDialogOpen(true)}
+                disabled={jobs.length === 0}
+                color="error"
+              >
+                Dubletten bereinigen
+              </Button>
+            </span>
+          </Tooltip>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -1282,6 +1317,13 @@ export default function JobList() {
           {exportSnackbarMessage}
         </Alert>
       </Snackbar>
+
+      {/* Dubletten-Bereinigung */}
+      <DuplicateCleanupDialog
+        open={cleanupDialogOpen}
+        onClose={() => setCleanupDialogOpen(false)}
+        onDeleted={handleDuplicatesDeleted}
+      />
     </Container>
   );
 }

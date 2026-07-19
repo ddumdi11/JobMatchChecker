@@ -17,9 +17,15 @@ import type {
   JobStatus,
   MergePreview,
   MergeFieldComparison,
-  MergeFieldSource
+  MergeFieldSource,
+  JobDuplicateCandidate,
+  JobDuplicateCheckResult,
+  JobDuplicateMatch,
+  DuplicateGroup,
+  DuplicateGroupKind,
+  DuplicateScanResult
 } from '../../shared/types';
-import { cleanJobUrl } from '../../shared/urlUtils';
+import { cleanJobUrl, getJobUrlKey } from '../../shared/urlUtils';
 
 /**
  * Custom error class for validation errors
@@ -702,4 +708,201 @@ export async function mergeJobs(
 
   // No changes needed
   return existingJob;
+}
+
+// =============================================================================
+// Duplicate detection & cleanup (feat/job-duplicate-handling)
+// =============================================================================
+
+/**
+ * Normalisiert Titel/Firma für den MÖGLICH-Vergleich:
+ * trim, lowercase, Mehrfach-Whitespace zusammenfassen.
+ */
+function normalizeForMatch(value: string | null | undefined): string {
+  if (!value || typeof value !== 'string') return '';
+  return value.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+/**
+ * Prüft einen Kandidaten gegen den Bestand (zwei Stufen):
+ * - SICHER: identischer echter URL-Key (getJobUrlKey; degenerierte
+ *   Fallback-Keys ohne Job-ID zählen NICHT).
+ * - MÖGLICH: normalisierter Titel UND Firma stimmen überein, kein sicherer
+ *   URL-Treffer (z. B. gleiche Stelle via XING und LinkedIn).
+ *
+ * `candidate.urls` erlaubt es, mehrere aus einem Rohtext extrahierte URLs
+ * mitzugeben (Pre-AI-Scan) – ein Treffer bei irgendeiner gilt als sicher.
+ */
+export async function findJobDuplicates(
+  candidate: JobDuplicateCandidate
+): Promise<JobDuplicateCheckResult> {
+  const db = getDatabase();
+
+  // Kandidaten-URL-Keys sammeln (Haupt-URL + zusätzliche aus Rohtext)
+  const candidateKeys = new Set<string>();
+  for (const u of [candidate.url, ...(candidate.urls || [])]) {
+    const key = getJobUrlKey(u);
+    if (key) candidateKeys.add(key);
+  }
+
+  const excludeId = candidate.excludeJobId ?? null;
+  const normTitle = normalizeForMatch(candidate.title);
+  const normCompany = normalizeForMatch(candidate.company);
+  const canMatchTitleCompany = normTitle !== '' && normCompany !== '';
+
+  const rows = db.prepare(`
+    SELECT jo.*, js.name as source_name
+    FROM job_offers jo
+    LEFT JOIN job_sources js ON jo.source_id = js.id
+  `).all() as any[];
+
+  let safe: JobDuplicateMatch | null = null;
+  const possible: JobDuplicateMatch[] = [];
+
+  for (const row of rows) {
+    if (excludeId != null && row.id === excludeId) continue;
+    const job = rowToJobOffer(row);
+
+    // SICHER: identischer echter URL-Key
+    const rowKey = getJobUrlKey(row.url);
+    if (rowKey && candidateKeys.has(rowKey)) {
+      // Bei mehreren sicheren Treffern den neuesten behalten
+      if (!safe || job.createdAt > safe.job.createdAt) {
+        safe = { job, reason: 'Identische URL' };
+      }
+      continue; // sichere Treffer nicht zusätzlich als MÖGLICH werten
+    }
+
+    // MÖGLICH: Titel + Firma gleich, URL-Key abweichend
+    if (canMatchTitleCompany &&
+        normalizeForMatch(row.title) === normTitle &&
+        normalizeForMatch(row.company) === normCompany) {
+      possible.push({ job, reason: 'Gleicher Titel und gleiche Firma' });
+    }
+  }
+
+  // Neueste zuerst (stabiler Tiebreak über id)
+  possible.sort((a, b) =>
+    (b.job.createdAt.getTime() - a.job.createdAt.getTime()) || (b.job.id - a.job.id)
+  );
+
+  return { safe, possible };
+}
+
+/**
+ * Baut eine Dublettengruppe: sortiert neuester (created_at) zuerst und markiert
+ * ihn als "bleibt". Nur in sicheren Gruppen werden die älteren zum Löschen
+ * vorausgewählt; mögliche Dubletten sind NICHT vorausgewählt.
+ */
+function buildDuplicateGroup(
+  kind: DuplicateGroupKind,
+  key: string,
+  reason: string,
+  jobs: JobOffer[],
+  preselectOlder: boolean
+): DuplicateGroup {
+  const sorted = [...jobs].sort((a, b) =>
+    (b.createdAt.getTime() - a.createdAt.getTime()) || (b.id - a.id)
+  );
+  const newestId = sorted[0].id;
+
+  return {
+    kind,
+    key,
+    reason,
+    jobs: sorted.map(job => ({
+      job,
+      isNewest: job.id === newestId,
+      suggestDelete: preselectOlder && job.id !== newestId
+    }))
+  };
+}
+
+/**
+ * Scannt den gesamten Bestand auf Dubletten:
+ * - Sichere Gruppen: gleicher echter URL-Key (getJobUrlKey), >1 Job.
+ * - Mögliche Gruppen: gleicher normalisierter Titel+Firma, >1 Job, wobei Jobs
+ *   aus sicheren Gruppen ausgeklammert werden (Doppelzählung vermeiden).
+ * Pro Gruppe bleibt der neueste; ältere werden vorgeschlagen (sicher =
+ * vorausgewählt, möglich = nicht vorausgewählt).
+ */
+export async function scanDuplicateGroups(): Promise<DuplicateScanResult> {
+  const db = getDatabase();
+
+  const rows = db.prepare(`
+    SELECT jo.*, js.name as source_name
+    FROM job_offers jo
+    LEFT JOIN job_sources js ON jo.source_id = js.id
+  `).all() as any[];
+
+  const jobs = rows.map(rowToJobOffer);
+  const groups: DuplicateGroup[] = [];
+
+  // 1) Sichere Gruppen nach echtem URL-Key
+  const safeMap = new Map<string, JobOffer[]>();
+  for (const job of jobs) {
+    const key = getJobUrlKey(job.url);
+    if (!key) continue; // degenerierte/leere Keys nicht als sicher gruppieren
+    const arr = safeMap.get(key);
+    if (arr) arr.push(job);
+    else safeMap.set(key, [job]);
+  }
+
+  const safeJobIds = new Set<number>();
+  for (const [key, arr] of safeMap) {
+    if (arr.length < 2) continue;
+    arr.forEach(j => safeJobIds.add(j.id));
+    groups.push(buildDuplicateGroup('safe', key, 'Identische URL', arr, true));
+  }
+
+  // 2) Mögliche Gruppen nach normalisiertem Titel + Firma
+  const possibleMap = new Map<string, JobOffer[]>();
+  for (const job of jobs) {
+    if (safeJobIds.has(job.id)) continue; // bereits sicher gruppiert
+    const nt = normalizeForMatch(job.title);
+    const nc = normalizeForMatch(job.company);
+    if (!nt || !nc) continue;
+    const key = `${nt}||${nc}`;
+    const arr = possibleMap.get(key);
+    if (arr) arr.push(job);
+    else possibleMap.set(key, [job]);
+  }
+
+  for (const [key, arr] of possibleMap) {
+    if (arr.length < 2) continue;
+    groups.push(
+      buildDuplicateGroup('possible', key, 'Gleicher Titel und gleiche Firma', arr, false)
+    );
+  }
+
+  const safeGroupCount = groups.filter(g => g.kind === 'safe').length;
+  const possibleGroupCount = groups.filter(g => g.kind === 'possible').length;
+
+  return { groups, safeGroupCount, possibleGroupCount };
+}
+
+/**
+ * Löscht mehrere Jobs in einer Transaktion. Abhängige Daten werden über die
+ * FK-Constraints entfernt bzw. genullt (matching_results: ON DELETE CASCADE,
+ * import_staging.matched_job_id / imported_job_id: ON DELETE SET NULL).
+ * Gibt die Anzahl tatsächlich gelöschter Jobs zurück.
+ */
+export async function deleteJobs(ids: number[]): Promise<{ deleted: number }> {
+  const db = getDatabase();
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { deleted: 0 };
+  }
+
+  const del = db.prepare('DELETE FROM job_offers WHERE id = ?');
+  const runDelete = db.transaction((list: number[]) => {
+    let count = 0;
+    for (const id of list) {
+      const info = del.run(id);
+      count += info.changes;
+    }
+    return count;
+  });
+
+  const deleted = runDelete(ids);
+  return { deleted };
 }
