@@ -724,6 +724,20 @@ function normalizeForMatch(value: string | null | undefined): string {
 }
 
 /**
+ * Lädt den gesamten Job-Bestand (inkl. joined source_name) als JobOffer[].
+ * Gemeinsame Basis für findJobDuplicates() und scanDuplicateGroups().
+ */
+function loadAllJobs(): JobOffer[] {
+  const db = getDatabase();
+  const rows = db.prepare(`
+    SELECT jo.*, js.name as source_name
+    FROM job_offers jo
+    LEFT JOIN job_sources js ON jo.source_id = js.id
+  `).all() as any[];
+  return rows.map(rowToJobOffer);
+}
+
+/**
  * Prüft einen Kandidaten gegen den Bestand (zwei Stufen):
  * - SICHER: identischer echter URL-Key (getJobUrlKey; degenerierte
  *   Fallback-Keys ohne Job-ID zählen NICHT).
@@ -736,8 +750,6 @@ function normalizeForMatch(value: string | null | undefined): string {
 export async function findJobDuplicates(
   candidate: JobDuplicateCandidate
 ): Promise<JobDuplicateCheckResult> {
-  const db = getDatabase();
-
   // Kandidaten-URL-Keys sammeln (Haupt-URL + zusätzliche aus Rohtext)
   const candidateKeys = new Set<string>();
   for (const u of [candidate.url, ...(candidate.urls || [])]) {
@@ -750,21 +762,16 @@ export async function findJobDuplicates(
   const normCompany = normalizeForMatch(candidate.company);
   const canMatchTitleCompany = normTitle !== '' && normCompany !== '';
 
-  const rows = db.prepare(`
-    SELECT jo.*, js.name as source_name
-    FROM job_offers jo
-    LEFT JOIN job_sources js ON jo.source_id = js.id
-  `).all() as any[];
+  const jobs = loadAllJobs();
 
   let safe: JobDuplicateMatch | null = null;
   const possible: JobDuplicateMatch[] = [];
 
-  for (const row of rows) {
-    if (excludeId != null && row.id === excludeId) continue;
-    const job = rowToJobOffer(row);
+  for (const job of jobs) {
+    if (excludeId != null && job.id === excludeId) continue;
 
     // SICHER: identischer echter URL-Key
-    const rowKey = getJobUrlKey(row.url);
+    const rowKey = getJobUrlKey(job.url);
     if (rowKey && candidateKeys.has(rowKey)) {
       // Bei mehreren sicheren Treffern den neuesten behalten
       if (!safe || job.createdAt > safe.job.createdAt) {
@@ -775,8 +782,8 @@ export async function findJobDuplicates(
 
     // MÖGLICH: Titel + Firma gleich, URL-Key abweichend
     if (canMatchTitleCompany &&
-        normalizeForMatch(row.title) === normTitle &&
-        normalizeForMatch(row.company) === normCompany) {
+        normalizeForMatch(job.title) === normTitle &&
+        normalizeForMatch(job.company) === normCompany) {
       possible.push({ job, reason: 'Gleicher Titel und gleiche Firma' });
     }
   }
@@ -827,15 +834,7 @@ function buildDuplicateGroup(
  * vorausgewählt, möglich = nicht vorausgewählt).
  */
 export async function scanDuplicateGroups(): Promise<DuplicateScanResult> {
-  const db = getDatabase();
-
-  const rows = db.prepare(`
-    SELECT jo.*, js.name as source_name
-    FROM job_offers jo
-    LEFT JOIN job_sources js ON jo.source_id = js.id
-  `).all() as any[];
-
-  const jobs = rows.map(rowToJobOffer);
+  const jobs = loadAllJobs();
   const groups: DuplicateGroup[] = [];
 
   // 1) Sichere Gruppen nach echtem URL-Key

@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { Warning as WarningIcon } from '@mui/icons-material';
 import type { JobDuplicateMatch } from '../../shared/types';
+import { formatGermanDate, formatScore } from '../../shared/formatUtils';
 
 interface DuplicateWarningDialogProps {
   open: boolean;
@@ -21,19 +22,10 @@ interface DuplicateWarningDialogProps {
   possibleMatches?: JobDuplicateMatch[];
   /** Beschriftung des Bestätigen-Buttons (kontextabhängig). */
   proceedLabel?: string;
+  /** Kontextabhängige Rückfrage im Body (add/save vs. extract). */
+  question?: string;
   onCancel: () => void;
   onProceed: () => void;
-}
-
-function formatDate(value: Date | string | null | undefined): string {
-  if (!value) return 'unbekannt';
-  const d = value instanceof Date ? value : new Date(value);
-  if (isNaN(d.getTime())) return 'unbekannt';
-  return d.toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' });
-}
-
-function formatScore(score: number | null | undefined): string {
-  return score === null || score === undefined ? '—' : `${score}`;
 }
 
 /**
@@ -45,6 +37,7 @@ export default function DuplicateWarningDialog({
   safeMatch,
   possibleMatches = [],
   proceedLabel = 'Trotzdem hinzufügen',
+  question = 'Dieser Job scheint bereits im Bestand zu sein (identische URL). Möchtest du ihn trotzdem hinzufügen?',
   onCancel,
   onProceed
 }: DuplicateWarningDialogProps) {
@@ -63,7 +56,7 @@ export default function DuplicateWarningDialog({
               {job.title} – {job.company}
             </Typography>
             <Typography variant="body2">
-              hinzugefügt am {formatDate(job.createdAt)}, Score {formatScore(job.matchScore)}
+              hinzugefügt am {formatGermanDate(job.createdAt)}, Score {formatScore(job.matchScore)}
             </Typography>
             {job.url && (
               <Typography variant="caption" component="div" sx={{ mt: 0.5, wordBreak: 'break-all' }}>
@@ -75,10 +68,7 @@ export default function DuplicateWarningDialog({
           </Alert>
         )}
 
-        <DialogContentText>
-          Dieser Job scheint bereits im Bestand zu sein (identische URL). Möchtest du ihn
-          trotzdem hinzufügen?
-        </DialogContentText>
+        <DialogContentText>{question}</DialogContentText>
 
         {possibleMatches.length > 0 && (
           <Box sx={{ mt: 2 }}>
@@ -89,7 +79,7 @@ export default function DuplicateWarningDialog({
               {possibleMatches.map(m => (
                 <li key={m.job.id}>
                   <Typography variant="body2">
-                    {m.job.title} – {m.job.company} (hinzugefügt am {formatDate(m.job.createdAt)})
+                    {m.job.title} – {m.job.company} (hinzugefügt am {formatGermanDate(m.job.createdAt)})
                   </Typography>
                 </li>
               ))}

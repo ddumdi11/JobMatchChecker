@@ -21,20 +21,13 @@ import {
   DeleteSweep as DeleteSweepIcon
 } from '@mui/icons-material';
 import type { DuplicateScanResult, DuplicateGroup } from '../../shared/types';
+import { formatGermanDate } from '../../shared/formatUtils';
 
 interface DuplicateCleanupDialogProps {
   open: boolean;
   onClose: () => void;
   /** Wird nach erfolgreicher Löschung aufgerufen (Anzahl gelöschter Jobs). */
   onDeleted: (deleted: number) => void;
-}
-
-function formatDate(value: Date | string | null | undefined): string {
-  if (!value) return 'unbekannt';
-  const d = value instanceof Date ? value : new Date(value);
-  return isNaN(d.getTime())
-    ? 'unbekannt'
-    : d.toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
 
 /**
@@ -168,7 +161,7 @@ export default function DuplicateCleanupDialog({ open, onClose, onDeleted }: Dup
                       )}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      hinzugefügt am {formatDate(job.createdAt)}
+                      hinzugefügt am {formatGermanDate(job.createdAt)}
                       {job.matchScore !== null && job.matchScore !== undefined
                         ? ` · Score ${job.matchScore}`
                         : ''}

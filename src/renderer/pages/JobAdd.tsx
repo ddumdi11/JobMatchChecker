@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Container,
   Typography,
@@ -24,20 +24,8 @@ import { useUnsavedChangesContext } from '../components/Layout';
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
 import DuplicateWarningDialog from '../components/DuplicateWarningDialog';
 import { extractUrls } from '../../shared/urlUtils';
+import { formatGermanDate, formatScore } from '../../shared/formatUtils';
 import type { JobDuplicateMatch, JobDuplicateCheckResult } from '../../shared/types';
-
-// Helfer für Dubletten-Hinweise
-function formatDupDate(value: Date | string | null | undefined): string {
-  if (!value) return 'unbekannt';
-  const d = value instanceof Date ? value : new Date(value);
-  return isNaN(d.getTime())
-    ? 'unbekannt'
-    : d.toLocaleDateString('de-DE', { year: 'numeric', month: '2-digit', day: '2-digit' });
-}
-
-function formatDupScore(score: number | null | undefined): string {
-  return score === null || score === undefined ? '—' : `${score}`;
-}
 
 /**
  * JobAdd Page - Add new job offers with AI extraction
@@ -83,9 +71,14 @@ export default function JobAdd() {
   // Dubletten-Erkennung (feat/job-duplicate-handling)
   const [dupDialogOpen, setDupDialogOpen] = useState(false);
   const [dupSafe, setDupSafe] = useState<JobDuplicateMatch | null>(null);
+  // Mögliche Treffer aus derselben Prüfung wie dupSafe (für den save-Kontext)
+  const [dupPossible, setDupPossible] = useState<JobDuplicateMatch[]>([]);
   const [dupContext, setDupContext] = useState<'extract' | 'save'>('save');
   // Live-Hinweise im Formular (sicher + möglich), nicht blockierend
   const [formDuplicates, setFormDuplicates] = useState<JobDuplicateCheckResult | null>(null);
+  // Verhindert parallele Dubletten-Checks/AI-Calls (Doppelklick, Ctrl+S/Enter)
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
+  const dupCheckInFlightRef = useRef(false);
 
   // Form state (initialized from extraction or empty)
   const [formData, setFormData] = useState({
@@ -279,28 +272,42 @@ export default function JobAdd() {
   // Handle AI extraction – prüft VOR dem API-Call auf sichere Dubletten
   // (spart Tokens): alle http(s)-URLs aus dem Rohtext extrahieren, bereinigen
   // und gegen den Bestand prüfen. Treffer bei irgendeiner URL = sicherer Verdacht.
+  //
+  // Ein In-flight-Guard umschließt den gesamten Check-und-Extract-Flow, damit
+  // ein zweiter Klick keinen parallelen (kostenpflichtigen) AI-Call auslöst.
   const handleExtract = async () => {
     if (!jobText.trim()) {
       return;
     }
-
-    try {
-      const urls = extractUrls(jobText);
-      if (urls.length > 0) {
-        const res = await window.api.checkJobDuplicate({ urls });
-        if (res.safe) {
-          setDupSafe(res.safe);
-          setDupContext('extract');
-          setDupDialogOpen(true);
-          return; // auf Nutzerentscheidung warten, kein API-Call
-        }
-      }
-    } catch (err) {
-      // Prüfung ist "best effort" – bei Fehler normal weiter analysieren
-      console.error('Pre-AI duplicate check failed:', err);
+    if (dupCheckInFlightRef.current) {
+      return; // bereits ein Check/Extract in Arbeit
     }
 
-    await runExtraction();
+    dupCheckInFlightRef.current = true;
+    setIsCheckingDuplicate(true);
+    try {
+      try {
+        const urls = extractUrls(jobText);
+        if (urls.length > 0) {
+          const res = await window.api.checkJobDuplicate({ urls });
+          if (res.safe) {
+            setDupSafe(res.safe);
+            setDupPossible([]);
+            setDupContext('extract');
+            setDupDialogOpen(true);
+            return; // auf Nutzerentscheidung warten, kein API-Call
+          }
+        }
+      } catch (err) {
+        // Prüfung ist "best effort" – bei Fehler normal weiter analysieren
+        console.error('Pre-AI duplicate check failed:', err);
+      }
+
+      await runExtraction();
+    } finally {
+      dupCheckInFlightRef.current = false;
+      setIsCheckingDuplicate(false);
+    }
   };
 
   // Sync extraction result to form
@@ -461,13 +468,20 @@ export default function JobAdd() {
 
   // Handle save – prüft beim Neuanlegen VOR dem Speichern auf sichere Dubletten
   // (blockierend). Mögliche Dubletten sind nicht blockierend (Hinweis im Formular).
+  //
+  // Der In-flight-Guard wird VOR dem await gesetzt, damit ein zweiter Klick /
+  // Ctrl+S während der laufenden Prüfung sofort abbricht. Er wird auf jedem
+  // Pfad, der NICHT direkt in doSave() übergeht, zuverlässig zurückgesetzt.
   const handleSave = useCallback(async () => {
-    // Prevent double-save
-    if (isSaving || !formData.title || !formData.company) {
+    // Prevent double-save / parallele Prüfung
+    if (isSaving || dupCheckInFlightRef.current || !formData.title || !formData.company) {
       return;
     }
 
     if (!isEditMode) {
+      dupCheckInFlightRef.current = true;
+      setIsCheckingDuplicate(true);
+      let blocked = false;
       try {
         const res = await window.api.checkJobDuplicate({
           title: formData.title,
@@ -476,12 +490,20 @@ export default function JobAdd() {
         });
         if (res.safe) {
           setDupSafe(res.safe);
+          setDupPossible(res.possible);
           setDupContext('save');
           setDupDialogOpen(true);
-          return; // auf Bestätigung warten
+          blocked = true; // auf Bestätigung warten
         }
       } catch (err) {
         console.error('Pre-save duplicate check failed:', err);
+      } finally {
+        dupCheckInFlightRef.current = false;
+        setIsCheckingDuplicate(false);
+      }
+
+      if (blocked) {
+        return;
       }
     }
 
@@ -620,11 +642,15 @@ export default function JobAdd() {
 
             <Button
               variant="contained"
-              startIcon={isExtracting ? <CircularProgress size={20} /> : <AIIcon />}
+              startIcon={(isExtracting || isCheckingDuplicate) ? <CircularProgress size={20} /> : <AIIcon />}
               onClick={handleExtract}
-              disabled={!jobText.trim() || isExtracting}
+              disabled={!jobText.trim() || isExtracting || isCheckingDuplicate}
             >
-              {isExtracting ? 'Analysiere mit AI...' : 'Mit AI analysieren'}
+              {isExtracting
+                ? 'Analysiere mit AI...'
+                : isCheckingDuplicate
+                  ? 'Prüfe auf Dubletten...'
+                  : 'Mit AI analysieren'}
             </Button>
           </Box>
 
@@ -718,8 +744,8 @@ export default function JobAdd() {
               </Typography>
               <Typography variant="body2">
                 {formDuplicates.safe.job.title} – {formDuplicates.safe.job.company} (hinzugefügt am{' '}
-                {formatDupDate(formDuplicates.safe.job.createdAt)}, Score{' '}
-                {formatDupScore(formDuplicates.safe.job.matchScore)})
+                {formatGermanDate(formDuplicates.safe.job.createdAt)}, Score{' '}
+                {formatScore(formDuplicates.safe.job.matchScore)})
               </Typography>
             </Alert>
           )}
@@ -732,7 +758,7 @@ export default function JobAdd() {
                 {formDuplicates.possible.map(m => (
                   <li key={m.job.id}>
                     <Typography variant="body2">
-                      {m.job.title} – {m.job.company} (hinzugefügt am {formatDupDate(m.job.createdAt)})
+                      {m.job.title} – {m.job.company} (hinzugefügt am {formatGermanDate(m.job.createdAt)})
                     </Typography>
                   </li>
                 ))}
@@ -879,8 +905,13 @@ export default function JobAdd() {
       <DuplicateWarningDialog
         open={dupDialogOpen}
         safeMatch={dupSafe}
-        possibleMatches={dupContext === 'save' ? (formDuplicates?.possible ?? []) : []}
+        possibleMatches={dupContext === 'save' ? dupPossible : []}
         proceedLabel={dupContext === 'extract' ? 'Trotzdem analysieren' : 'Trotzdem hinzufügen'}
+        question={
+          dupContext === 'extract'
+            ? 'Dieser Job scheint bereits im Bestand zu sein (identische URL). Möchtest du ihn trotzdem mit AI analysieren?'
+            : 'Dieser Job scheint bereits im Bestand zu sein (identische URL). Möchtest du ihn trotzdem hinzufügen?'
+        }
         onCancel={handleDupCancel}
         onProceed={handleDupProceed}
       />
