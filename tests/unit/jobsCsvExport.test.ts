@@ -9,7 +9,24 @@
  */
 process.env.TZ = 'Europe/Berlin';
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// exportService importiert `electron` (dialog/shell) und `electron-log` auf
+// Modulebene. Unter Node (vitest/CI ohne Electron-Runtime) wirft
+// `require('electron')` "Electron failed to install correctly". Deshalb VOR dem
+// Service-Import mocken – die echte SQLite-DB (getDatabase) bleibt unangetastet.
+vi.mock('electron', () => ({
+  dialog: { showSaveDialog: vi.fn() },
+  shell: { showItemInFolder: vi.fn() },
+  app: { getPath: vi.fn(() => '') }
+}));
+vi.mock('electron-log', () => ({
+  default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn()
+}));
+
 import * as exportService from '../../src/main/services/exportService';
 import { getDatabase } from '../../src/main/database/db';
 
@@ -156,5 +173,32 @@ describe('generateJobsCsv – lokale Zeitzone (Tag-Wechsel um Mitternacht UTC)',
     // Unter dem UTC-Tag darf er NICHT erscheinen
     const utc = exportService.generateJobsCsv({ dateFrom: '2026-07-19', dateTo: '2026-07-19' });
     expect(utc.count).toBe(0);
+  });
+});
+
+describe('generateJobsCsv – CSV-Formel-Injection-Schutz', () => {
+  it('neutralisiert Felder, die mit = + - @ beginnen, mit führendem Apostroph', () => {
+    insertJob({ title: '=SUMME(A1)', company: '@firma', createdAt: '2026-07-03T12:00:00.000Z' });
+
+    const { csv } = exportService.generateJobsCsv({ dateFrom: '2026-07-03', dateTo: '2026-07-03' });
+    const row = dataLines(csv)[1];
+    const cells = row.split(',');
+
+    // Titel: neutralisiert (führendes '), unquoted da kein , " CR LF enthalten.
+    expect(cells[0]).toBe("'=SUMME(A1)");
+    expect(cells[1]).toBe("'@firma");
+    // Keine aktive Formel mehr am Zellenanfang.
+    expect(csv).not.toContain(',=SUMME');
+    expect(csv).not.toContain(',@firma');
+  });
+
+  it('lässt normale Werte (Zahlen, ISO-Daten) unangetastet', () => {
+    insertJob({ title: 'Normaler Titel', company: 'ACME', createdAt: '2026-07-03T12:00:00.000Z', matchScore: 55 });
+
+    const { csv } = exportService.generateJobsCsv({ dateFrom: '2026-07-03', dateTo: '2026-07-03' });
+    const cells = dataLines(csv)[1].split(',');
+    expect(cells[0]).toBe('Normaler Titel'); // kein Apostroph
+    expect(cells[2]).toBe('55');             // Score unverändert
+    expect(cells[7]).toBe('2026-07-03');     // Datum unverändert
   });
 });

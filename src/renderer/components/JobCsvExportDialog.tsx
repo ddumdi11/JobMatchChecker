@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -46,6 +46,17 @@ export default function JobCsvExportDialog({ open, onClose, onExported }: JobCsv
   const [dateTo, setDateTo] = useState(initial.to);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Bei jedem Öffnen frischen Standard-Zeitraum setzen und alten Zustand
+  // (Fehlermeldung, laufender Export) verwerfen – sonst „klebt" der letzte Stand.
+  useEffect(() => {
+    if (!open) return;
+    const range = defaultRange();
+    setDateFrom(range.from);
+    setDateTo(range.to);
+    setError(null);
+    setExporting(false);
+  }, [open]);
 
   const rangeInvalid = !!dateFrom && !!dateTo && dateFrom > dateTo;
 

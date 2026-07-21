@@ -10,6 +10,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { dialog, shell } from 'electron';
 import JSZip from 'jszip';
+import type { CsvColumnProfile } from '../../shared/types';
 
 /**
  * Job data for export (includes matching result)
@@ -971,8 +972,8 @@ export async function exportBulkToZip(jobIds: number[]): Promise<{ success: bool
  * Spaltenprofil: bestimmt Auswahl UND Serialisierung der Zellen. Neue Profile
  * (z. B. später "nanobot" für jobs_processed.csv mit Rohwerten) sind ein reiner
  * Konfigurationseintrag in CSV_PROFILES – der übrige Service bleibt unverändert.
+ * Der Typ `CsvColumnProfile` lebt in `src/shared/types.ts` (Single Source of Truth).
  */
-export type CsvColumnProfile = 'standard' | 'nanobot';
 
 interface JobCsvRow {
   title: string;
@@ -1029,9 +1030,25 @@ const CSV_PROFILES: Record<CsvColumnProfile, CsvColumn[]> = {
   nanobot: []
 };
 
-/** RFC4180-konformes Quoting: nur bei , " CR LF, innere " verdoppelt. */
+/**
+ * CSV-Formel-Injection-Schutz: Werte, deren erstes Zeichen von Excel/Calc als
+ * Formel-Auslöser interpretiert wird (= + - @), mit führendem Apostroph
+ * neutralisieren. Greift nur bei externen Textfeldern (Titel, Firma, URL);
+ * Score-Zahlen (0–100) und ISO-Daten (YYYY-…) beginnen nie mit diesen Zeichen
+ * und bleiben unangetastet.
+ */
+function neutralizeFormula(value: string): string {
+  return /^[=+\-@]/.test(value) ? `'${value}` : value;
+}
+
+/**
+ * RFC4180-konformes Quoting: nur bei , " CR LF, innere " verdoppelt.
+ * Die Formel-Neutralisierung läuft VOR dem Quoting, damit ein evtl.
+ * vorangestellter Apostroph mit in die (ggf. gequotete) Zelle wandert.
+ */
 function csvCell(value: string): string {
-  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  const safe = neutralizeFormula(value);
+  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 
 export interface ExportJobsCsvOptions {
