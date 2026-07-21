@@ -5,10 +5,11 @@
  * Jobs ohne Score (leere Zelle, nicht "null"), BOM, Match-Kategorie-Label und
  * lokale Datums-/Zeitzonen-Behandlung (Tag-Wechsel um Mitternacht UTC).
  *
- * Feste Zeitzone für deterministische lokale Datumsberechnung.
+ * Feste Zeitzone (Europe/Berlin) für den Tag-Wechsel-Test: gesetzt über
+ * vitest.config.ts (env.TZ) und in CI zusätzlich als echte OS-Env
+ * (.github/workflows/test.yml). Ein `process.env.TZ` HIER im Testfile käme zu
+ * spät – glibc cached die Zone beim ersten Date-Aufruf (in setup.ts).
  */
-process.env.TZ = 'Europe/Berlin';
-
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // exportService importiert `electron` (dialog/shell) und `electron-log` auf

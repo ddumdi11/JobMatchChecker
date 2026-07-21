@@ -22,6 +22,14 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    // Deterministic timezone for date-sensitive tests (e.g. the "hinzugefügt am"
+    // UTC-midnight day-flip in jobsCsvExport). globalSetup runs in the main
+    // process before the workers fork, so its process.env.TZ is inherited as the
+    // workers' real OS env — glibc then reads the right zone on first Date use.
+    // (Setting process.env.TZ inside a test file is too late: setup.ts already
+    // uses Date and glibc caches the zone.) CI additionally pins TZ as an OS env
+    // var (see .github/workflows/test.yml).
+    globalSetup: ['./tests/globalSetup.ts'],
     include: ['tests/**/*.test.ts', 'tests/**/*.spec.ts'],
     exclude: ['**/node_modules/**', '**/dist/**', ...ciExcludes],
     setupFiles: ['./tests/setup.ts'],
