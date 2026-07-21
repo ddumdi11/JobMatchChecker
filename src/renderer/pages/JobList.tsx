@@ -54,11 +54,13 @@ import {
   Refresh as RefreshIcon,
   PictureAsPdf as PdfIcon,
   FolderZip as FolderZipIcon,
-  DeleteSweep as DeleteSweepIcon
+  DeleteSweep as DeleteSweepIcon,
+  FileDownload as FileDownloadIcon
 } from '@mui/icons-material';
 import { CircularProgress, LinearProgress } from '@mui/material';
 import { useJobStore } from '../store/jobStore';
 import DuplicateCleanupDialog from '../components/DuplicateCleanupDialog';
+import JobCsvExportDialog from '../components/JobCsvExportDialog';
 
 /**
  * JobList Page - Display all job offers with filtering, sorting, and pagination
@@ -117,6 +119,9 @@ export default function JobList() {
 
   // Duplicate cleanup dialog state (feat/job-duplicate-handling)
   const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
+
+  // CSV-Export dialog state (feat/jobs-csv-export)
+  const [csvExportDialogOpen, setCsvExportDialogOpen] = useState(false);
 
   // Bulk export state
   const [isBulkExporting, setIsBulkExporting] = useState(false);
@@ -812,6 +817,18 @@ export default function JobList() {
               </Button>
             </span>
           </Tooltip>
+          <Tooltip title="Jobs eines Zeitraums als CSV exportieren">
+            <span>
+              <Button
+                variant="outlined"
+                startIcon={<FileDownloadIcon />}
+                onClick={() => setCsvExportDialogOpen(true)}
+                disabled={jobs.length === 0}
+              >
+                CSV-Export
+              </Button>
+            </span>
+          </Tooltip>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -1319,6 +1336,16 @@ export default function JobList() {
       </Snackbar>
 
       {/* Dubletten-Bereinigung */}
+      <JobCsvExportDialog
+        open={csvExportDialogOpen}
+        onClose={() => setCsvExportDialogOpen(false)}
+        onExported={(message, severity) => {
+          setExportSnackbarSeverity(severity);
+          setExportSnackbarMessage(message);
+          setExportSnackbarOpen(true);
+        }}
+      />
+
       <DuplicateCleanupDialog
         open={cleanupDialogOpen}
         onClose={() => setCleanupDialogOpen(false)}

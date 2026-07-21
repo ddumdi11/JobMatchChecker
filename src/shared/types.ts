@@ -300,6 +300,14 @@ export interface DuplicateScanResult {
   possibleGroupCount: number;
 }
 
+// CSV-Export types (feat/jobs-csv-export)
+/**
+ * Spaltenprofil für den Job-CSV-Export: bestimmt Spaltenauswahl UND
+ * Serialisierung. "standard" = deutsche Labels für den Nutzer, "nanobot"
+ * (später) = Rohwerte für jobs_processed.csv (Rückkanal zur Pipeline).
+ */
+export type CsvColumnProfile = 'standard' | 'nanobot';
+
 // Skills Import types
 export interface SkillImportResult {
   success: boolean;

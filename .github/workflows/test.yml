@@ -34,4 +34,11 @@ jobs:
       # exclude the Electron-renderer contract tests. Live-API tests skip
       # themselves when ANTHROPIC_API_KEY is absent.
       - name: Run tests
+        # TZ is fixed here (real OS env, before Node starts) so timezone-sensitive
+        # tests are deterministic. Setting process.env.TZ inside a test file is too
+        # late — glibc caches the zone on the first Date use (in setup.ts), so the
+        # runner's default (UTC) would otherwise win. See vitest.config.ts (env.TZ)
+        # for the matching local fallback.
+        env:
+          TZ: Europe/Berlin
         run: npx vitest run

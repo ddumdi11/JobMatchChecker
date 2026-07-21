@@ -1084,5 +1084,15 @@ export function registerIpcHandlers() {
     }
   });
 
+  // Export jobs to CSV (date range + column profile)
+  ipcMain.handle('export:jobsCsv', async (_, options) => {
+    try {
+      return await exportService.exportJobsCsv(options);
+    } catch (error: any) {
+      log.error('Error in jobs CSV export:', error);
+      throw error;
+    }
+  });
+
   log.info('IPC handlers registered successfully');
 }

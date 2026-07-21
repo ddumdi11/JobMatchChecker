@@ -89,5 +89,6 @@ interface Window {
     exportToPdf: (jobId: number) => Promise<{ success: boolean; filePath?: string; error?: string }>;
     exportBulkToPdf: (jobIds: number[]) => Promise<{ success: boolean; filePath?: string; error?: string; exportedCount?: number }>;
     exportBulkToZip: (jobIds: number[]) => Promise<{ success: boolean; filePath?: string; error?: string; exportedCount?: number; skippedCount?: number }>;
+    exportJobsCsv: (options: { dateFrom?: string | null; dateTo?: string | null; profile?: import('../shared/types').CsvColumnProfile }) => Promise<{ success: boolean; filePath?: string; error?: string; count?: number }>;
   };
 }
