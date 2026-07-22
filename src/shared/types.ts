@@ -168,6 +168,12 @@ export interface AIExtractionResult {
 }
 
 // Filter types
+/**
+ * Dreifach-Auswahl für den Match-Score-Filter (client-seitig in JobList
+ * angewandt): alle Jobs, nur mit Score, oder nur ohne Score.
+ */
+export type ScoreFilter = 'all' | 'with' | 'without';
+
 export interface JobFilters {
   status?: JobStatus | null;
   sourceId?: number | null;
@@ -175,6 +181,7 @@ export interface JobFilters {
   postedDateTo?: Date | null;
   matchScoreMin?: number | null;
   matchScoreMax?: number | null;
+  scoreFilter?: ScoreFilter;
 }
 
 // Sort types
