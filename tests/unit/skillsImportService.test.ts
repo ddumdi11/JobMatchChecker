@@ -172,4 +172,36 @@ describe('Unit: skillsImportService — stable-id re-import', () => {
     expect(countSkills()).toBe(1);
     expect(getSkillByName('TypeScript').notes).toBe('original');
   });
+
+  // Regression: id-Spalte im CSV vorhanden, Zelle aber LEER. parseSkillId('')
+  // liefert null → resolveExistingSkill faellt auf Name+Kategorie zurueck bzw.
+  // legt neu an. Sichert die zwei Schutzschichten (leere/ungueltige id → kein
+  // fehlerhaftes id-Match) ueber den echten Parse-Pfad ab.
+  it('empty id cell falls back to name+category match (update, no duplicate)', () => {
+    importSkills([{ name: 'Kotlin', category: 'Programmiersprachen', level: 3 }]);
+
+    // Header hat id-Spalte, Wert der id-Zelle ist leer (fuehrendes Komma).
+    const csv = 'id,name,category,level\n,Kotlin,Programmiersprachen,7';
+    const rows = parseSkillsCsv(csv);
+    expect(rows[0].id).toBeUndefined(); // leere id-Zelle → kein id-Feld gesetzt
+
+    const r = importSkillsFromCsv(csv);
+    expect(r.imported).toBe(0);
+    expect(r.updated).toBe(1);
+
+    expect(countSkills()).toBe(1); // kein Duplikat
+    expect(getSkillByName('Kotlin').level).toBe(7);
+  });
+
+  it('empty id cell with no name+category match inserts a new skill', () => {
+    const csv = 'id,name,category,level\n,Scala,Programmiersprachen,4';
+    expect(parseSkillsCsv(csv)[0].id).toBeUndefined();
+
+    const r = importSkillsFromCsv(csv);
+    expect(r.imported).toBe(1);
+    expect(r.updated).toBe(0);
+
+    expect(countSkills()).toBe(1);
+    expect(getSkillByName('Scala').level).toBe(4);
+  });
 });

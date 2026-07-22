@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
+import type { ScoreFilter } from '../../shared/types';
+import { filterJobsByScore } from '../utils/jobScoreFilter';
 import {
   Container,
   Typography,
@@ -33,7 +35,6 @@ import {
   Tooltip,
   Collapse,
   Slider,
-  FormControlLabel,
   Checkbox,
   Divider,
   Snackbar
@@ -91,7 +92,7 @@ export default function JobList() {
   // Extended filter state
   const [showExtendedFilters, setShowExtendedFilters] = useState(false);
   const [matchScoreRange, setMatchScoreRange] = useState<number[]>([0, 100]);
-  const [onlyWithMatchScore, setOnlyWithMatchScore] = useState(false);
+  const [scoreFilter, setScoreFilter] = useState<ScoreFilter>('all');
   const [remoteFilter, setRemoteFilter] = useState<string>('all'); // 'all', 'remote', 'hybrid', 'onsite'
 
   // Local pagination state (for client-side filtered results)
@@ -150,7 +151,7 @@ export default function JobList() {
   const hasActiveExtendedFilters =
     matchScoreRange[0] > 0 ||
     matchScoreRange[1] < 100 ||
-    onlyWithMatchScore ||
+    scoreFilter !== 'all' ||
     remoteFilter !== 'all';
 
   // Helper function to normalize and match remote option
@@ -403,7 +404,7 @@ export default function JobList() {
   // Reset page when filters change
   useEffect(() => {
     setPage(0);
-  }, [searchTerm, statusFilter, matchScoreRange, onlyWithMatchScore, remoteFilter]);
+  }, [searchTerm, statusFilter, matchScoreRange, scoreFilter, remoteFilter]);
 
   // Handle filter application
   const handleApplyFilters = () => {
@@ -430,22 +431,8 @@ export default function JobList() {
       );
     }
 
-    // Match score filter
-    if (onlyWithMatchScore) {
-      result = result.filter(job =>
-        job.matchScore !== null && job.matchScore !== undefined
-      );
-    }
-
-    // Match score range filter
-    if (matchScoreRange[0] > 0 || matchScoreRange[1] < 100) {
-      result = result.filter(job => {
-        if (job.matchScore === null || job.matchScore === undefined) {
-          return !onlyWithMatchScore; // Keep unmatched jobs unless checkbox is checked
-        }
-        return job.matchScore >= matchScoreRange[0] && job.matchScore <= matchScoreRange[1];
-      });
-    }
+    // Match-Score-Filter (Vorhandensein + Range) inkl. Leak-Fix – siehe jobScoreFilter.ts
+    result = filterJobsByScore(result, scoreFilter, matchScoreRange);
 
     // Remote filter (using normalized matching)
     if (remoteFilter !== 'all') {
@@ -453,7 +440,7 @@ export default function JobList() {
     }
 
     return result;
-  }, [jobs, searchTerm, matchScoreRange, onlyWithMatchScore, remoteFilter]);
+  }, [jobs, searchTerm, matchScoreRange, scoreFilter, remoteFilter]);
 
   // Paginated jobs for display (client-side pagination)
   const paginatedJobs = React.useMemo(() => {
@@ -684,7 +671,7 @@ export default function JobList() {
     setSearchTerm('');
     setStatusFilter('all');
     setMatchScoreRange([0, 100]);
-    setOnlyWithMatchScore(false);
+    setScoreFilter('all');
     setRemoteFilter('all');
     setPage(0);
     fetchJobs();
@@ -693,7 +680,7 @@ export default function JobList() {
   // Reset extended filters only
   const handleResetExtendedFilters = () => {
     setMatchScoreRange([0, 100]);
-    setOnlyWithMatchScore(false);
+    setScoreFilter('all');
     setRemoteFilter('all');
     setPage(0);
   };
@@ -943,20 +930,19 @@ export default function JobList() {
                   ]}
                   sx={{ mt: 1 }}
                 />
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={onlyWithMatchScore}
-                      onChange={(e) => setOnlyWithMatchScore(e.target.checked)}
-                      size="small"
-                    />
-                  }
-                  label={
-                    <Typography variant="body2">
-                      Nur Jobs mit Match-Score
-                    </Typography>
-                  }
-                />
+                <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+                  <InputLabel id="score-filter-label">Match-Score</InputLabel>
+                  <Select
+                    labelId="score-filter-label"
+                    value={scoreFilter}
+                    label="Match-Score"
+                    onChange={(e) => setScoreFilter(e.target.value as ScoreFilter)}
+                  >
+                    <MenuItem value="all">Alle</MenuItem>
+                    <MenuItem value="with">Mit Score</MenuItem>
+                    <MenuItem value="without">Ohne Score</MenuItem>
+                  </Select>
+                </FormControl>
               </Box>
 
               {/* Remote Filter */}

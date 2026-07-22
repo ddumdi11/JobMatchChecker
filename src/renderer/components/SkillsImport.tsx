@@ -27,14 +27,8 @@ import {
   MergeType as MergeIcon,
   SkipNext as SkipIcon
 } from '@mui/icons-material';
-import type { SkillImportResult } from '../../shared/types';
+import type { SkillImportResult, ConflictDetectionResult } from '../../shared/types';
 import SkillConflictDialog from './SkillConflictDialog';
-
-interface ConflictDetectionResult {
-  newSkills: any[];
-  conflicts: any[];
-  identical: number;
-}
 
 export function SkillsImport() {
   const [importing, setImporting] = useState(false);
@@ -239,6 +233,7 @@ export function SkillsImport() {
             <AlertTitle>Analyse abgeschlossen</AlertTitle>
             <Typography variant="body2">
               <strong>{detectionResult.newSkills.length}</strong> neue Fähigkeiten |{' '}
+              <strong>{detectionResult.autoUpdates.length}</strong> automatisch verarbeitet |{' '}
               <strong>{detectionResult.conflicts.length}</strong> Konflikte |{' '}
               <strong>{detectionResult.identical}</strong> identisch
             </Typography>
@@ -281,7 +276,9 @@ export function SkillsImport() {
               onClick={handleImportNewOnly}
               fullWidth
             >
-              {detectionResult.newSkills.length} neue Fähigkeiten importieren
+              {detectionResult.autoUpdates.length > 0
+                ? `${detectionResult.newSkills.length} neue importieren, ${detectionResult.autoUpdates.length} automatisch verarbeiten`
+                : `${detectionResult.newSkills.length} neue Fähigkeiten importieren`}
             </Button>
           )}
         </Box>

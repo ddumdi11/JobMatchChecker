@@ -168,6 +168,12 @@ export interface AIExtractionResult {
 }
 
 // Filter types
+/**
+ * Dreifach-Auswahl für den Match-Score-Filter (client-seitig in JobList
+ * angewandt): alle Jobs, nur mit Score, oder nur ohne Score.
+ */
+export type ScoreFilter = 'all' | 'with' | 'without';
+
 export interface JobFilters {
   status?: JobStatus | null;
   sourceId?: number | null;
@@ -175,6 +181,7 @@ export interface JobFilters {
   postedDateTo?: Date | null;
   matchScoreMin?: number | null;
   matchScoreMax?: number | null;
+  scoreFilter?: ScoreFilter;
 }
 
 // Sort types
@@ -315,6 +322,38 @@ export interface SkillImportResult {
   updated: number;
   skipped: number;
   errors: Array<{ row: number; skill: string; error: string }>;
+}
+
+// A single parsed skill row from a CSV/JSON import.
+export interface SkillImportRow {
+  id?: number | string; // Stable skill id (from export). Used for duplicate-free re-import.
+  name: string;
+  category: string;
+  level?: number | string; // Numeric or string like "5" or "Beginner/Intermediate/Advanced/Expert"
+  yearsOfExperience?: number | string;
+  skillType?: SkillType;
+  futureSkillCategory?: FutureSkillCategory;
+  assessmentMethod?: AssessmentMethod;
+  certifications?: string | string[]; // Comma-separated string or array
+  notes?: string;
+  // Skills Hub Multi-LLM analysis fields
+  confidence?: SkillConfidence;
+  marketRelevance?: MarketRelevance;
+}
+
+// Conflict information for a skill that already exists (name+category match with differences).
+export interface SkillConflict {
+  existingSkill: HardSkill;
+  newSkill: SkillImportRow;
+  categoryId: number;
+}
+
+// Result of conflict detection before importing.
+export interface ConflictDetectionResult {
+  newSkills: SkillImportRow[];   // Skills that don't exist yet
+  conflicts: SkillConflict[];    // Existing skills with different data (name+category matches)
+  identical: number;             // Count of skills identical to existing ones
+  autoUpdates: SkillImportRow[]; // Skills matched by stable id → applied automatically (update-or-skip)
 }
 
 // AI Provider types (OpenRouter Integration)
