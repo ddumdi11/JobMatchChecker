@@ -1,171 +1,49 @@
-# JobMatchChecker - Wiederaufnahme-Datei
+# RESUME — JobMatchChecker
 
-> **Letzte Aktualisierung:** 2026-02-13
-> **Status:** MVP funktionsfähig, aktive Weiterentwicklung
+**Stand:** 2026-07-22
+**Rollen:** Claude (Architekt) → Thorsten (Supervisor/Relay) → Kurt (Claude Code, Implementierung)
 
-## Session 12.02.2026 - Zusammenfassung
+## Repo-Zustand
 
-### OpenRouter Integration (PR #53) ✅
+- `main` sauber, nur main (alle Feature-/Alt-Branches gelöscht), CI grün, Required Checks aktiv (Ruleset: PR + `coderabbitai` + `test`, Owner-Bypass; klassische Protection noch parallel — siehe Thorsten-Zettel).
+- Zuletzt gemerged: **#63** CSV-Export mit Datumsbereich (Profil-Architektur, TZ-korrekt, Formula-Injection-Schutz) · **#64** Kleinigkeiten (Score-Dreifach-Filter + Range-Leak-Fix, ehrlicher Import-Zähler, id-Regressionstest, Skills-Typen nach shared/types.ts) · **#65** nanobot-Rückkanal.
 
-Multi-Provider AI-Abstraktion: Anthropic SDK + OpenRouter als alternative Provider.
+## nanobot-Rückkanal (#65) — fertig, Inbetriebnahme offen
 
-- **aiProviderService.ts** (NEU): Zentrale Abstraktionsschicht mit `sendPrompt()`, Provider-Config in `app_settings`, API-Keys in `electron-store`
-- **Settings UI**: Provider-Auswahl (Anthropic/OpenRouter), Modell-Dropdown mit Free-Filter, Verbindungstest
-- **Migration**: `aiExtractionService.ts` + `matchingService.ts` nutzen jetzt `sendPrompt()` statt direktem Anthropic SDK
-- **IPC**: 6 neue Handler (Provider-Config, Modelle, Connection-Test, OpenRouter-Key)
-- **CodeRabbit**: Alle 11 Findings adressiert (Timeouts, Validierung, Type-Safety, Model-Reset)
-- **Validierung**: Qwen3 Free liefert vergleichbare Scores wie Claude Sonnet (50% vs 48%)
+- Profil `nanobot` (Rohwerte: url=cleanJobUrl-Key, title, company, match_score, status, processed_at) in electron-freiem `src/shared/jobCsv.ts`; Labels in `src/shared/jobLabels.ts`.
+- Standalone-CLI `tools/nanobot-export/`: read-only DB-Zugriff, eigenes Node-ABI-better-sqlite3 (kein ABI-Tanz), eigener CI-Job, 90-Tage-Fenster (--days), Ziel via --out/NANOBOT_OUT/gitignorete Config. Doku: `docs/nanobot-export.md`.
+- **Inbetriebnahme (Thorsten):** (1) `npm run nanobot:install`, (2) Syncthing-Zielordner konfigurieren, (3) Task Scheduler nach Doku einrichten (Wrapper `run-nanobot-export.cmd`). Danach: nanobot-Seite prüfen, ob sie `jobs_processed.csv` korrekt konsumiert.
 
-### Session 11.02.2026
+## Thorsten-Zettel (manuell, klein)
 
-**PR #50: Session Findings (7 Bugs/UX/Matching)** ✅
-**PR #51: Skills-Suche + CSV-Export** ✅
-**PR #52: Level-Proportionale Score-Gewichtung** ✅
-**Skills-Cleanup**: 132 → ~80 Skills, Levels kalibriert
+1. **Hach-Job #137:** URL leeren/korrigieren (hat per Copy-Paste die Honeywell-URL von #136; echte Job-ID R10265846). Danach Dubletten-Scan = 0 Gruppen.
+2. **Klassische Branch Protection löschen** (Ruleset ist führend): `gh api -X DELETE repos/:owner/:repo/branches/main/protection` oder via Settings.
+3. Task-Scheduler-Einrichtung (siehe oben) + Uhrzeit wählen.
+4. Gelegentlich: alte DB-Kopien in `data/` prunen; Sprachen-Jahre (Deutsch 40/Englisch 25, geschätzt) prüfen.
 
-### Session 05-11.02.2026
+## Kleinigkeiten-Liste, zweite Charge (offen)
 
-**PR #48:** Clear State & Stale Matching Fix ✅
-**PR #47:** File Import (MD/Text/PDF) ✅
-**PR #46:** Kontextabhängige Snackbar-Meldungen ✅
-Weitere: Keyboard-Shortcuts, Filter-Bug, TypeScript-Fixes, GitHub Pages
+1. **Gehalts-Einheiten-Mismatch:** Wunschgehalt monatlich (3.000–5.000) vs. Job-Jahresgehälter → verzerrt KI-Analysen. Profil-Feld umstellen oder normalisieren.
+2. **Timestamp-Inkonsistenz:** created_at "YYYY-MM-DD HH:MM:SS" (lokal gelesen) vs. posted_date ISO+"Z" (UTC) → vereinheitlichen (Migration nötig, TZ-Verhalten aus PR #63 beachten).
+3. **`tsc --noEmit` in CI** + vorbestehende TS-Fehler fixen (JobAdd.tsx:438/441, Contract-/Backup-Tests).
+4. **Backup-Disk-Space-Check (Windows) reaktivieren** (diskSpace.ts:58, BackupManager.ts:21/81) — durch Platte-voll-Vorfall vom 19.07. aufgewertet.
+5. Klein: `LIMIT 1000.0` Float-Kosmetik; leere Alt-Kategorien (Hard/Digital Skills, Frameworks) prüfen.
+6. **Ctrl+F / findInPage** in Listen (Alt-Backlog FEAT-2, offen, mittel).
+7. **Default-Kategorie „IT Infrastructure"** (Alt-Backlog FEAT-3, klein).
+8. **PreferencesPanel: englische Labels → Deutsch** (alter CodeRabbit-Nitpick).
+9. **CI-Status-Badge ins README** (neben License/Electron/React, wenn ohnehin am README gearbeitet wird).
 
-## Schnellstart für neue Session
+## Separates Projekt: nanobot-Pipeline
 
-```bash
-# Projekt starten
-cd c:\Users\diede\source\ClaudeProjekte\JobMatchChecker
-npm run dev
+- **Bug melden/fixen:** Digest-Mail-Extraktion hat im Dez. 2025 Titel↔Link falsch verheiratet (3 Links pro Job-Karte → 17 kaputte Einträge, inzwischen gelöscht). Prüfen, ob die Extraktion aktuell noch fehlerhaft ist.
+- Konsumseite für `jobs_processed.csv` implementieren/testen (Format ist abgestimmt).
 
-# Build prüfen
-npm run build
+## Später / Ideen
 
-# TypeScript-Fehler anzeigen (einige vorbestehend)
-npx tsc --noEmit
-```
+- Cockpit-Ausbaustufen (dort auch Button "An nanobot melden" als zweiter Aufrufweg des CLI-Tools).
+- Falls Schnittstellentool je netzwerkfähig wird: dann Auth-Thema aus der Schublade holen.
+- Spec Kit bleibt bewusst dormant.
 
-## Aktueller Projektstatus
+## Erledigt-Archiv (Kurzform)
 
-### Fertige Features (in main)
-- **Profil-Management** - Benutzerprofil mit Skills anlegen/bearbeiten
-- **Job-Verwaltung** - Jobs anlegen, bearbeiten, löschen, filtern, sortieren
-- **CSV-Import** - Jobs aus CSV importieren mit Duplikaterkennung
-- **File-Import** - Jobs aus Markdown/Text/PDF importieren (PR #47)
-- **Merge-Funktion** - Doppelte Jobs zusammenführen (Smart-Merge)
-- **Skills-Import** - Skills aus CSV mit Konfliktauflösung (PR #32)
-- **Skills Metadata** - confidence + marketRelevance Import (PR #37)
-- **Unsaved Changes** - Dirty-State-Tracking mit Confirmation-Dialog (PR #36)
-- **Bulk Matching** - Selective Matching (Neue/Alle/Ausgewählte) (PR #33)
-- **Bulk Export PDF** - Mehrere Jobs als ein PDF (PR #42)
-- **Bulk Export ZIP** - Mehrere Jobs als ZIP (MD + JSON) (PR #44)
-- **UX: Match-Button** - Disabled wenn bereits gematcht (PR #43)
-- **UX: Snackbar-Meldungen** - Kontextabhängige Erfolgs-/Fehlermeldungen (PR #46)
-- **Status-Dropdown** - Status direkt in JobDetail änderbar (PR #49)
-- **Session Findings** - 7 Bugs/UX-Fixes (PR #50)
-- **Skills-Suche + CSV-Export** - Suchfeld, Kategorie-Filter, CSV-Export (PR #51)
-- **Score-Gewichtung** - Level-proportionale Bewertung (PR #52)
-- **OpenRouter Integration** - Multi-Provider AI (Anthropic + OpenRouter, 200+ Modelle) (PR #53)
-- **URL-Cleanup** - LinkedIn URL-Normalisierung für Nanobot-Integration (PR #54)
-- **Keyboard-Shortcuts** - Ctrl+M (Match), Ctrl+E (Edit), Ctrl+S (Save)
-
-### Bekannte Issues (nicht kritisch)
-
-1. **Vorbestehende TypeScript-Fehler**
-   - Einige Type-Mismatches in tsc --noEmit
-   - Beeinträchtigen Runtime nicht
-
-2. **PreferencesPanel: Englische Labels**
-   - Einige Labels noch auf Englisch statt Deutsch (CodeRabbit Nitpick)
-
-## Backlog (priorisiert)
-
-| Prio | Item | Aufwand | Impact |
-|------|------|---------|--------|
-| 1 | FEAT-1: Skills Duplikat-Erkennung | Groß | Mittel |
-| 2 | FEAT-2: Ctrl+F / findInPage | Mittel | Mittel |
-| 3 | FEAT-3: Default-Kategorie "IT Infrastructure" | Klein | Klein |
-| 4 | MATCH-3: Gehalts-Warnung in Preferences | Klein | Niedrig |
-| 5 | PreferencesPanel: Labels übersetzen | Klein | Klein |
-| 6 | CodeRabbit Nitpicks PR #53 (6 Stück) | Klein | Klein |
-
-### Details zu wichtigsten Backlog-Items
-
-**FEAT-1: Skills Duplikat-Erkennung (Groß/Mittel)**
-- Case-Sensitivity: "Docker" vs "docker"
-- Sprach-Mixing: "Communication" vs "Kommunikation"
-- Varianten: "Git", "git / github", "git/github"
-
-## Architektur-Kurzübersicht
-
-```
-src/
-├── main/                    # Electron Main Process
-│   ├── services/           # Business Logic
-│   │   ├── aiProviderService.ts  # AI-Abstraktionsschicht (Anthropic + OpenRouter)
-│   │   ├── matchingService.ts    # AI-Matching via sendPrompt()
-│   │   ├── aiExtractionService.ts # AI-Extraktion via sendPrompt()
-│   │   ├── exportService.ts      # Markdown/PDF Export
-│   │   ├── skillsImportService.ts # Skills-Import mit Konfliktauflösung
-│   │   └── jobService.ts         # Job CRUD + Merge + Source-Resolution
-│   ├── ipc/handlers.ts     # IPC Handler registrierung
-│   └── preload.ts          # Context Bridge
-├── renderer/               # React Frontend
-│   ├── pages/             # Route-Komponenten
-│   │   ├── JobList.tsx    # Hauptliste mit Bulk-Matching
-│   │   ├── JobDetail.tsx  # Detailansicht mit Status-Dropdown + Export
-│   │   ├── JobAdd.tsx     # Job anlegen/bearbeiten mit Datumsfeld
-│   │   ├── SkillsImport.tsx # Skills-Import UI
-│   │   └── PreferencesPanel.tsx # Preferences mit Gehalts-Einheiten
-│   ├── components/        # Wiederverwendbare UI
-│   │   ├── Layout.tsx     # UnsavedChangesContext Provider
-│   │   └── SkillConflictDialog.tsx # Konfliktauflösung
-│   └── store/             # Zustand State Management
-│       └── jobStore.ts    # createJob/updateJob mit Feld-Transformation
-├── shared/
-│   ├── types.ts           # SINGLE SOURCE OF TRUTH für Types
-│   └── urlUtils.ts        # URL-Bereinigung (LinkedIn, XING, etc.)
-```
-
-## Wichtige Dateien für Änderungen
-
-| Feature | Hauptdateien |
-|---------|--------------|
-| AI Provider | `aiProviderService.ts`, `Settings.tsx`, `constants.ts` (AI_PROVIDER_DEFAULTS) |
-| Job Matching | `matchingService.ts`, `JobList.tsx`, `JobDetail.tsx` |
-| AI Extraktion | `aiExtractionService.ts`, `JobAdd.tsx` |
-| Export (MD/PDF/ZIP) | `exportService.ts`, `JobDetail.tsx`, `JobList.tsx` |
-| Skills Import | `skillsImportService.ts`, `SkillsImport.tsx`, `SkillConflictDialog.tsx` |
-| Unsaved Changes | `Layout.tsx` (Context), `PreferencesPanel.tsx`, `ProfileForm.tsx` |
-| IPC | `handlers.ts`, `preload.ts`, `global.d.ts` |
-| Source-Resolution | `jobService.ts` (getOrCreateJobSource), `jobStore.ts` |
-
-## Git-Workflow
-
-```bash
-# Aktuellen Branch prüfen
-git branch
-
-# Auf main wechseln und updaten
-git checkout main && git pull
-
-# Neuen Feature-Branch erstellen
-git checkout -b feature/neue-funktion
-
-# Nach Fertigstellung
-git push -u origin feature/neue-funktion
-# → PR auf GitHub erstellen
-```
-
-## Coding Conventions
-
-- **Sprache:** TypeScript strikt, deutsche UI-Labels
-- **DB-Spalten:** snake_case (`match_score`, `posted_date`)
-- **TS-Properties:** camelCase (`matchScore`, `postedDate`)
-- **Konvertierung:** In Service-Layer via `rowToJobOffer()`
-- **Types:** IMMER aus `src/shared/types.ts` importieren
-- **Dirty-State:** Nur persistente Felder vergleichen (nie UI-only Felder!)
-- **Store-Transformationen:** `createJob` und `updateJob` transformieren Frontend-Felder (source→sourceId, description→fullText etc.)
-
-## Kontakt zum CodeRabbit
-
-PRs werden automatisch von CodeRabbit reviewed. Findings sollten adressiert werden bevor der User merged (User merged manuell).
+Dubletten-Feature + Härtung (#61/#62) inkl. Live-DB-Bereinigung 137→~115 (XING-Tracking-Dubletten, kaputter Dez-Import, Copy-Paste-Fund). Skills-Re-Import mit Stable-ID (#60): 92 Skills, neue Taxonomie, 0 Dubletten. CSV-Export (#63), Kleinigkeiten Charge 1 (#64), nanobot-Rückkanal (#65). Hygiene, Branch Protection, TZ-/ABI-/CI-Lernnotizen als Kurt-Memories.
