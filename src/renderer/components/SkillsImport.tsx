@@ -34,6 +34,7 @@ interface ConflictDetectionResult {
   newSkills: any[];
   conflicts: any[];
   identical: number;
+  autoUpdates: any[]; // per stabiler id gematchte Zeilen → automatische Updates
 }
 
 export function SkillsImport() {
@@ -239,6 +240,7 @@ export function SkillsImport() {
             <AlertTitle>Analyse abgeschlossen</AlertTitle>
             <Typography variant="body2">
               <strong>{detectionResult.newSkills.length}</strong> neue Fähigkeiten |{' '}
+              <strong>{detectionResult.autoUpdates.length}</strong> aktualisiert |{' '}
               <strong>{detectionResult.conflicts.length}</strong> Konflikte |{' '}
               <strong>{detectionResult.identical}</strong> identisch
             </Typography>
@@ -281,7 +283,9 @@ export function SkillsImport() {
               onClick={handleImportNewOnly}
               fullWidth
             >
-              {detectionResult.newSkills.length} neue Fähigkeiten importieren
+              {detectionResult.autoUpdates.length > 0
+                ? `${detectionResult.newSkills.length} neue importieren, ${detectionResult.autoUpdates.length} aktualisieren`
+                : `${detectionResult.newSkills.length} neue Fähigkeiten importieren`}
             </Button>
           )}
         </Box>
