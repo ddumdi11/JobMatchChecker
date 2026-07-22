@@ -13,40 +13,17 @@ import { getDatabase } from '../database/db';
 import type {
   HardSkill,
   SkillLevel,
-  SkillType,
-  FutureSkillCategory,
-  AssessmentMethod,
   SkillImportResult,
   SkillConfidence,
-  MarketRelevance
+  MarketRelevance,
+  SkillImportRow,
+  SkillConflict,
+  ConflictDetectionResult
 } from '../../shared/types';
 
-// =============================================================================
-// Types
-// =============================================================================
-
-export interface SkillImportRow {
-  id?: number | string; // Stable skill id (from export). Used for duplicate-free re-import.
-  name: string;
-  category: string;
-  level?: number | string; // Can be numeric or string like "5" or "Beginner/Intermediate/Advanced/Expert"
-  yearsOfExperience?: number | string;
-  skillType?: SkillType;
-  futureSkillCategory?: FutureSkillCategory;
-  assessmentMethod?: AssessmentMethod;
-  certifications?: string | string[]; // Can be comma-separated string or array
-  notes?: string;
-  // Skills Hub Multi-LLM analysis fields
-  confidence?: SkillConfidence;
-  marketRelevance?: MarketRelevance;
-}
-
-// Conflict information for a skill that already exists
-export interface SkillConflict {
-  existingSkill: HardSkill;
-  newSkill: SkillImportRow;
-  categoryId: number;
-}
+// Re-export the import-related types so existing `import { SkillImportRow } from
+// './skillsImportService'` call sites keep working (single source: shared/types).
+export type { SkillImportRow, SkillConflict, ConflictDetectionResult };
 
 // =============================================================================
 // CSV Parsing
@@ -640,16 +617,6 @@ export function importSkillsFromJson(jsonContent: string): SkillImportResult {
 // =============================================================================
 // Conflict Detection & Resolution
 // =============================================================================
-
-/**
- * Result of conflict detection
- */
-export interface ConflictDetectionResult {
-  newSkills: SkillImportRow[];      // Skills that don't exist yet
-  conflicts: SkillConflict[];       // Skills that already exist with different data (name+category matches)
-  identical: number;                 // Count of skills identical to existing ones
-  autoUpdates: SkillImportRow[];    // Skills matched by stable id → applied as updates, never a dialog conflict
-}
 
 /**
  * Detect conflicts before importing.

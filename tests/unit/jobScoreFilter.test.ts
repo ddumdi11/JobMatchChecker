@@ -6,9 +6,10 @@
  * Score-Range und 'without' (Regression für den früheren unscored-Leak).
  */
 import { describe, it, expect } from 'vitest';
+import type { JobOffer } from '../../src/shared/types';
 import { filterJobsByScore, isRangeActive, hasScore } from '../../src/renderer/utils/jobScoreFilter';
 
-type J = { title: string; matchScore: number | null };
+type J = Pick<JobOffer, 'title' | 'matchScore'>;
 
 const jobs: J[] = [
   { title: 'Low', matchScore: 10 },
