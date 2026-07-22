@@ -11,6 +11,8 @@ import * as os from 'os';
 import { dialog, shell } from 'electron';
 import JSZip from 'jszip';
 import type { CsvColumnProfile } from '../../shared/types';
+import { getCategoryLabel, getStatusLabel } from '../../shared/jobLabels';
+import { serializeJobsCsv, localDateInRange, type JobCsvRow } from '../../shared/jobCsv';
 
 /**
  * Job data for export (includes matching result)
@@ -147,32 +149,6 @@ function formatDate(date: Date | undefined): string {
   });
 }
 
-/**
- * Get match category label in German
- */
-function getCategoryLabel(category: string): string {
-  const labels: Record<string, string> = {
-    perfect: 'Perfekter Match',
-    good: 'Guter Fit',
-    needs_work: 'Lücken schließbar',
-    poor: 'Schwacher Match'
-  };
-  return labels[category] || category;
-}
-
-/**
- * Get status label in German
- */
-function getStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    new: 'Neu',
-    interesting: 'Interessant',
-    applied: 'Beworben',
-    rejected: 'Abgelehnt',
-    archived: 'Archiviert'
-  };
-  return labels[status] || status;
-}
 
 /**
  * Escape HTML special characters to prevent XSS
@@ -968,89 +944,6 @@ export async function exportBulkToZip(jobIds: number[]): Promise<{ success: bool
 // CSV-Export (Feature: feat/jobs-csv-export)
 // ============================================================================
 
-/**
- * Spaltenprofil: bestimmt Auswahl UND Serialisierung der Zellen. Neue Profile
- * (z. B. später "nanobot" für jobs_processed.csv mit Rohwerten) sind ein reiner
- * Konfigurationseintrag in CSV_PROFILES – der übrige Service bleibt unverändert.
- * Der Typ `CsvColumnProfile` lebt in `src/shared/types.ts` (Single Source of Truth).
- */
-
-interface JobCsvRow {
-  title: string;
-  company: string;
-  match_score: number | null;
-  match_category: string | null;
-  status: string;
-  source_name: string | null;
-  url: string | null;
-  created_at: string;
-  posted_date: string | null;
-}
-
-interface CsvColumn {
-  header: string;
-  value: (row: JobCsvRow) => string;
-}
-
-/**
- * Formatiert einen gespeicherten Datumswert als lokales ISO-Datum (YYYY-MM-DD)
- * – EXAKT wie die UI (`new Date(raw)` → lokale Kalendertag-Anzeige). Damit ist
- * das Export-Datum immer identisch zum in der App angezeigten "hinzugefügt am".
- *
- * Bewusst NICHT über SQLites `date(...,'localtime')`: `created_at`
- * (`CURRENT_TIMESTAMP`, "YYYY-MM-DD HH:MM:SS" ohne Zeitzone) wird von JS
- * `new Date` als LOKALZEIT interpretiert, `posted_date` (`toISOString()`, mit
- * "Z") dagegen als UTC. Nur die JS-Spiegelung trifft für beide Spalten den
- * gleichen Kalendertag wie die UI.
- */
-function toLocalIsoDate(raw: string | Date | null | undefined): string {
-  if (!raw) return '';
-  const d = raw instanceof Date ? raw : new Date(raw);
-  if (isNaN(d.getTime())) return '';
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-const CSV_PROFILES: Record<CsvColumnProfile, CsvColumn[]> = {
-  standard: [
-    { header: 'Titel', value: r => r.title ?? '' },
-    { header: 'Firma', value: r => r.company ?? '' },
-    { header: 'Match-Score', value: r => (r.match_score == null ? '' : String(r.match_score)) },
-    { header: 'Match-Kategorie', value: r => (r.match_category ? getCategoryLabel(r.match_category) : '') },
-    { header: 'Status', value: r => getStatusLabel(r.status) },
-    { header: 'Quelle', value: r => r.source_name ?? '' },
-    { header: 'URL', value: r => r.url ?? '' },
-    { header: 'hinzugefügt am', value: r => toLocalIsoDate(r.created_at) },
-    { header: 'veröffentlicht am', value: r => toLocalIsoDate(r.posted_date) }
-  ],
-  // "nanobot" (jobs_processed.csv, Rückkanal zur Pipeline) folgt später mit
-  // Rohwerten – dann hier als weiterer Eintrag ergänzen.
-  nanobot: []
-};
-
-/**
- * CSV-Formel-Injection-Schutz: Werte, deren erstes Zeichen von Excel/Calc als
- * Formel-Auslöser interpretiert wird (= + - @), mit führendem Apostroph
- * neutralisieren. Greift nur bei externen Textfeldern (Titel, Firma, URL);
- * Score-Zahlen (0–100) und ISO-Daten (YYYY-…) beginnen nie mit diesen Zeichen
- * und bleiben unangetastet.
- */
-function neutralizeFormula(value: string): string {
-  return /^[=+\-@]/.test(value) ? `'${value}` : value;
-}
-
-/**
- * RFC4180-konformes Quoting: nur bei , " CR LF, innere " verdoppelt.
- * Die Formel-Neutralisierung läuft VOR dem Quoting, damit ein evtl.
- * vorangestellter Apostroph mit in die (ggf. gequotete) Zelle wandert.
- */
-function csvCell(value: string): string {
-  const safe = neutralizeFormula(value);
-  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-}
-
 export interface ExportJobsCsvOptions {
   dateFrom?: string | null; // 'YYYY-MM-DD' inklusive (lokaler "hinzugefügt am"-Tag)
   dateTo?: string | null;   // 'YYYY-MM-DD' inklusive
@@ -1058,28 +951,30 @@ export interface ExportJobsCsvOptions {
 }
 
 /**
- * Baut den CSV-Inhalt (inkl. BOM) für den gewählten Datumsbereich und das
- * Spaltenprofil. Reine Funktion ohne Dialog/FS → direkt testbar.
+ * Query-Schicht des CSV-Exports: liest die Jobs, filtert auf den lokalen
+ * "hinzugefügt am"-Tagesbereich und serialisiert über das geteilte Modul.
+ * Spaltenprofile & Serialisierung liegen in `src/shared/jobCsv.ts`
+ * (electron-frei, auch vom nanobot-CLI genutzt).
  */
 export function generateJobsCsv(options: ExportJobsCsvOptions = {}): { csv: string; count: number } {
   const profile = options.profile ?? 'standard';
-  const columns = CSV_PROFILES[profile];
-  if (!columns || columns.length === 0) {
-    throw new Error(`CSV-Profil "${profile}" ist nicht implementiert`);
-  }
 
   const db = getDatabase();
+  // SQL nutzt snake_case-Spalten, aliasiert aber auf die camelCase-DTO-Felder.
   const rows = db.prepare(`
     SELECT
-      jo.title, jo.company, jo.match_score, jo.status, jo.url,
-      jo.created_at, jo.posted_date,
-      js.name AS source_name,
+      jo.title, jo.company,
+      jo.match_score AS matchScore,
+      jo.status, jo.url,
+      jo.created_at AS createdAt,
+      jo.posted_date AS postedDate,
+      js.name AS sourceName,
       (
         SELECT m.match_category FROM matching_results m
         WHERE m.job_id = jo.id
         ORDER BY m.created_at DESC, m.id DESC
         LIMIT 1
-      ) AS match_category
+      ) AS matchCategory
     FROM job_offers jo
     LEFT JOIN job_sources js ON jo.source_id = js.id
     ORDER BY jo.created_at ASC, jo.id ASC
@@ -1089,23 +984,9 @@ export function generateJobsCsv(options: ExportJobsCsvOptions = {}): { csv: stri
   const to = options.dateTo || null;
 
   // Filter auf den lokalen "hinzugefügt am"-Tag (identisch zur UI-Anzeige)
-  const filtered = rows.filter(r => {
-    const added = toLocalIsoDate(r.created_at);
-    if (!added) return false;
-    if (from && added < from) return false;
-    if (to && added > to) return false;
-    return true;
-  });
+  const filtered = rows.filter(r => localDateInRange(r.createdAt, from, to));
 
-  const BOM = String.fromCharCode(0xFEFF); // UTF-8 BOM (Excel-freundlich)
-  const lines: string[] = [];
-  lines.push(columns.map(c => csvCell(c.header)).join(','));
-  for (const r of filtered) {
-    lines.push(columns.map(c => csvCell(c.value(r))).join(','));
-  }
-  // CRLF-Zeilenenden (Excel/RFC4180), abschließendes CRLF auch bei Header-only
-  const csv = BOM + lines.join('\r\n') + '\r\n';
-  return { csv, count: filtered.length };
+  return serializeJobsCsv(filtered, profile);
 }
 
 /**

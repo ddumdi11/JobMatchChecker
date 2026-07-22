@@ -1,0 +1,21 @@
+{
+  "name": "nanobot-export",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone, read-only CSV export (nanobot profile) for JobMatchChecker. Runs under plain Node with its OWN better-sqlite3 build (Node ABI) — independent of the Electron app's node_modules, so no ABI dance.",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "export": "tsx src/index.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.4.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/node": "^20.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.6.0"
+  }
+}
