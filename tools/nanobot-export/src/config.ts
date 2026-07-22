@@ -72,10 +72,13 @@ export function parseArgs(argv: string[]): Record<string, string> {
  */
 export function resolveConfig(
   argv: string[],
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = process.env,
+  // Datei-Konfiguration injizierbar (Default: gitignorete nanobot.config.json).
+  // Tests übergeben {}, um von einer lokal vorhandenen Datei isoliert zu sein.
+  fileConfig: Partial<NanobotConfig> = loadConfigFile()
 ): NanobotConfig {
   const args = parseArgs(argv);
-  const file = loadConfigFile();
+  const file = fileConfig;
 
   const daysRaw = args.days ?? env.NANOBOT_DAYS ?? (file.days != null ? String(file.days) : undefined);
   const days = daysRaw != null ? Number(daysRaw) : 90;
