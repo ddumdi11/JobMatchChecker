@@ -1,0 +1,4 @@
+node_modules/
+package-lock.json
+# Lokale Konfiguration (Thorstens Syncthing-Zielpfad) – nie ins Repo.
+nanobot.config.json
