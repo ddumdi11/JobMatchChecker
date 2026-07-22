@@ -27,7 +27,9 @@
     "test:ui": "vitest --ui",
     "migrate:latest": "knex migrate:latest",
     "migrate:rollback": "knex migrate:rollback",
-    "migrate:make": "knex migrate:make"
+    "migrate:make": "knex migrate:make",
+    "nanobot:install": "npm --prefix tools/nanobot-export install",
+    "nanobot:export": "npm --prefix tools/nanobot-export start --"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",

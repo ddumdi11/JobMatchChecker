@@ -42,3 +42,26 @@ jobs:
         env:
           TZ: Europe/Berlin
         run: npx vitest run
+
+  # Eigenständiges Export-Tool mit EIGENEM better-sqlite3 (Node-ABI). Ein
+  # separater Job (frischer Checkout, kein Root-node_modules) beweist, dass das
+  # Package unabhängig von der Electron-App baut und läuft — ohne ABI-Tanz.
+  nanobot-tool:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Baut better-sqlite3 hier für die Node-ABI (kein electron-rebuild-
+      # postinstall im Tool-Package). Root wird bewusst NICHT installiert.
+      - name: Install nanobot-export tool
+        run: npm --prefix tools/nanobot-export install
+
+      - name: Test nanobot-export tool
+        run: npm --prefix tools/nanobot-export test
