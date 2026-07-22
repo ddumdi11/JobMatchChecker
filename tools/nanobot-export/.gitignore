@@ -1,4 +1,7 @@
 node_modules/
-package-lock.json
+# package-lock.json wird bewusst committet (reproduzierbare Builds, v. a. für
+# das native better-sqlite3). Das Root-.gitignore ignoriert package-lock.json
+# global – hier per Negation wieder einschließen.
+!package-lock.json
 # Lokale Konfiguration (Thorstens Syncthing-Zielpfad) – nie ins Repo.
 nanobot.config.json

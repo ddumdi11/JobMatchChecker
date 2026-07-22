@@ -40,7 +40,7 @@ export function runExport(cfg: NanobotConfig, today: Date = new Date()): ExportR
 
   const db = openReadOnly(cfg.db);
   try {
-    const rows = queryJobs(db).filter(r => localDateInRange(r.created_at, from, to));
+    const rows = queryJobs(db).filter(r => localDateInRange(r.createdAt, from, to));
     const { csv, count } = serializeJobsCsv(rows, 'nanobot');
 
     fs.mkdirSync(cfg.out, { recursive: true });

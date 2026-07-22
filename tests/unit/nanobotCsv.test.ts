@@ -8,7 +8,8 @@ import { describe, it, expect } from 'vitest';
 import {
   serializeJobsCsv,
   localDateInRange,
-  CSV_PROFILES,
+  neutralizeFormula,
+  csvProfiles,
   type JobCsvRow
 } from '../../src/shared/jobCsv';
 
@@ -16,13 +17,13 @@ function row(overrides: Partial<JobCsvRow> = {}): JobCsvRow {
   return {
     title: 'Dev',
     company: 'ACME',
-    match_score: null,
-    match_category: null,
+    matchScore: null,
+    matchCategory: null,
     status: 'new',
-    source_name: null,
+    sourceName: null,
     url: null,
-    created_at: '2026-07-15 12:00:00',
-    posted_date: null,
+    createdAt: '2026-07-15 12:00:00',
+    postedDate: null,
     ...overrides
   };
 }
@@ -34,14 +35,14 @@ function dataLines(csv: string): string[] {
 
 describe('nanobot-Profil – Spaltenaufbau (Rohwerte)', () => {
   it('hat genau die abgestimmten Spalten in der richtigen Reihenfolge', () => {
-    expect(CSV_PROFILES.nanobot.map(c => c.header)).toEqual([
+    expect(csvProfiles.nanobot.map(c => c.header)).toEqual([
       'url', 'title', 'company', 'match_score', 'status', 'processed_at'
     ]);
   });
 
   it('serialisiert Rohwerte: Status roh, Score leer bei null, processed_at lokaler ISO-Tag', () => {
     const { csv, count } = serializeJobsCsv(
-      [row({ title: 'Backend', company: 'Globex', status: 'applied', match_score: null, created_at: '2026-07-15 12:00:00' })],
+      [row({ title: 'Backend', company: 'Globex', status: 'applied', matchScore: null, createdAt: '2026-07-15 12:00:00' })],
       'nanobot'
     );
     expect(count).toBe(1);
@@ -69,7 +70,7 @@ describe('nanobot-Profil – Spaltenaufbau (Rohwerte)', () => {
   });
 
   it('gibt Match-Score als Rohzahl ohne Formatierung aus', () => {
-    const { csv } = serializeJobsCsv([row({ match_score: 73 })], 'nanobot');
+    const { csv } = serializeJobsCsv([row({ matchScore: 73 })], 'nanobot');
     expect(dataLines(csv)[1].split(',')[3]).toBe('73');
   });
 });
@@ -89,6 +90,26 @@ describe('nanobot-Profil – BOM, Quoting, Formel-Schutz', () => {
   it('neutralisiert Formel-Auslöser am Zellenanfang', () => {
     const { csv } = serializeJobsCsv([row({ company: '=SUM(A1)' })], 'nanobot');
     expect(dataLines(csv)[1].split(',')[2]).toBe("'=SUM(A1)");
+  });
+
+  it('neutralisiert auch führende Steuerzeichen (Tab/CR/LF) vor einer Formel', () => {
+    // = + - @ plus Tab/CR/LF am Anfang → führender Apostroph.
+    expect(neutralizeFormula('=SUM(A1)')).toBe("'=SUM(A1)");
+    expect(neutralizeFormula('+1')).toBe("'+1");
+    expect(neutralizeFormula('-1')).toBe("'-1");
+    expect(neutralizeFormula('@cmd')).toBe("'@cmd");
+    expect(neutralizeFormula('\t=SUM(A1)')).toBe("'\t=SUM(A1)"); // Tab maskiert Formel
+    expect(neutralizeFormula('\r=cmd')).toBe("'\r=cmd");
+    expect(neutralizeFormula('\n=cmd')).toBe("'\n=cmd");
+    // Harmlose Werte bleiben unangetastet.
+    expect(neutralizeFormula('Normal')).toBe('Normal');
+    expect(neutralizeFormula('73')).toBe('73');
+    expect(neutralizeFormula('2026-07-15')).toBe('2026-07-15');
+  });
+
+  it('serialisiert einen Tab-maskierten Formelwert mit Apostroph', () => {
+    const { csv } = serializeJobsCsv([row({ company: '\t=SUM(A1)' })], 'nanobot');
+    expect(dataLines(csv)[1].split(',')[2]).toBe("'\t=SUM(A1)");
   });
 });
 
@@ -114,13 +135,13 @@ describe('localDateInRange – Fenster-Grenzen (inklusive)', () => {
     const from = '2026-04-23';
     const to = '2026-07-21';
     const rows = [
-      row({ title: 'RandVon', created_at: '2026-04-23 09:00:00' }),
-      row({ title: 'Mitte', created_at: '2026-06-01 09:00:00' }),
-      row({ title: 'RandBis', created_at: '2026-07-21 09:00:00' }),
-      row({ title: 'ZuAlt', created_at: '2026-04-22 09:00:00' }),
-      row({ title: 'ZuNeu', created_at: '2026-07-22 09:00:00' })
+      row({ title: 'RandVon', createdAt: '2026-04-23 09:00:00' }),
+      row({ title: 'Mitte', createdAt: '2026-06-01 09:00:00' }),
+      row({ title: 'RandBis', createdAt: '2026-07-21 09:00:00' }),
+      row({ title: 'ZuAlt', createdAt: '2026-04-22 09:00:00' }),
+      row({ title: 'ZuNeu', createdAt: '2026-07-22 09:00:00' })
     ];
-    const kept = rows.filter(r => localDateInRange(r.created_at, from, to)).map(r => r.title);
+    const kept = rows.filter(r => localDateInRange(r.createdAt, from, to)).map(r => r.title);
     expect(kept).toEqual(['RandVon', 'Mitte', 'RandBis']);
   });
 });

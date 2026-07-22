@@ -960,17 +960,21 @@ export function generateJobsCsv(options: ExportJobsCsvOptions = {}): { csv: stri
   const profile = options.profile ?? 'standard';
 
   const db = getDatabase();
+  // SQL nutzt snake_case-Spalten, aliasiert aber auf die camelCase-DTO-Felder.
   const rows = db.prepare(`
     SELECT
-      jo.title, jo.company, jo.match_score, jo.status, jo.url,
-      jo.created_at, jo.posted_date,
-      js.name AS source_name,
+      jo.title, jo.company,
+      jo.match_score AS matchScore,
+      jo.status, jo.url,
+      jo.created_at AS createdAt,
+      jo.posted_date AS postedDate,
+      js.name AS sourceName,
       (
         SELECT m.match_category FROM matching_results m
         WHERE m.job_id = jo.id
         ORDER BY m.created_at DESC, m.id DESC
         LIMIT 1
-      ) AS match_category
+      ) AS matchCategory
     FROM job_offers jo
     LEFT JOIN job_sources js ON jo.source_id = js.id
     ORDER BY jo.created_at ASC, jo.id ASC
@@ -980,7 +984,7 @@ export function generateJobsCsv(options: ExportJobsCsvOptions = {}): { csv: stri
   const to = options.dateTo || null;
 
   // Filter auf den lokalen "hinzugefügt am"-Tag (identisch zur UI-Anzeige)
-  const filtered = rows.filter(r => localDateInRange(r.created_at, from, to));
+  const filtered = rows.filter(r => localDateInRange(r.createdAt, from, to));
 
   return serializeJobsCsv(filtered, profile);
 }

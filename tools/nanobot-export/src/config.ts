@@ -27,23 +27,38 @@ function loadConfigFile(): Partial<NanobotConfig> {
   }
 }
 
-/** Minimaler `--key value` / `--key=value` Parser (keine Fremd-Deps). */
+/** Keys, die zwingend einen Wert brauchen (kein Boolean-Flag sein dürfen). */
+const VALUE_KEYS = new Set(['out', 'db', 'days']);
+
+/**
+ * Minimaler `--key value` / `--key=value` Parser (keine Fremd-Deps).
+ * Bekannte Wert-Keys (VALUE_KEYS) MÜSSEN einen Wert haben – steht keiner da
+ * (Ende der Argumente oder direkt ein weiteres `--flag`), wird das als Fehler
+ * gemeldet, statt still den String "true" zu setzen (sonst schriebe z. B.
+ * `--out` ohne Wert in einen Ordner namens "true").
+ */
 export function parseArgs(argv: string[]): Record<string, string> {
   const out: Record<string, string> = {};
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (!a.startsWith('--')) continue;
+
     const eq = a.indexOf('=');
     if (eq >= 0) {
       out[a.slice(2, eq)] = a.slice(eq + 1);
+      continue;
+    }
+
+    const key = a.slice(2);
+    const next = argv[i + 1];
+    const hasValue = next !== undefined && !next.startsWith('--');
+    if (hasValue) {
+      out[key] = next;
+      i++;
+    } else if (VALUE_KEYS.has(key)) {
+      throw new Error(`Option --${key} erfordert einen Wert (z. B. --${key} <wert>).`);
     } else {
-      const next = argv[i + 1];
-      if (next !== undefined && !next.startsWith('--')) {
-        out[a.slice(2)] = next;
-        i++;
-      } else {
-        out[a.slice(2)] = 'true'; // Flag ohne Wert
-      }
+      out[key] = 'true'; // echtes Boolean-Flag (unbekannte Keys)
     }
   }
   return out;
