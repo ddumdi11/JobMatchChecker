@@ -176,6 +176,8 @@ function rowToJobOffer(row: any): JobOffer {
     title: row.title,
     company: row.company,
     url: row.url || undefined,
+    sourceUrl: row.source_url || undefined,
+    messageId: row.message_id || undefined,
     postedDate: new Date(row.posted_date),
     deadline: row.deadline ? new Date(row.deadline) : undefined,
     location: row.location || undefined,
@@ -204,10 +206,10 @@ export async function createJob(data: JobOfferInput): Promise<JobOffer> {
 
   const stmt = db.prepare(`
     INSERT INTO job_offers (
-      source_id, title, company, url, posted_date, deadline,
+      source_id, title, company, url, source_url, message_id, posted_date, deadline,
       location, remote_option, salary_range, contract_type,
       full_text, raw_import_data, import_method, notes, status, match_score
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   // Normalize dates to ISO strings
@@ -225,6 +227,10 @@ export async function createJob(data: JobOfferInput): Promise<JobOffer> {
     data.title,
     data.company,
     cleanJobUrl(data.url) || null,
+    // source_url ROH speichern — bewusst NICHT durch cleanJobUrl (byte-identisch
+    // zum Import-Link, damit der nanobot-Rückkanal exakt matcht).
+    data.sourceUrl || null,
+    data.messageId || null,
     postedIso,
     deadlineIso,
     data.location || null,
@@ -419,6 +425,17 @@ export async function updateJob(id: number, data: Partial<JobOfferInput>): Promi
   if (data.url !== undefined) {
     updates.push('url = ?');
     params.push(cleanJobUrl(data.url) || null);
+  }
+
+  if (data.sourceUrl !== undefined) {
+    updates.push('source_url = ?');
+    // ROH speichern — bewusst KEIN cleanJobUrl (nanobot-Rückkanal-Key).
+    params.push(data.sourceUrl || null);
+  }
+
+  if (data.messageId !== undefined) {
+    updates.push('message_id = ?');
+    params.push(data.messageId || null);
   }
 
   if (data.postedDate !== undefined) {

@@ -59,13 +59,28 @@ Alternativ eine **lokale, gitignorete** Konfiguration `tools/nanobot-export/nano
 UTF-8 mit BOM, RFC4180-Quoting, Spalten (Rohwerte, keine deutschen Labels):
 
 ```
-url,title,company,match_score,status,processed_at
+source_url,message_id,url,title,company,match_score,status,processed_at
 ```
 
-- `url` — via `cleanJobUrl` bereinigter Key (LinkedIn kanonisch, Tracking entfernt)
+- `source_url` — **roher** Original-Tracking-Link aus `jobs_with_links.csv` (Spalte
+  „Link"), byte-identisch übernommen und ausgegeben — **nie** durch `cleanJobUrl`.
+  Das ist der eigentliche Rückkanal-Schlüssel (XING `…/m/<token>`, LinkedIn
+  `…/jobs/view/<id>/` mit Schluss-Slash). Leer bei manuell erfassten Jobs.
+- `message_id` — Mail-Message-ID aus `jobs_with_links.csv`. Leer bei manuell
+  erfassten Jobs.
+- `url` — via `cleanJobUrl` bereinigte Anzeige-/Dedup-URL (LinkedIn kanonisch,
+  Tracking entfernt). Bleibt zusätzlich zum Matching erhalten.
 - `match_score` — leer, wenn nicht bewertet
 - `status` — Rohwert (z. B. `new`, `applied`)
 - `processed_at` — lokaler Kalendertag von `created_at` (`YYYY-MM-DD`), konsistent zur App
+
+> Die Konsumseite (`move_done_mails.py`) matcht auf `source_url ∪ url` und ist damit
+> rückwärtskompatibel: leere `source_url` fallen automatisch auf `url` zurück. Der
+> Rollout beider Seiten ist unabhängig möglich.
+
+Gespeist wird `source_url`/`message_id` über den Import von `jobs_with_links.csv`
+(deterministisches Mapping, ohne KI). Details siehe
+[dual-url-roundtrip](dual-url-roundtrip.md).
 
 ## Windows Task Scheduler (Einrichtung durch Thorsten)
 

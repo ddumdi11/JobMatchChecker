@@ -26,6 +26,10 @@ export interface JobCsvRow {
   status: string;
   sourceName: string | null;
   url: string | null;
+  // Roher Original-Tracking-Link (nanobot-Rückkanal-Key); NIE bereinigen.
+  sourceUrl: string | null;
+  // Mail-Message-ID aus jobs_with_links.csv.
+  messageId: string | null;
   createdAt: string;
   postedDate: string | null;
 }
@@ -111,8 +115,14 @@ export const csvProfiles: Record<CsvColumnProfile, CsvColumn[]> = {
     { header: 'veröffentlicht am', value: r => toLocalIsoDate(r.postedDate) }
   ],
   // CSV-Header bleiben snake_case (Wire-Format, mit der Pipeline abgestimmt);
-  // gelesen werden die camelCase-DTO-Felder.
+  // gelesen werden die camelCase-DTO-Felder. Spaltenfolge mit der nanobot-Seite
+  // abgestimmt: source_url, message_id zuerst, dann die bisherigen Spalten.
+  // Die Konsumseite matcht auf source_url ∪ url → rückwärtskompatibel.
   nanobot: [
+    // source_url/message_id ROH ausgeben (kein cleanJobUrl, kein Trim); leer wenn
+    // null (nie der Text "NULL") → manuell erfasste Jobs haben hier leere Felder.
+    { header: 'source_url', value: r => r.sourceUrl ?? '' },
+    { header: 'message_id', value: r => r.messageId ?? '' },
     { header: 'url', value: r => cleanJobUrl(r.url) ?? '' },
     { header: 'title', value: r => r.title ?? '' },
     { header: 'company', value: r => r.company ?? '' },

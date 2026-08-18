@@ -127,6 +127,14 @@ export interface JobOffer {
   title: string;
   company: string;
   url?: string | null;
+  // Roher Original-Tracking-Link aus jobs_with_links.csv (Spalte "Link"),
+  // NIEMALS durch cleanJobUrl — dient dem nanobot-Rückkanal als Match-Key.
+  // ⚠️ Nicht verwechseln mit dem Formular-Alias `source_url` in JobAdd/jobStore:
+  // der ist nur ein lokaler Feldname für `url` (siehe dort). Dieses Feld hier
+  // (camelCase `sourceUrl`) ist eine EIGENE Spalte mit anderer Semantik.
+  sourceUrl?: string | null;
+  // Mail-Message-ID aus jobs_with_links.csv (Rückkanal-Zuordnung).
+  messageId?: string | null;
   postedDate: Date;
   deadline?: Date | null;
   location?: string | null;

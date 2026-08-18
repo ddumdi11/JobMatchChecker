@@ -22,6 +22,8 @@ function row(overrides: Partial<JobCsvRow> = {}): JobCsvRow {
     status: 'new',
     sourceName: null,
     url: null,
+    sourceUrl: null,
+    messageId: null,
     createdAt: '2026-07-15 12:00:00',
     postedDate: null,
     ...overrides
@@ -36,7 +38,7 @@ function dataLines(csv: string): string[] {
 describe('nanobot-Profil – Spaltenaufbau (Rohwerte)', () => {
   it('hat genau die abgestimmten Spalten in der richtigen Reihenfolge', () => {
     expect(csvProfiles.nanobot.map(c => c.header)).toEqual([
-      'url', 'title', 'company', 'match_score', 'status', 'processed_at'
+      'source_url', 'message_id', 'url', 'title', 'company', 'match_score', 'status', 'processed_at'
     ]);
   });
 
@@ -47,12 +49,29 @@ describe('nanobot-Profil – Spaltenaufbau (Rohwerte)', () => {
     );
     expect(count).toBe(1);
     const cells = dataLines(csv)[1].split(',');
-    // url,title,company,match_score,status,processed_at
-    expect(cells[1]).toBe('Backend');
-    expect(cells[2]).toBe('Globex');
-    expect(cells[3]).toBe('');          // Score leer, nicht "null"
-    expect(cells[4]).toBe('applied');   // Rohwert, NICHT "Beworben"
-    expect(cells[5]).toBe('2026-07-15');
+    // source_url,message_id,url,title,company,match_score,status,processed_at
+    expect(cells[3]).toBe('Backend');
+    expect(cells[4]).toBe('Globex');
+    expect(cells[5]).toBe('');          // Score leer, nicht "null"
+    expect(cells[6]).toBe('applied');   // Rohwert, NICHT "Beworben"
+    expect(cells[7]).toBe('2026-07-15');
+  });
+
+  it('gibt source_url/message_id ROH aus (kein cleanJobUrl) und leer bei null', () => {
+    // XING-Tracking-Link: source_url byte-identisch, url via cleanJobUrl (XING unverändert).
+    const withLink = serializeJobsCsv(
+      [row({ sourceUrl: 'https://www.xing.com/m/s59bHHnmzWETgf8bNLHKgK', messageId: '<abc@mail>', url: 'https://www.xing.com/m/s59bHHnmzWETgf8bNLHKgK' })],
+      'nanobot'
+    );
+    const cells = dataLines(withLink.csv)[1].split(',');
+    expect(cells[0]).toBe('https://www.xing.com/m/s59bHHnmzWETgf8bNLHKgK'); // source_url roh
+    expect(cells[1]).toBe('<abc@mail>');                                     // message_id roh
+
+    // Manuell erfasster Job (kein Rückkanal): beide Felder leer, nie "null".
+    const manual = serializeJobsCsv([row({ sourceUrl: null, messageId: null })], 'nanobot');
+    const mCells = dataLines(manual.csv)[1].split(',');
+    expect(mCells[0]).toBe('');
+    expect(mCells[1]).toBe('');
   });
 
   it('bereinigt die URL via cleanJobUrl (LinkedIn kanonisch, Query weg, null → leer)', () => {
@@ -60,18 +79,18 @@ describe('nanobot-Profil – Spaltenaufbau (Rohwerte)', () => {
       [row({ url: 'https://www.linkedin.com/jobs/view/456/?refId=abc&trk=xyz' })],
       'nanobot'
     );
-    expect(dataLines(linkedin.csv)[1].split(',')[0]).toBe('https://www.linkedin.com/jobs/view/456/');
+    expect(dataLines(linkedin.csv)[1].split(',')[2]).toBe('https://www.linkedin.com/jobs/view/456/');
 
     const generic = serializeJobsCsv([row({ url: 'https://example.com/jobs/42?utm_source=x' })], 'nanobot');
-    expect(dataLines(generic.csv)[1].split(',')[0]).toBe('https://example.com/jobs/42');
+    expect(dataLines(generic.csv)[1].split(',')[2]).toBe('https://example.com/jobs/42');
 
     const none = serializeJobsCsv([row({ url: null })], 'nanobot');
-    expect(dataLines(none.csv)[1].split(',')[0]).toBe('');
+    expect(dataLines(none.csv)[1].split(',')[2]).toBe('');
   });
 
   it('gibt Match-Score als Rohzahl ohne Formatierung aus', () => {
     const { csv } = serializeJobsCsv([row({ matchScore: 73 })], 'nanobot');
-    expect(dataLines(csv)[1].split(',')[3]).toBe('73');
+    expect(dataLines(csv)[1].split(',')[5]).toBe('73');
   });
 });
 
@@ -89,7 +108,7 @@ describe('nanobot-Profil – BOM, Quoting, Formel-Schutz', () => {
 
   it('neutralisiert Formel-Auslöser am Zellenanfang', () => {
     const { csv } = serializeJobsCsv([row({ company: '=SUM(A1)' })], 'nanobot');
-    expect(dataLines(csv)[1].split(',')[2]).toBe("'=SUM(A1)");
+    expect(dataLines(csv)[1].split(',')[4]).toBe("'=SUM(A1)");
   });
 
   it('neutralisiert auch führende Steuerzeichen (Tab/CR/LF) vor einer Formel', () => {
@@ -109,7 +128,7 @@ describe('nanobot-Profil – BOM, Quoting, Formel-Schutz', () => {
 
   it('serialisiert einen Tab-maskierten Formelwert mit Apostroph', () => {
     const { csv } = serializeJobsCsv([row({ company: '\t=SUM(A1)' })], 'nanobot');
-    expect(dataLines(csv)[1].split(',')[2]).toBe("'\t=SUM(A1)");
+    expect(dataLines(csv)[1].split(',')[4]).toBe("'\t=SUM(A1)");
   });
 });
 

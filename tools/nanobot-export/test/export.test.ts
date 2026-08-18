@@ -30,6 +30,8 @@ function createDb(file: string): void {
       match_score INTEGER,
       status TEXT NOT NULL,
       url TEXT,
+      source_url TEXT,
+      message_id TEXT,
       created_at TEXT NOT NULL
     );
   `);
@@ -39,12 +41,16 @@ function createDb(file: string): void {
 function insert(row: {
   title: string; company: string; status: string;
   created_at: string; match_score?: number | null; url?: string | null;
+  source_url?: string | null; message_id?: string | null;
 }): void {
   const db = new Database(dbPath);
   db.prepare(
-    `INSERT INTO job_offers (title, company, match_score, status, url, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)`
-  ).run(row.title, row.company, row.match_score ?? null, row.status, row.url ?? null, row.created_at);
+    `INSERT INTO job_offers (title, company, match_score, status, url, source_url, message_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    row.title, row.company, row.match_score ?? null, row.status,
+    row.url ?? null, row.source_url ?? null, row.message_id ?? null, row.created_at
+  );
   db.close();
 }
 
@@ -123,7 +129,7 @@ describe('runExport – Ende-zu-Ende', () => {
     expect(csv.startsWith('\uFEFF')).toBe(true);
     const lines = dataLines(csv);
     // Header + 2 Datenzeilen
-    expect(lines[0]).toBe('url,title,company,match_score,status,processed_at');
+    expect(lines[0]).toBe('source_url,message_id,url,title,company,match_score,status,processed_at');
     expect(lines).toHaveLength(3);
     expect(csv).toContain('RandVon');
     expect(csv).toContain('RandBis');
@@ -132,9 +138,9 @@ describe('runExport – Ende-zu-Ende', () => {
 
     // Rohwerte: Status roh, Score leer bei null, processed_at lokaler Tag.
     const randBis = lines.find(l => l.includes('RandBis'))!.split(',');
-    expect(randBis[3]).toBe('');          // match_score leer (nicht "null")
-    expect(randBis[4]).toBe('applied');   // Rohwert, nicht "Beworben"
-    expect(randBis[5]).toBe(to);
+    expect(randBis[5]).toBe('');          // match_score leer (nicht "null")
+    expect(randBis[6]).toBe('applied');   // Rohwert, nicht "Beworben"
+    expect(randBis[7]).toBe(to);
   });
 
   it('bereinigt die URL via cleanJobUrl (LinkedIn kanonisch)', () => {
@@ -148,7 +154,33 @@ describe('runExport – Ende-zu-Ende', () => {
     const res = runExport({ days: 90, out: outDir, db: dbPath }, today);
     const csv = fs.readFileSync(res.file, 'utf-8');
     const row = dataLines(csv).find(l => l.includes('LinkedInJob'))!.split(',');
-    expect(row[0]).toBe('https://www.linkedin.com/jobs/view/789/');
+    expect(row[2]).toBe('https://www.linkedin.com/jobs/view/789/');
+  });
+
+  it('gibt source_url/message_id ROH aus (kein cleanJobUrl) und leer bei null', () => {
+    const today = new Date(2026, 6, 21, 12, 0, 0);
+    const day = `${windowForDays(90, today).to} 12:00:00`;
+    // Rückkanal-Job: roher XING-Tracking-Link + message_id.
+    insert({
+      title: 'RueckkanalJob', company: 'X', status: 'new', created_at: day,
+      url: 'https://www.xing.com/m/s59bHHnmzWETgf8bNLHKgK',
+      source_url: 'https://www.xing.com/m/s59bHHnmzWETgf8bNLHKgK',
+      message_id: '<mid-1@mail>'
+    });
+    // Manuell erfasster Job: keine Rückkanal-Daten → leere Felder.
+    insert({ title: 'ManuellJob', company: 'Y', status: 'new', created_at: day, url: 'https://example.com/jobs/1' });
+
+    const res = runExport({ days: 90, out: outDir, db: dbPath }, today);
+    const csv = fs.readFileSync(res.file, 'utf-8');
+
+    const rk = dataLines(csv).find(l => l.includes('RueckkanalJob'))!.split(',');
+    expect(rk[0]).toBe('https://www.xing.com/m/s59bHHnmzWETgf8bNLHKgK'); // source_url roh
+    expect(rk[1]).toBe('<mid-1@mail>');                                   // message_id roh
+
+    const man = dataLines(csv).find(l => l.includes('ManuellJob'))!.split(',');
+    expect(man[0]).toBe(''); // source_url leer
+    expect(man[1]).toBe(''); // message_id leer
+    expect(csv).not.toContain('NULL');
   });
 
   it('leeres Fenster → nur Header, count 0', () => {
