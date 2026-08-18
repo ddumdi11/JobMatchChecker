@@ -164,6 +164,9 @@ describe('Import end-to-end – Persistenz von source_url/message_id (jobs_with_
     const staging = importService.getStagingRows(session.id);
     expect(staging).toHaveLength(1);
     expect(staging[0].status).toBe('duplicate'); // url-Match trotz Tracking-Query
+    // getStagingRows exponiert die rohen Rückkanal-Felder (roh, inkl. Query).
+    expect(staging[0].csvSourceUrl).toBe('https://www.linkedin.com/jobs/view/555/?trk=abc');
+    expect(staging[0].csvMessageId).toBe('<mid@mail>');
   });
 });
 

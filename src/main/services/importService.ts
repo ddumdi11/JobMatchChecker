@@ -42,6 +42,8 @@ export interface ImportStagingRow {
   csvFromEmail?: string;
   csvEmailDate?: string;
   csvRawData?: string;
+  csvSourceUrl?: string; // roher Original-Link (jobs_with_links); null bei Altformat
+  csvMessageId?: string; // Mail-Message-ID (jobs_with_links)
   status: 'pending' | 'duplicate' | 'likely_duplicate' | 'new' | 'imported' | 'skipped';
   matchedJobId?: number;
   matchedJobTitle?: string; // Joined from job_offers
@@ -674,6 +676,8 @@ export function getStagingRows(sessionId: number): ImportStagingRow[] {
     csvFromEmail: row.csv_from_email,
     csvEmailDate: row.csv_email_date,
     csvRawData: row.csv_raw_data,
+    csvSourceUrl: row.csv_source_url,
+    csvMessageId: row.csv_message_id,
     status: row.status,
     matchedJobId: row.matched_job_id,
     matchedJobTitle: row.matched_job_title,
