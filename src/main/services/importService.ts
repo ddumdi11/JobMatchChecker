@@ -238,7 +238,13 @@ export function parseGermanDateToIso(value?: string): string | null {
   const year = Number(m[3]);
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
   const dt = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-  return isNaN(dt.getTime()) ? null : dt.toISOString();
+  if (isNaN(dt.getTime())) return null;
+  // Kalender-ungültige Tage (z. B. 31.02.) rollen in Date.UTC still auf den
+  // Folgemonat – solche Werte ablehnen statt ein falsches Datum zu liefern.
+  if (dt.getUTCFullYear() !== year || dt.getUTCMonth() !== month - 1 || dt.getUTCDate() !== day) {
+    return null;
+  }
+  return dt.toISOString();
 }
 
 /**

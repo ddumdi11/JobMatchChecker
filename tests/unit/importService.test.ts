@@ -88,6 +88,14 @@ describe('parseGermanDateToIso', () => {
     expect(importService.parseGermanDateToIso('')).toBeNull();
     expect(importService.parseGermanDateToIso(undefined)).toBeNull();
   });
+
+  it('lehnt kalender-ungültige Tage ab, statt still weiterzurollen', () => {
+    // 31.02. würde in Date.UTC auf den 03.03. rollen – muss null sein.
+    expect(importService.parseGermanDateToIso('31.02.2026')).toBeNull();
+    expect(importService.parseGermanDateToIso('31.04.2026')).toBeNull(); // April hat 30 Tage
+    expect(importService.parseGermanDateToIso('29.02.2025')).toBeNull(); // kein Schaltjahr
+    expect(importService.parseGermanDateToIso('29.02.2028')).toBe('2028-02-29T12:00:00.000Z'); // Schaltjahr ok
+  });
 });
 
 describe('parseCsv – deterministisches jobs_with_links-Mapping (keine KI)', () => {
@@ -162,6 +170,9 @@ describe('Import end-to-end – Persistenz von source_url/message_id (jobs_with_
 describe('Byte-Roundtrip: source_url Import == Export (beide URL-Formen)', () => {
   it.each([
     ['LinkedIn mit Schluss-Slash', 'https://www.linkedin.com/jobs/view/424242/'],
+    // Nicht-kanonisch mit Query: source_url MUSS den Query-String behalten
+    // (url würde von cleanJobUrl kanonisiert – source_url NICHT).
+    ['LinkedIn nicht-kanonisch mit Query', 'https://www.linkedin.com/jobs/view/424242/?refId=abc&trk=xyz'],
     ['XING /m/<token>', 'https://www.xing.com/m/s59bHHnmzWETgf8bNLHKgK']
   ])('%s bleibt byte-identisch', async (_name, link) => {
     const csv = jobsWithLinksCsv([{ jobtitel: 'RT', unternehmen: 'RTco', quelle: 'XING', link }]);

@@ -56,7 +56,7 @@ Unbekannter Header → klarer Fehler (kein stiller leerer Import).
 
 `Stars` und `Mail-Betreff` werden ignoriert, aber in `csv_raw_data` mitgeführt.
 Jobs landen bewusst **ohne** `full_text` — der Volltext wird bei Interesse
-nachgeholt (über den „ohne Score"-Filter wiederauffindbar). Der Dedup-Add-Check
+nachgeholt (über den „ohne Score“-Filter wiederauffindbar). Der Dedup-Add-Check
 greift wie gehabt auf `url` (die bereinigte Dedup-URL).
 
 ## Byte-Roundtrip-Garantie
