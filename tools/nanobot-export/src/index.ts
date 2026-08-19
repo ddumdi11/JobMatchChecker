@@ -12,6 +12,7 @@
  */
 import { resolveConfig } from './config';
 import { runExport } from './export';
+import { SchemaOutdatedError } from './db';
 
 function main(): void {
   let cfg;
@@ -26,6 +27,11 @@ function main(): void {
     const { file, count, from, to } = runExport(cfg);
     console.log(`[nanobot-export] ${count} Job(s) (${from} bis ${to}) → ${file}`);
   } catch (e: any) {
+    // Schema aelter als Tool: freundliche, handlungsleitende Meldung (Exit 3).
+    if (e instanceof SchemaOutdatedError) {
+      console.error(`[nanobot-export] ${e.message}`);
+      process.exit(3);
+    }
     console.error(`[nanobot-export] Export fehlgeschlagen: ${e.message}`);
     process.exit(1);
   }
