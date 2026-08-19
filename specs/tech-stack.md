@@ -66,7 +66,7 @@
 ## Backend / Electron Main Process
 
 ### Runtime: **Node.js**
-**Version:** >= 18.x (LTS)
+**Version:** >= 20.0.0
 
 ### Process Architecture:
 ```
@@ -862,7 +862,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: [18.x]
+        node-version: [20.x]
 
     steps:
       - uses: actions/checkout@v3
