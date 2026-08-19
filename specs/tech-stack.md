@@ -66,7 +66,7 @@
 ## Backend / Electron Main Process
 
 ### Runtime: **Node.js**
-**Version:** >= 20.x (LTS)
+**Version:** >= 20.0.0
 
 ### Process Architecture:
 ```
