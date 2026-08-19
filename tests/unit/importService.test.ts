@@ -22,6 +22,15 @@ vi.mock('electron-log', () => ({
   warn: vi.fn(),
   error: vi.fn()
 }));
+// importService → aiExtractionService → aiProviderService instanziiert beim
+// Modul-Load `new Store()` (electron-store). In CI (npm ci --ignore-scripts →
+// keine Electron-Binary) wirft das schon beim Import, die Suite lädt nicht
+// (lokal grün, weil dort die Electron-Binary vorhanden ist – klassischer
+// CI-vs-Runner-Gap). Der jobs_with_links-Pfad ruft NIE die KI-Extraktion, daher
+// aiExtractionService stumpf stubben und die Modul-Kette damit kappen.
+vi.mock('../../src/main/services/aiExtractionService', () => ({
+  extractJobFields: vi.fn()
+}));
 
 import * as importService from '../../src/main/services/importService';
 import * as jobService from '../../src/main/services/jobService';
