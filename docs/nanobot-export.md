@@ -21,11 +21,19 @@ Beide Welten koexistieren — die App im Repo-Root bleibt unberührt.
 
 ```bash
 npm run nanobot:install
-# entspricht: npm --prefix tools/nanobot-export install
+# entspricht: npm --prefix tools/nanobot-export ci
 ```
 
 Das baut `better-sqlite3` für die Node-ABI. (Kein Build-Step für den TS-Code —
 das Tool läuft direkt via `tsx`.)
+
+> **Warum `ci`, nicht `install`?** `npm ci` wischt `node_modules` und baut
+> **deterministisch** aus dem committeten Lock — und bricht ab, falls Lock und
+> `package.json` auseinanderlaufen. `npm install` dagegen adoptiert einen
+> übriggebliebenen `node_modules/job-match-checker`-Symlink (eine versehentliche
+> `file:../..`-Self-Dependency) wieder zurück in `package.json`/Lock und zöge so
+> die komplette Electron-App ins Tool-`node_modules` — genau das, was die
+> eigene ABI-Welt verhindern soll. Deshalb hier immer `ci`.
 
 ## Aufruf
 
