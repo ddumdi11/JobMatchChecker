@@ -966,6 +966,8 @@ export function generateJobsCsv(options: ExportJobsCsvOptions = {}): { csv: stri
       jo.title, jo.company,
       jo.match_score AS matchScore,
       jo.status, jo.url,
+      jo.source_url AS sourceUrl,
+      jo.message_id AS messageId,
       jo.created_at AS createdAt,
       jo.posted_date AS postedDate,
       js.name AS sourceName,

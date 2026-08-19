@@ -24,6 +24,8 @@ export function queryJobs(db: Database.Database): JobCsvRow[] {
          jo.title, jo.company,
          jo.match_score AS matchScore,
          jo.status, jo.url,
+         jo.source_url AS sourceUrl,
+         jo.message_id AS messageId,
          jo.created_at AS createdAt,
          NULL AS postedDate, NULL AS sourceName, NULL AS matchCategory
        FROM job_offers jo

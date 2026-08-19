@@ -32,6 +32,7 @@
 7. **Default-Kategorie „IT Infrastructure"** (Alt-Backlog FEAT-3, klein).
 8. **PreferencesPanel: englische Labels → Deutsch** (alter CodeRabbit-Nitpick).
 9. **CI-Status-Badge ins README** (neben License/Electron/React, wenn ohnehin am README gearbeitet wird).
+10. **Formular-Alias `source_url` umbenennen** (JobAdd.tsx/jobStore.ts → z. B. `formUrl`): Der Alias ist nur ein lokaler Feldname für `url`, kollidiert aber namentlich mit der neuen DB-Spalte `source_url` (roher Tracking-Link, andere Semantik). Umbenennen, damit die Namensfalle ganz verschwindet (aktuell per Kommentar an beiden Stellen entschärft).
 
 ## Separates Projekt: nanobot-Pipeline
 
