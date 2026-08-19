@@ -13,7 +13,7 @@ import Database from 'better-sqlite3';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { openReadOnly, queryJobs } from '../src/db';
+import { openReadOnly, queryJobs, SchemaOutdatedError } from '../src/db';
 import { runExport, windowForDays, OUTPUT_FILENAME } from '../src/export';
 
 let tmpDir: string;
@@ -90,6 +90,35 @@ describe('readonly-Öffnung', () => {
     const missing = path.join(tmpDir, 'nope.db');
     try { openReadOnly(missing); } catch { /* erwartet */ }
     expect(fs.existsSync(missing)).toBe(false);
+  });
+});
+
+describe('Schema aelter als Tool', () => {
+  it('wirft SchemaOutdatedError mit Klartext, wenn source_url fehlt', () => {
+    // Alt-DB ohne die Rueckkanal-Spalten (source_url/message_id) nachbilden.
+    const oldDbPath = path.join(tmpDir, 'old-schema.db');
+    const old = new Database(oldDbPath);
+    old.exec(`
+      CREATE TABLE job_offers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        company TEXT NOT NULL,
+        match_score INTEGER,
+        status TEXT NOT NULL,
+        url TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+    old.close();
+
+    const db = openReadOnly(oldDbPath);
+    try {
+      expect(() => queryJobs(db)).toThrow(SchemaOutdatedError);
+      expect(() => queryJobs(db)).toThrow(/App einmal starten|Migrationen/i);
+      expect(() => queryJobs(db)).toThrow(/source_url/);
+    } finally {
+      db.close();
+    }
   });
 });
 
