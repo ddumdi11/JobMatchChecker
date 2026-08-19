@@ -6,8 +6,6 @@ import { resolve } from 'path';
 // as known issues (see GitHub issues).
 const ciExcludes = process.env.CI
   ? [
-      // Need an Electron renderer environment (window.api).
-      'tests/contract/**',
       // Imports electron-store (instantiated at module load → needs the Electron
       // runtime) and exercises the live AI API. Runs locally with an API key.
       'tests/unit/aiExtractionService.test.ts',

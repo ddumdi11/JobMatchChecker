@@ -1,200 +1,58 @@
 /**
- * Contract tests for AI Job Extraction IPC handler
+ * Contract test for the extractJobFields IPC handler (Issue #57, Option 3).
  *
- * These tests verify the AI extraction API contract.
- * Tests MUST FAIL (RED) until handler is implemented.
+ * ⚠️ BEWUSST SCHLANK: Diese Datei prüft NUR den Handler-Contract der IPC-Schicht —
+ * Kanal registriert, Argument unverändert an den Service durchgereicht,
+ * Service-Ergebnis unverfälscht zurück, Fehler als Rejection propagiert.
  *
- * Feature: 005-job-offer-management
- * Phase: 3.2 Tests First (TDD)
- * Task: T007
+ * Die EXTRAKTIONS-SEMANTIK (Titel/Firma erkennen, missingRequired, 5-Sek-Timeout,
+ * Confidence-Warnings) liegt BEWUSST NUR in der Live-API-Suite
+ * `tests/unit/aiExtractionService.test.ts` (in CI ausgeschlossen, läuft mit
+ * gesetztem ANTHROPIC_API_KEY). Sie hier mit einem Provider-Mock nachzubilden wäre
+ * Doppel-Coverage mit dünnerem Aussagewert — dieselbe Sorte Testtheater, die wir
+ * bei Option 2 abgelehnt haben. Wer volle Extraktions-Abdeckung sucht: dort, nicht hier.
  */
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-import { describe, it, expect } from 'vitest';
-import type { AIExtractionResult } from '../../src/shared/types';
+// Service an der Grenze mocken: der Handler-Contract testet die Verdrahtung, nicht
+// die Extraktion. vi.hoisted, damit die (hochgezogene) Mock-Factory die Fn kennt.
+const { extractJobFieldsMock } = vi.hoisted(() => ({ extractJobFieldsMock: vi.fn() }));
+vi.mock('../../src/main/services/aiExtractionService', () => ({
+  extractJobFields: extractJobFieldsMock,
+}));
 
-// Extend window.api type
-declare global {
-  interface Window {
-    api: {
-      extractJobFields: (text: string) => Promise<AIExtractionResult>;
-    };
-  }
-}
+import { invoke, isRegistered } from '../helpers/ipcContract';
 
-describe('Contract: AI Job Extraction IPC Handler', () => {
+describe('Contract: extractJobFields IPC-Handler (Handler-Schicht, schlank)', () => {
+  beforeEach(() => {
+    extractJobFieldsMock.mockReset();
+  });
 
-  describe('T007: extractJobFields() - Extract job fields from text', () => {
-    it('should exist on window.api', () => {
-      expect(window.api.extractJobFields).toBeDefined();
-      expect(typeof window.api.extractJobFields).toBe('function');
-    });
+  it('registriert den Kanal extractJobFields', () => {
+    expect(isRegistered('extractJobFields')).toBe(true);
+  });
 
-    it('should accept text string parameter', async () => {
-      const jobText = `
-        Senior TypeScript Developer
-        Tech Corp - Berlin, Germany
-        Posted: 2025-10-15
+  it('reicht den Text unverändert an den Service durch', async () => {
+    extractJobFieldsMock.mockResolvedValue({ success: true, fields: {}, confidence: 'low', missingRequired: [] });
 
-        We are looking for an experienced TypeScript developer...
-        Salary: 70k-90k EUR
-        Remote: Hybrid (3 days office)
-      `;
+    await invoke('extractJobFields', 'Stellentext XYZ');
 
-      // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobFields(jobText);
+    expect(extractJobFieldsMock).toHaveBeenCalledTimes(1);
+    expect(extractJobFieldsMock).toHaveBeenCalledWith('Stellentext XYZ');
+  });
 
-      expect(result).toBeDefined();
-    });
+  it('gibt das Service-Ergebnis unverfälscht zurück', async () => {
+    const serviceResult = { success: true, fields: { title: 'X' }, confidence: 'high', missingRequired: [] };
+    extractJobFieldsMock.mockResolvedValue(serviceResult);
 
-    it('should return AIExtractionResult structure', async () => {
-      const jobText = 'Sample job posting text';
+    const result = await invoke('extractJobFields', 'irgendein Text');
 
-      // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobFields(jobText);
+    expect(result).toBe(serviceResult); // exakt dieselbe Referenz, nichts umgeformt
+  });
 
-      // Verify response structure
-      expect(result).toHaveProperty('success');
-      expect(result).toHaveProperty('fields');
-      expect(result).toHaveProperty('confidence');
-      expect(result).toHaveProperty('missingRequired');
+  it('propagiert Service-Fehler als Rejection (nicht als Rückgabewert)', async () => {
+    extractJobFieldsMock.mockRejectedValue(new Error('AI-Service kaputt'));
 
-      expect(typeof result.success).toBe('boolean');
-      expect(typeof result.fields).toBe('object');
-      expect(['high', 'medium', 'low']).toContain(result.confidence);
-      expect(Array.isArray(result.missingRequired)).toBe(true);
-    });
-
-    it('should extract title, company, and other fields', async () => {
-      const jobText = `
-        Senior React Developer
-        Amazing Tech GmbH
-        Location: Munich, Germany
-        Salary: 80k-100k
-        Remote: Yes (100%)
-
-        Full job description here...
-      `;
-
-      // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobFields(jobText);
-
-      expect(result.success).toBe(true);
-      expect(result.fields).toBeDefined();
-
-      // Should extract at least some fields
-      if (result.fields.title) {
-        expect(typeof result.fields.title).toBe('string');
-      }
-      if (result.fields.company) {
-        expect(typeof result.fields.company).toBe('string');
-      }
-      if (result.fields.location) {
-        expect(typeof result.fields.location).toBe('string');
-      }
-    });
-
-    it('should indicate missing required fields', async () => {
-      const incompleteText = `
-        Looking for a developer
-        (no company name, no date)
-      `;
-
-      // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobFields(incompleteText);
-
-      // Should identify missing required fields
-      expect(result.missingRequired.length).toBeGreaterThan(0);
-
-      // Required fields: title, company, postedDate
-      const possibleMissing = ['title', 'company', 'postedDate'];
-      result.missingRequired.forEach(field => {
-        expect(possibleMissing).toContain(field);
-      });
-    });
-
-    it('should include warnings for low confidence extractions', async () => {
-      const ambiguousText = 'Some vague job text';
-
-      // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobFields(ambiguousText);
-
-      if (result.warnings) {
-        expect(Array.isArray(result.warnings)).toBe(true);
-        expect(result.warnings.length).toBeGreaterThan(0);
-      }
-    });
-
-    it('should timeout after 5 seconds and return partial results', async () => {
-      // This tests the 5-second timeout requirement from research.md
-      const longText = 'Very long job description text...'.repeat(1000);
-
-      const startTime = Date.now();
-
-      // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobFields(longText);
-
-      const duration = Date.now() - startTime;
-
-      // Should complete within 5 seconds (5000ms) + 1s buffer for overhead
-      expect(duration).toBeLessThan(6000);
-
-      // Should return result even if partial
-      expect(result).toBeDefined();
-      expect(result.success).toBeDefined();
-
-      // If timeout occurred, should indicate it in result
-      if (duration >= 5000) {
-        expect(result.warnings).toBeDefined();
-        expect(result.warnings).toContain('Extraction timed out after 5 seconds');
-      }
-    }, 10000); // Set Vitest timeout to 10s to allow for the 5s+buffer
-
-    it('should handle AI service errors gracefully', async () => {
-      const emptyText = '';
-
-      // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobFields(emptyText);
-
-      // Should return error in result, not throw
-      expect(result).toBeDefined();
-      if (!result.success) {
-        expect(result.error).toBeDefined();
-        expect(typeof result.error).toBe('string');
-      }
-    });
-
-    it('should store original text in fullText field', async () => {
-      const originalText = 'Original job posting text here';
-
-      // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobFields(originalText);
-
-      expect(result.success).toBe(true);
-      expect(result.fields.fullText).toBeDefined();
-      expect(result.fields.fullText).toBe(originalText);
-    });
-
-    it('should set importMethod to ai_paste', async () => {
-      const jobText = 'Sample job text';
-
-      // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobFields(jobText);
-
-      expect(result.success).toBe(true);
-      expect(result.fields.importMethod).toBeDefined();
-      expect(result.fields.importMethod).toBe('ai_paste');
-    });
-
-    it('should store raw import data for debugging', async () => {
-      const jobText = 'Sample job text for import';
-
-      // This WILL FAIL until handler is implemented
-      const result = await window.api.extractJobFields(jobText);
-
-      expect(result.success).toBe(true);
-      expect(result.fields.rawImportData).toBeDefined();
-      expect(typeof result.fields.rawImportData).toBe('string');
-      expect(result.fields.rawImportData).toContain('Sample job text');
-    });
+    await expect(invoke('extractJobFields', 'Text')).rejects.toThrow('AI-Service kaputt');
   });
 });
