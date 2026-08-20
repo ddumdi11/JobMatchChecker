@@ -28,7 +28,7 @@
     "migrate:latest": "knex migrate:latest",
     "migrate:rollback": "knex migrate:rollback",
     "migrate:make": "knex migrate:make",
-    "nanobot:install": "npm --prefix tools/nanobot-export install",
+    "nanobot:install": "npm --prefix tools/nanobot-export ci",
     "nanobot:export": "npm --prefix tools/nanobot-export start --"
   },
   "dependencies": {
