@@ -23,7 +23,8 @@ import type {
   JobDuplicateMatch,
   DuplicateGroup,
   DuplicateGroupKind,
-  DuplicateScanResult
+  DuplicateScanResult,
+  JobSourceOption
 } from '../../shared/types';
 import { cleanJobUrl, getJobUrlKey } from '../../shared/urlUtils';
 
@@ -546,14 +547,20 @@ export async function deleteJob(id: number): Promise<void> {
 }
 
 /**
- * Get all job sources
+ * Get all job sources (inkl. domain_patterns für die Quelle-Autoerkennung)
  */
-export function getJobSources(): Array<{ id: number; name: string }> {
+export function getJobSources(): JobSourceOption[] {
   const db = getDatabase();
 
-  const rows = db.prepare('SELECT id, name FROM job_sources ORDER BY name').all();
+  const rows = db
+    .prepare('SELECT id, name, domain_patterns FROM job_sources ORDER BY name')
+    .all() as Array<{ id: number; name: string; domain_patterns: string | null }>;
 
-  return rows as Array<{ id: number; name: string }>;
+  return rows.map(row => ({
+    id: row.id,
+    name: row.name,
+    domainPatterns: row.domain_patterns ?? null
+  }));
 }
 
 /**
