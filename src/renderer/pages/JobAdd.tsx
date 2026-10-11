@@ -24,7 +24,7 @@ import { useJobStore } from '../store/jobStore';
 import { useUnsavedChangesContext } from '../components/Layout';
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
 import DuplicateWarningDialog from '../components/DuplicateWarningDialog';
-import { extractUrls, detectSourceIdFromText } from '../../shared/urlUtils';
+import { extractUrls, detectSourceIdFromText, extractOfferUrlFromText } from '../../shared/urlUtils';
 import { getYesterdayLocalIso, resolveSourceSelection } from '../../shared/jobFormDefaults';
 import { formatGermanDate, formatScore } from '../../shared/formatUtils';
 import type { JobDuplicateMatch, JobDuplicateCheckResult, JobSourceOption } from '../../shared/types';
@@ -93,19 +93,31 @@ export default function JobAdd() {
   // aktuelle Liste sieht, ohne bei jedem Laden neu zu feuern.
   const [sources, setSources] = useState<JobSourceOption[]>([]);
   const sourcesRef = useRef<JobSourceOption[]>([]);
+  const [sourcesError, setSourcesError] = useState<string | null>(null);
   // Manuelle Quellen-Auswahl übersteuert die Autoerkennung (auch bei erneuter
   // Extraktion). Zurückgesetzt durch "Leeren" bzw. neues Formular.
   const sourceManualRef = useRef(false);
+  // Rohtext der letzten Extraktion – für die Neu-Zuordnung, falls die
+  // Quellen-Liste erst NACH dem Extraktionsergebnis ankommt.
+  const extractedTextRef = useRef<string | null>(null);
 
-  useEffect(() => {
+  const loadSources = useCallback(() => {
+    setSourcesError(null);
     window.api
       .getJobSources()
       .then(list => {
         sourcesRef.current = list;
         setSources(list);
       })
-      .catch(err => console.error('Failed to load job sources:', err));
+      .catch(err => {
+        console.error('Failed to load job sources:', err);
+        setSourcesError('Quellen konnten nicht geladen werden – Speichern ist erst nach erfolgreichem Laden möglich.');
+      });
   }, []);
+
+  useEffect(() => {
+    loadSources();
+  }, [loadSources]);
 
   // Form state (initialized from extraction or empty)
   const [formData, setFormData] = useState({
@@ -141,6 +153,7 @@ export default function JobAdd() {
     } else {
       // Add mode: Reset form
       sourceManualRef.current = false;
+      extractedTextRef.current = null;
       setJobText('');
       setShowForm(false);
       setFormData({
@@ -435,8 +448,11 @@ export default function JobAdd() {
         }
       }
 
-      // Quelle aus der ERSTEN URL des Rohtexts (manuelle Auswahl übersteuert)
+      // Quelle aus der ERSTEN URL des Rohtexts (manuelle Auswahl übersteuert),
+      // Quell-URL aus der LETZTEN URL des URL-Blocks (KI-url nur als Fallback)
+      extractedTextRef.current = jobText;
       const detectedSourceId = detectSourceIdFromText(jobText, sourcesRef.current);
+      const offerUrl = extractOfferUrlFromText(jobText);
 
       setFormData(prev => ({
         title: fields.title || '',
@@ -454,16 +470,20 @@ export default function JobAdd() {
           manuallySelected: sourceManualRef.current,
           detectedSourceId
         }),
-        source_url: (fields as any).url || '',
+        source_url: offerUrl || (fields as any).url || '',
         status: 'new'
       }));
       setShowForm(true);
     } else if (extractionResult && !extractionResult.success) {
       // Show form anyway if extraction failed, but user can fill manually.
-      // Die URLs stehen trotzdem im Rohtext → Quelle + Datum-Default auch hier.
+      // Die URLs stehen trotzdem im Rohtext → Quelle, Quell-URL und
+      // Datum-Default auch hier.
+      extractedTextRef.current = jobText;
       const detectedSourceId = detectSourceIdFromText(jobText, sourcesRef.current);
+      const offerUrl = extractOfferUrlFromText(jobText);
       setFormData(prev => ({
         ...prev,
+        source_url: offerUrl || prev.source_url,
         postedDate: prev.postedDate || getYesterdayLocalIso(),
         sourceId: resolveSourceSelection({
           currentSourceId: prev.sourceId,
@@ -477,6 +497,23 @@ export default function JobAdd() {
     // soll die Vorbelegung auslösen, nicht jede Rohtext-Änderung.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [extractionResult]);
+
+  // Quellen kommen erst NACH dem Extraktionsergebnis an (langsames IPC, sehr
+  // schneller KI-Fehler) oder werden neu geladen → Zuordnung nachholen.
+  // Eine manuelle Auswahl bleibt dabei unantastbar.
+  useEffect(() => {
+    const text = extractedTextRef.current;
+    if (isEditMode || !text || sourceManualRef.current) return;
+    const detectedSourceId = detectSourceIdFromText(text, sources);
+    setFormData(prev => ({
+      ...prev,
+      sourceId: resolveSourceSelection({
+        currentSourceId: prev.sourceId,
+        manuallySelected: sourceManualRef.current,
+        detectedSourceId
+      })
+    }));
+  }, [sources, isEditMode]);
 
   // Handle form field changes
   const handleFieldChange = (field: string) => (
@@ -644,6 +681,7 @@ export default function JobAdd() {
   // Handle clear
   const handleClear = () => {
     sourceManualRef.current = false;
+    extractedTextRef.current = null;
     setJobText('');
     setFormData({
       title: '',
@@ -958,6 +996,18 @@ export default function JobAdd() {
             />
 
             {/* Source */}
+            {sourcesError && (
+              <Alert
+                severity="error"
+                action={
+                  <Button color="inherit" size="small" onClick={loadSources}>
+                    Erneut laden
+                  </Button>
+                }
+              >
+                {sourcesError}
+              </Alert>
+            )}
             <TextField
               select
               label="Quelle"

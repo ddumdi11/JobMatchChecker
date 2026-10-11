@@ -65,9 +65,14 @@ exports.up = async function (knex) {
 };
 
 exports.down = async function (knex) {
-  // Neu angelegte Quelle nur entfernen, wenn noch kein Job daran hängt
-  // (job_offers.source_id ist ON DELETE RESTRICT).
-  const source = await knex('job_sources').where({ name: NEW_SOURCE.name }).first();
+  // Die eingefügte Quelle nur entfernen, wenn sie noch erkennbar "unsere" ist:
+  // (a) Name UND die von uns gesetzten domain_patterns stimmen überein
+  //     (von Hand angepasste Patterns → Nutzerdaten, bleibt stehen), und
+  // (b) kein Job daran hängt (job_offers.source_id ist ON DELETE RESTRICT).
+  // Bewusst ohne eigenes Tracking-Metadatum – das deckt das reale Risiko ab.
+  const source = await knex('job_sources')
+    .where({ name: NEW_SOURCE.name, domain_patterns: NEW_SOURCE.domain_patterns })
+    .first();
   if (source) {
     const used = await knex('job_offers').where({ source_id: source.id }).first();
     if (!used) {

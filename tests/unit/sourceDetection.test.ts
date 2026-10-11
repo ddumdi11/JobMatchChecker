@@ -13,6 +13,8 @@ import {
   detectSourceIdFromUrl,
   detectSourceIdFromText,
   parseDomainPatterns,
+  extractLeadingUrls,
+  extractOfferUrlFromText,
   type SourceDomainEntry
 } from '../../src/shared/urlUtils';
 
@@ -162,5 +164,70 @@ describe('parseDomainPatterns', () => {
   it('leer/null → []', () => {
     expect(parseDomainPatterns(null)).toEqual([]);
     expect(parseDomainPatterns('')).toEqual([]);
+  });
+});
+
+// Praxistest-Rohtext (gekürzt): Überschrift, drei URLs, dann Anzeigentext
+// mit weiteren URLs/Links weiter unten.
+const PRAXIS_TEXT = [
+  'Geöffnete Tab-URLs:',
+  'https://www.xing.com/jobs/neuss-it-spezialist-dms-158426015?ijt=jb_17&rru=41693083.824524',
+  'https://schlingeling.de/forwarding/checkicheck-3254464646',
+  'http://slinghoebbelboepp.com/neuss-it-specialist-dms/493345345',
+  '',
+  'Navigation überspringen',
+  'Jobs finden',
+  'IT-Spezialist DMS (m/w/d)',
+  'Bewerbung unter https://www.amadeus-fire.de/bewerben/12-247806',
+  'Vor 2 TagenVor 2 Tagen veröffentlicht'
+].join('\n');
+
+describe('extractLeadingUrls – URL-Block am Textanfang', () => {
+  it('Praxistext: genau die drei URLs des Kopfblocks, in Reihenfolge', () => {
+    expect(extractLeadingUrls(PRAXIS_TEXT)).toEqual([
+      'https://www.xing.com/jobs/neuss-it-spezialist-dms-158426015?ijt=jb_17&rru=41693083.824524',
+      'https://schlingeling.de/forwarding/checkicheck-3254464646',
+      'http://slinghoebbelboepp.com/neuss-it-specialist-dms/493345345'
+    ]);
+  });
+
+  it('Leerzeilen innerhalb des Blocks und CRLF sind ok', () => {
+    expect(extractLeadingUrls('https://a.example/1\r\n\r\nhttps://b.example/2\r\nText\r\nhttps://c.example/3'))
+      .toEqual(['https://a.example/1', 'https://b.example/2']);
+  });
+
+  it('URLs erst tief im Anzeigentext → kein Block', () => {
+    const text = 'Titel\nFirma\nOrt\nBeschreibung\nBewerbung: https://www.linkedin.com/jobs/view/1/';
+    expect(extractLeadingUrls(text)).toEqual([]);
+  });
+
+  it('ohne URL / leer → []', () => {
+    expect(extractLeadingUrls('nur Text')).toEqual([]);
+    expect(extractLeadingUrls(null)).toEqual([]);
+  });
+});
+
+describe('Quelle (erste URL) und Quell-URL (letzte URL) aus dem Praxistext', () => {
+  it('Quelle = XING aus der ERSTEN URL', () => {
+    expect(detectSourceIdFromText(PRAXIS_TEXT, SOURCES)).toBe(XING);
+  });
+
+  it('Quell-URL = LETZTE URL des Kopfblocks (nicht der Bewerbungslink im Text)', () => {
+    expect(extractOfferUrlFromText(PRAXIS_TEXT)).toBe('http://slinghoebbelboepp.com/neuss-it-specialist-dms/493345345');
+  });
+
+  it('zwei URLs: die zweite ist die Quell-URL, bereinigt (Query entfernt)', () => {
+    const text = 'https://www.linkedin.com/comm/jobs/view/1/\nhttps://karriere.firma.de/job/42?utm_source=li\n\nTitel';
+    expect(extractOfferUrlFromText(text)).toBe('https://karriere.firma.de/job/42');
+  });
+
+  it('nur eine URL: sie ist zugleich Quelle und Quell-URL', () => {
+    const text = 'https://www.linkedin.com/comm/jobs/view/4377827138/?trk=eml\nTitel';
+    expect(detectSourceIdFromText(text, SOURCES)).toBe(LINKEDIN);
+    expect(extractOfferUrlFromText(text)).toBe('https://www.linkedin.com/jobs/view/4377827138/');
+  });
+
+  it('kein URL-Block → null (Formular nutzt dann die KI-url)', () => {
+    expect(extractOfferUrlFromText('Titel\nFirma')).toBeNull();
   });
 });

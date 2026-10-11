@@ -64,13 +64,29 @@ describe('Migration: job_sources.domain_patterns', () => {
     return Object.fromEntries(rows.map((r: any) => [r.name, r.domain_patterns]));
   }
 
-  it('leitet die registrierbare Domain aus der Seed-url ab', async () => {
+  // Bewusst das ERGEBNIS für jede Bestands-Quelle exakt festgeschrieben statt
+  // eines allgemeinen Public-Suffix-Algorithmus: Die Ableitung läuft einmalig
+  // über bekannte .com/.de-URLs; danach sind die Patterns editierbare Daten
+  // (eine künftige .co.uk-Börse bekommt ihr Pattern von Hand).
+  it('leitet für ALLE Seed-Quellen exakt die erwartete Domain ab', async () => {
     const p = await patternsByName();
-    expect(p['LinkedIn']).toBe('linkedin.com');
-    expect(p['XING']).toBe('xing.com');
-    expect(p['Arbeitsagentur']).toBe('arbeitsagentur.de'); // aus web.arbeitsagentur.de
-    expect(p['Indeed']).toBe('indeed.com');                // aus de.indeed.com
-    expect(p['MeineStadt']).toBe('meinestadt.de');         // aus konto.meinestadt.de
+    expect({
+      LinkedIn: p['LinkedIn'],
+      XING: p['XING'],
+      Stepstone: p['Stepstone'],
+      Indeed: p['Indeed'],
+      Arbeitsagentur: p['Arbeitsagentur'],
+      'Nachhaltige Jobs': p['Nachhaltige Jobs'],
+      MeineStadt: p['MeineStadt']
+    }).toEqual({
+      LinkedIn: 'linkedin.com',             // www.linkedin.com
+      XING: 'xing.com',                     // www.xing.com
+      Stepstone: 'stepstone.de',            // www.stepstone.de
+      Indeed: 'indeed.com',                 // de.indeed.com
+      Arbeitsagentur: 'arbeitsagentur.de',  // web.arbeitsagentur.de
+      'Nachhaltige Jobs': 'nachhaltigejobs.de', // www.nachhaltigejobs.de
+      MeineStadt: 'meinestadt.de'           // konto.meinestadt.de
+    });
   });
 
   it('Quellen ohne (parsebare) url bleiben NULL', async () => {
@@ -95,6 +111,29 @@ describe('Migration: job_sources.domain_patterns', () => {
     await knex.migrate.up(); // wieder herstellen für Idempotenz-Check
     const again = await knex('job_sources').where({ name: 'stellenangebote.de' });
     expect(again).toHaveLength(1);
+  });
+
+  it('down lässt die Quelle stehen, wenn ihre Patterns von Hand angepasst wurden', async () => {
+    await knex('job_sources')
+      .where({ name: 'stellenangebote.de' })
+      .update({ domain_patterns: 'stellenangebote.de, stellenanzeigen.de' });
+    await knex.migrate.down();
+    expect(await knex('job_sources').where({ name: 'stellenangebote.de' })).toHaveLength(1);
+    await knex.migrate.up();
+  });
+
+  it('down lässt die Quelle stehen, wenn ein Job daran hängt', async () => {
+    const source = await knex('job_sources').where({ name: 'stellenangebote.de' }).first();
+    await knex('job_sources').where({ id: source.id }).update({ domain_patterns: 'stellenangebote.de' });
+    await knex('job_offers').insert({
+      source_id: source.id,
+      title: 'Tester',
+      company: 'Firma',
+      posted_date: '2026-10-10',
+      status: 'new'
+    });
+    await knex.migrate.down();
+    expect(await knex('job_sources').where({ name: 'stellenangebote.de' })).toHaveLength(1);
   });
 });
 

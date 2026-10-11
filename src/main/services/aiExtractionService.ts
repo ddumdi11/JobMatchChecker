@@ -8,6 +8,7 @@ import { sendPrompt, AiTimeoutError } from './aiProviderService';
 import type { AIExtractionResult } from '../../shared/types';
 import { cleanJobUrl } from '../../shared/urlUtils';
 import { TIMEOUT_EXTRACTION_MS } from '../../shared/constants';
+import { buildPostedDateInstruction, sanitizePostedDate } from './extractionPrompt';
 
 /**
  * Extract job fields from unstructured text using the configured AI provider
@@ -55,7 +56,7 @@ Return a JSON object with these fields (all optional except where noted):
 - remoteOption (string): Remote/home office work details - look for "Heim-/Telearbeit", "Telearbeit", "Homeoffice", "Remote", percentage mentions like "überwiegend" (mostly), "teilweise" (partly), or specific percentages. Extract the full remote work arrangement description. If NO remote/homeoffice option is mentioned at all, set this to "0% - Vor Ort" (pure on-site position).
 - salaryRange (string): Salary information (preserve original format)
 - contractType (string): Employment type (e.g., "Vollzeit", "Full-time", "unbefristet")
-- postedDate (string, format: YYYY-MM-DD): Date job was posted
+${buildPostedDateInstruction()}
 - deadline (string, format: YYYY-MM-DD): Application deadline
 - url (string): Link to job posting
 - requirements (array of strings): Key requirements, skills, or qualifications mentioned (e.g., technologies, years of experience, certifications)
@@ -126,12 +127,10 @@ Return ONLY valid JSON, no explanation or markdown. If a field cannot be extract
     }
 
     // Parse dates
-    if (extractedData.postedDate) {
-      try {
-        fields.postedDate = new Date(extractedData.postedDate);
-      } catch {
-        // Invalid date format - ignore
-      }
+    // Ungültige oder zukünftige KI-Daten verwerfen (Formular belegt dann "gestern" vor)
+    const postedDate = sanitizePostedDate(extractedData.postedDate);
+    if (postedDate) {
+      fields.postedDate = new Date(postedDate);
     }
 
     if (extractedData.deadline) {
