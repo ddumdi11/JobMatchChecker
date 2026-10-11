@@ -165,6 +165,13 @@ export interface JobSource {
   createdAt: Date;
 }
 
+// Auswahl-Option für das Quelle-Dropdown (inkl. Domains für die Autoerkennung)
+export interface JobSourceOption {
+  id: number;
+  name: string;
+  domainPatterns: string | null; // job_sources.domain_patterns (kommagetrennt)
+}
+
 // AI Extraction types
 export interface AIExtractionResult {
   success: boolean;

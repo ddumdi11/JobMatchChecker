@@ -140,3 +140,77 @@ export function extractUrls(text: string | null | undefined): string[] {
   }
   return result;
 }
+
+/**
+ * Minimale Sicht auf eine Quelle für die Domain-Erkennung
+ * (`domainPatterns` = job_sources.domain_patterns, kommagetrennt).
+ */
+export interface SourceDomainEntry {
+  id: number;
+  domainPatterns?: string | null;
+}
+
+/** Zerlegt `domain_patterns` in normalisierte Domains ("www."/"*."/"." vorne entfernt). */
+export function parseDomainPatterns(patterns: string | null | undefined): string[] {
+  if (!patterns || typeof patterns !== 'string') return [];
+  return patterns
+    .split(',')
+    .map(p => p.trim().toLowerCase().replace(/^\*?\./, '').replace(/^www\./, '').replace(/\.$/, ''))
+    .filter(Boolean);
+}
+
+/**
+ * Ermittelt die Quelle (job_sources.id) zu einer URL über ihren Hostnamen.
+ *
+ * Regeln:
+ * - Treffer, wenn Hostname == Domain oder auf ".<Domain>" endet
+ *   (`jobs.linkedin.com` → linkedin.com; `notlinkedin.com` → KEIN Treffer).
+ * - Mehrere Treffer: die längste (spezifischste) Domain gewinnt.
+ * - Gleich lange Treffer bei verschiedenen Quellen = mehrdeutig → null.
+ * - Kein Treffer / ungültige URL → null. Niemals raten.
+ */
+export function detectSourceIdFromUrl(
+  url: string | null | undefined,
+  sources: SourceDomainEntry[]
+): number | null {
+  if (!url || typeof url !== 'string') return null;
+
+  let hostname: string;
+  try {
+    const parsed = new URL(url.trim());
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
+    hostname = parsed.hostname.toLowerCase().replace(/\.$/, '');
+  } catch {
+    return null;
+  }
+
+  let bestId: number | null = null;
+  let bestLength = 0;
+  let ambiguous = false;
+  for (const source of sources) {
+    for (const domain of parseDomainPatterns(source.domainPatterns)) {
+      if (hostname !== domain && !hostname.endsWith(`.${domain}`)) continue;
+      if (domain.length > bestLength) {
+        bestId = source.id;
+        bestLength = domain.length;
+        ambiguous = false;
+      } else if (domain.length === bestLength && source.id !== bestId) {
+        ambiguous = true;
+      }
+    }
+  }
+  return ambiguous ? null : bestId;
+}
+
+/**
+ * Ermittelt die Quelle aus einem eingefügten Rohtext. Maßgeblich ist
+ * ausschließlich die ERSTE URL (sie trägt die Jobbörse; weitere URLs sind
+ * Weiterleitungen bzw. der Link zum Angebot) – es wird nie durchprobiert.
+ */
+export function detectSourceIdFromText(
+  text: string | null | undefined,
+  sources: SourceDomainEntry[]
+): number | null {
+  const [firstUrl] = extractUrls(text);
+  return firstUrl ? detectSourceIdFromUrl(firstUrl, sources) : null;
+}

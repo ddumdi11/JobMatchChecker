@@ -160,10 +160,12 @@ export const useJobStore = create<JobState>()(
         set({ isLoading: true, error: null });
         try {
           // Transform frontend data to backend format
+          // Kein stiller Datums-Default mehr: Das Formular belegt sichtbar mit
+          // "gestern" vor; fehlt postedDate trotzdem, meldet das Backend den Fehler.
+          // (Der CSV-Import läuft über importService → jobService.createJob und
+          // hat seine eigene, explizite Datums-Kette – er nutzt diesen Store nicht.)
           const backendData: any = {
             ...data,
-            // Add required fields with defaults if missing
-            postedDate: data.postedDate || new Date(), // Default to today
             importMethod: 'ai_paste',
             status: data.status || 'new'
           };
@@ -208,13 +210,11 @@ export const useJobStore = create<JobState>()(
             delete backendData.source_url;
           }
 
-          // Resolve source name to sourceId
-          if (backendData.source) {
-            const sourceResult = await window.api.getOrCreateJobSource(backendData.source);
-            backendData.sourceId = sourceResult.id;
-            delete backendData.source;
-          } else if (!backendData.sourceId) {
-            backendData.sourceId = 1; // Default fallback
+          // Quelle kommt als sourceId aus dem Dropdown (Pflichtfeld). Kein stiller
+          // Fallback auf sourceId 1 (LinkedIn) und keine Freitext-Neuanlage mehr –
+          // fehlt sie, meldet das Backend den Fehler.
+          if (backendData.sourceId === '') {
+            delete backendData.sourceId;
           }
 
           // Remove frontend-only fields
@@ -282,13 +282,9 @@ export const useJobStore = create<JobState>()(
             delete backendData.source_url;
           }
 
-          // Resolve source name to sourceId
-          if (backendData.source !== undefined) {
-            if (backendData.source) {
-              const sourceResult = await window.api.getOrCreateJobSource(backendData.source);
-              backendData.sourceId = sourceResult.id;
-            }
-            delete backendData.source;
+          // Quelle kommt als sourceId aus dem Dropdown; leer → bestehenden Wert behalten
+          if (backendData.sourceId === '') {
+            delete backendData.sourceId;
           }
 
           // Handle empty postedDate: remove from payload to keep existing value

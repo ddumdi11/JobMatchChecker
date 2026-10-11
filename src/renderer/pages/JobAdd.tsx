@@ -9,7 +9,8 @@ import {
   Alert,
   CircularProgress,
   Chip,
-  Divider
+  Divider,
+  MenuItem
 } from '@mui/material';
 import {
   ContentPaste as PasteIcon,
@@ -23,9 +24,10 @@ import { useJobStore } from '../store/jobStore';
 import { useUnsavedChangesContext } from '../components/Layout';
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
 import DuplicateWarningDialog from '../components/DuplicateWarningDialog';
-import { extractUrls } from '../../shared/urlUtils';
+import { extractUrls, detectSourceIdFromText } from '../../shared/urlUtils';
+import { getYesterdayLocalIso, resolveSourceSelection } from '../../shared/jobFormDefaults';
 import { formatGermanDate, formatScore } from '../../shared/formatUtils';
-import type { JobDuplicateMatch, JobDuplicateCheckResult } from '../../shared/types';
+import type { JobDuplicateMatch, JobDuplicateCheckResult, JobSourceOption } from '../../shared/types';
 
 /**
  * JobAdd Page - Add new job offers with AI extraction
@@ -86,6 +88,25 @@ export default function JobAdd() {
   // sichtbar), der nächste speichert. Wird bei Feldänderungen zurückgesetzt.
   const conflictWarnedRef = useRef(false);
 
+  // Quellen fürs Dropdown (aus job_sources, inkl. domain_patterns für die
+  // Autoerkennung). Ref-Spiegel, damit der Extraktions-Effekt immer die
+  // aktuelle Liste sieht, ohne bei jedem Laden neu zu feuern.
+  const [sources, setSources] = useState<JobSourceOption[]>([]);
+  const sourcesRef = useRef<JobSourceOption[]>([]);
+  // Manuelle Quellen-Auswahl übersteuert die Autoerkennung (auch bei erneuter
+  // Extraktion). Zurückgesetzt durch "Leeren" bzw. neues Formular.
+  const sourceManualRef = useRef(false);
+
+  useEffect(() => {
+    window.api
+      .getJobSources()
+      .then(list => {
+        sourcesRef.current = list;
+        setSources(list);
+      })
+      .catch(err => console.error('Failed to load job sources:', err));
+  }, []);
+
   // Form state (initialized from extraction or empty)
   const [formData, setFormData] = useState({
     title: '',
@@ -97,10 +118,15 @@ export default function JobAdd() {
     salary_min: undefined as number | undefined,
     salary_max: undefined as number | undefined,
     remote_percentage: undefined as number | undefined,
-    source: '',
+    sourceId: '' as number | '',
     source_url: '',
     status: 'new' as const
   });
+
+  // Pflichtfelder fürs Speichern (Quelle + Datum zusätzlich zu Titel/Firma)
+  const requiredFilled = !!(
+    formData.title && formData.company && formData.sourceId !== '' && formData.postedDate
+  );
 
   // Track initial data to detect changes (Issue #12)
   const [initialFormData, setInitialFormData] = useState(formData);
@@ -114,6 +140,7 @@ export default function JobAdd() {
       getJobById(jobId);
     } else {
       // Add mode: Reset form
+      sourceManualRef.current = false;
       setJobText('');
       setShowForm(false);
       setFormData({
@@ -126,7 +153,7 @@ export default function JobAdd() {
         salary_min: undefined,
         salary_max: undefined,
         remote_percentage: undefined,
-        source: '',
+        sourceId: '',
         source_url: '',
         status: 'new'
       });
@@ -159,7 +186,7 @@ export default function JobAdd() {
         salary_min: undefined as number | undefined,
         salary_max: undefined as number | undefined,
         remote_percentage: undefined as number | undefined,
-        source: currentJob.sourceName || '',
+        sourceId: (currentJob.sourceId ?? '') as number | '',
         source_url: currentJob.url || '',
         status: (currentJob.status || 'new') as 'new'
       };
@@ -183,12 +210,12 @@ export default function JobAdd() {
     setIsDirty(shouldBeDirty);
 
     // Provide save action only if form is valid
-    if (shouldBeDirty && formData.title && formData.company) {
+    if (shouldBeDirty && requiredFilled) {
       setOnSave(handleSave);
     } else {
       setOnSave(undefined);
     }
-  }, [hasUnsavedChanges, showForm, saveSuccessful, formData.title, formData.company, setIsDirty, setOnSave]);
+  }, [hasUnsavedChanges, showForm, saveSuccessful, requiredFilled, setIsDirty, setOnSave]);
 
   // Drag & drop state
   const [isDragging, setIsDragging] = useState(false);
@@ -408,25 +435,47 @@ export default function JobAdd() {
         }
       }
 
-      setFormData({
+      // Quelle aus der ERSTEN URL des Rohtexts (manuelle Auswahl übersteuert)
+      const detectedSourceId = detectSourceIdFromText(jobText, sourcesRef.current);
+
+      setFormData(prev => ({
         title: fields.title || '',
         company: fields.company || '',
         location: fields.location || '',
-        postedDate: extractedDate,
+        // Kein Datum erkannt → sichtbar mit GESTERN (lokal) vorbelegen
+        postedDate: extractedDate || getYesterdayLocalIso(),
         description: (fields as any).fullText || '',
         requirements: (fields as any).notes || '', // AI extracts requirements into notes field
         salary_min: salaryMin,
         salary_max: salaryMax,
         remote_percentage: remotePercentage,
-        source: '',
+        sourceId: resolveSourceSelection({
+          currentSourceId: prev.sourceId,
+          manuallySelected: sourceManualRef.current,
+          detectedSourceId
+        }),
         source_url: (fields as any).url || '',
         status: 'new'
-      });
+      }));
       setShowForm(true);
     } else if (extractionResult && !extractionResult.success) {
-      // Show form anyway if extraction failed, but user can fill manually
+      // Show form anyway if extraction failed, but user can fill manually.
+      // Die URLs stehen trotzdem im Rohtext → Quelle + Datum-Default auch hier.
+      const detectedSourceId = detectSourceIdFromText(jobText, sourcesRef.current);
+      setFormData(prev => ({
+        ...prev,
+        postedDate: prev.postedDate || getYesterdayLocalIso(),
+        sourceId: resolveSourceSelection({
+          currentSourceId: prev.sourceId,
+          manuallySelected: sourceManualRef.current,
+          detectedSourceId
+        })
+      }));
       setShowForm(true);
     }
+    // jobText bewusst nicht in den Deps: nur ein neues Extraktionsergebnis
+    // soll die Vorbelegung auslösen, nicht jede Rohtext-Änderung.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [extractionResult]);
 
   // Handle form field changes
@@ -445,6 +494,14 @@ export default function JobAdd() {
   ) => {
     const value = event.target.value ? Number(event.target.value) : undefined;
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Quelle manuell gewählt → Autoerkennung übersteuert sie ab jetzt nicht mehr
+  const handleSourceChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    sourceManualRef.current = true;
+    conflictWarnedRef.current = false;
+    setFormData(prev => ({ ...prev, sourceId: value === '' ? '' : Number(value) }));
   };
 
   // Perform the actual save (create/update) – nach evtl. Dubletten-Bestätigung
@@ -486,7 +543,7 @@ export default function JobAdd() {
   // Pfad, der NICHT direkt in doSave() übergeht, zuverlässig zurückgesetzt.
   const handleSave = useCallback(async () => {
     // Prevent double-save / parallele Prüfung
-    if (isSaving || dupCheckInFlightRef.current || !formData.title || !formData.company) {
+    if (isSaving || dupCheckInFlightRef.current || !requiredFilled) {
       return;
     }
 
@@ -532,10 +589,10 @@ export default function JobAdd() {
     }
 
     await doSave();
-  }, [isSaving, formData.title, formData.company, formData.source_url, isEditMode, doSave]);
+  }, [isSaving, requiredFilled, formData.title, formData.company, formData.source_url, isEditMode, doSave]);
 
   // Keyboard shortcut: Ctrl+S for save
-  const canSave = showForm && formData.title && formData.company && !isSaving;
+  const canSave = showForm && requiredFilled && !isSaving;
   useKeyboardShortcut('ctrl+s', handleSave, { disabled: !canSave });
 
   // Live-Dublettenprüfung im Formular (debounced, nicht blockierend).
@@ -586,6 +643,7 @@ export default function JobAdd() {
 
   // Handle clear
   const handleClear = () => {
+    sourceManualRef.current = false;
     setJobText('');
     setFormData({
       title: '',
@@ -597,7 +655,7 @@ export default function JobAdd() {
       salary_min: undefined,
       salary_max: undefined,
       remote_percentage: undefined,
-      source: '',
+      sourceId: '',
       source_url: '',
       status: 'new'
     });
@@ -842,6 +900,9 @@ export default function JobAdd() {
               value={formData.postedDate}
               onChange={handleFieldChange('postedDate')}
               fullWidth
+              required
+              error={!formData.postedDate}
+              helperText={!formData.postedDate ? 'Bitte Datum angeben' : undefined}
               InputLabelProps={{ shrink: true }}
             />
 
@@ -898,11 +959,21 @@ export default function JobAdd() {
 
             {/* Source */}
             <TextField
-              label="Quelle (z.B. LinkedIn, Indeed)"
-              value={formData.source}
-              onChange={handleFieldChange('source')}
+              select
+              label="Quelle"
+              value={formData.sourceId}
+              onChange={handleSourceChange}
               fullWidth
-            />
+              required
+              error={formData.sourceId === ''}
+              helperText={formData.sourceId === '' ? 'Bitte Quelle wählen' : undefined}
+            >
+              {sources.map(source => (
+                <MenuItem key={source.id} value={source.id}>
+                  {source.name}
+                </MenuItem>
+              ))}
+            </TextField>
 
             {/* Source URL */}
             <TextField
@@ -928,7 +999,7 @@ export default function JobAdd() {
               variant="contained"
               startIcon={(isLoading || isSaving) ? <CircularProgress size={20} /> : <SaveIcon />}
               onClick={handleSave}
-              disabled={!formData.title || !formData.company || isLoading || isSaving}
+              disabled={!requiredFilled || isLoading || isSaving}
             >
               {(isLoading || isSaving) ? 'Speichere...' : 'Job speichern'}
             </Button>
