@@ -12,13 +12,24 @@
 
 import { toLocalIsoDate } from '../../shared/jobFormDefaults';
 
-/** Prompt-Feldbeschreibung für postedDate inkl. heutigem LOKALEM Datum. */
+/**
+ * Prompt-Feldbeschreibung für postedDate inkl. heutigem LOKALEM Datum.
+ *
+ * Vorrang: Stehen absolute und relative Angabe im Text, gilt das explizite
+ * absolute Datum. Relative Angaben altern zwischen Kopieren und Einfügen, und
+ * ein von Hand eingefügtes absolutes Datum ist eine bewusste Nutzer-Korrektur,
+ * die nie von einer Umrechnung überstimmt werden darf
+ * (Hierarchie: Nutzereingabe > Anzeigentext > Gestern-Default).
+ */
 export function buildPostedDateInstruction(now: Date = new Date()): string {
   const today = toLocalIsoDate(now);
   return `- postedDate (string, format: YYYY-MM-DD): Date THIS job was posted. Today's date is ${today}. ` +
     `If the text gives an absolute date, use it. If it gives a relative date ` +
     `(e.g. "Vor 2 Tagen veröffentlicht", "vor 18 Stunden", "heute", "gestern", "2 days ago"), ` +
-    `calculate it from today's date (${today}). Ignore dates that belong to other/similar job ` +
+    `calculate it from today's date (${today}). PRECEDENCE: if the text contains BOTH an explicit ` +
+    `absolute posting date (e.g. "Veröffentlichungsdatum: 01.10.2026", "Datum: 01.10.2026", ` +
+    `"veröffentlicht am 01.10.2026") AND a relative one, ALWAYS use the absolute date - regardless ` +
+    `of where in the text it appears. Ignore dates that belong to other/similar job ` +
     `listings shown on the same page. If the text contains no posting date at all, omit this field ` +
     `- never guess.`;
 }

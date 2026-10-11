@@ -28,6 +28,14 @@ describe('buildPostedDateInstruction', () => {
     expect(text).toMatch(/omit this field/);
     expect(text).toMatch(/never guess/);
   });
+
+  it('Vorrang: absolutes Datum schlägt relative Angabe, unabhängig von der Position', () => {
+    const text = buildPostedDateInstruction(new Date(2026, 9, 11));
+    expect(text).toMatch(/BOTH an explicit\s+absolute posting date/);
+    expect(text).toMatch(/Veröffentlichungsdatum: 01\.10\.2026/);
+    expect(text).toMatch(/ALWAYS use the absolute date/);
+    expect(text).toMatch(/regardless\s+of where in the text it appears/);
+  });
 });
 
 describe('sanitizePostedDate', () => {
