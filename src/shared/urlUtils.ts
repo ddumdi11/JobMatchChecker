@@ -216,6 +216,7 @@ const MAX_LINES_BEFORE_URL_BLOCK = 3;
  * - Er endet an der ersten nicht-leeren Zeile OHNE URL. Leerzeilen innerhalb
  *   werden übersprungen.
  * - URLs weiter unten im Anzeigentext (Bewerbungslink, Fußzeile) zählen nie.
+ * - Wiederholungen bleiben erhalten (A, B, A → letzte URL = A).
  */
 export function extractLeadingUrls(text: string | null | undefined): string[] {
   if (!text || typeof text !== 'string') return [];
@@ -231,9 +232,9 @@ export function extractLeadingUrls(text: string | null | undefined): string[] {
       if (++textLinesBefore > MAX_LINES_BEFORE_URL_BLOCK) break; // kein Block am Anfang
       continue;
     }
-    for (const url of urls) {
-      if (!block.includes(url)) block.push(url);
-    }
+    // Jedes Vorkommen in Reihenfolge behalten (auch Wiederholungen): endet die
+    // Kette wieder bei der Ausgangs-URL (A, B, A), ist A der Link zum Angebot.
+    block.push(...urls);
   }
   return block;
 }

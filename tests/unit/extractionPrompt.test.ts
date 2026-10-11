@@ -22,6 +22,20 @@ describe('buildPostedDateInstruction', () => {
     expect(buildPostedDateInstruction(new Date(2027, 0, 1, 0, 30))).toContain('2027-01-01');
   });
 
+  it('enthält die lokale Uhrzeit mit Offset (Stunden-Angaben → richtiger Tag)', () => {
+    const summer = buildPostedDateInstruction(new Date(2026, 9, 11, 10, 5));
+    expect(summer).toContain('Current local time: 10:05 (UTC+02:00)');
+    expect(summer).toMatch(/hour-based/);
+    expect(buildPostedDateInstruction(new Date(2026, 11, 1, 23, 45)))
+      .toContain('Current local time: 23:45 (UTC+01:00)');
+  });
+
+  it('Datum und Uhrzeit stammen aus demselben Zeitpunkt (kurz vor Mitternacht konsistent)', () => {
+    const text = buildPostedDateInstruction(new Date(2026, 11, 31, 23, 59));
+    expect(text).toContain("Today's date is 2026-12-31");
+    expect(text).toContain('Current local time: 23:59');
+  });
+
   it('fordert Berechnung relativer Angaben und Weglassen statt Raten', () => {
     const text = buildPostedDateInstruction(new Date(2026, 9, 11));
     expect(text).toMatch(/Vor 2 Tagen/);
@@ -63,5 +77,14 @@ describe('sanitizePostedDate', () => {
 
   it('ISO mit Uhrzeit wird auf das Datum reduziert', () => {
     expect(sanitizePostedDate('2026-10-09T00:00:00Z', now)).toBe('2026-10-09');
+    expect(sanitizePostedDate('2026-10-09T08:30', now)).toBe('2026-10-09');
+    expect(sanitizePostedDate('2026-10-09T08:30:00.000+02:00', now)).toBe('2026-10-09');
+  });
+
+  it('Anhängsel hinter dem Datum → verworfen (Formular nutzt dann Gestern-Default)', () => {
+    expect(sanitizePostedDate('2026-10-09xyz', now)).toBeUndefined();
+    expect(sanitizePostedDate('2026-10-09 abc', now)).toBeUndefined();
+    expect(sanitizePostedDate('2026-10-0912', now)).toBeUndefined();
+    expect(sanitizePostedDate('2026-10-09T25', now)).toBeUndefined();
   });
 });

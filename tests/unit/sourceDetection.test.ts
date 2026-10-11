@@ -230,4 +230,12 @@ describe('Quelle (erste URL) und Quell-URL (letzte URL) aus dem Praxistext', () 
   it('kein URL-Block → null (Formular nutzt dann die KI-url)', () => {
     expect(extractOfferUrlFromText('Titel\nFirma')).toBeNull();
   });
+
+  it('Kette A, B, A: Wiederholung bleibt erhalten → Quell-URL = A, Quelle über A', () => {
+    const a = 'https://www.xing.com/jobs/neuss-it-spezialist-dms-158426015';
+    const text = `${a}\nhttps://schlingeling.de/forwarding/checkicheck-3254464646\n${a}\n\nTitel`;
+    expect(extractLeadingUrls(text)).toEqual([a, 'https://schlingeling.de/forwarding/checkicheck-3254464646', a]);
+    expect(extractOfferUrlFromText(text)).toBe(a);
+    expect(detectSourceIdFromText(text, SOURCES)).toBe(XING);
+  });
 });

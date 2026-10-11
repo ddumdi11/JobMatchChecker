@@ -22,11 +22,17 @@ import { toLocalIsoDate } from '../../shared/jobFormDefaults';
  * (Hierarchie: Nutzereingabe > Anzeigentext > Gestern-Default).
  */
 export function buildPostedDateInstruction(now: Date = new Date()): string {
+  // Datum UND Uhrzeit aus demselben `now` – sonst entsteht um Mitternacht ein
+  // inkonsistentes Paar. Die Uhrzeit braucht die KI für Stunden-Angaben
+  // ("vor 18 Stunden" kann je nach Tageszeit heute oder gestern sein).
   const today = toLocalIsoDate(now);
+  const time = formatLocalTimeWithOffset(now);
   return `- postedDate (string, format: YYYY-MM-DD): Date THIS job was posted. Today's date is ${today}. ` +
+    `Current local time: ${time}. ` +
     `If the text gives an absolute date, use it. If it gives a relative date ` +
     `(e.g. "Vor 2 Tagen veröffentlicht", "vor 18 Stunden", "heute", "gestern", "2 days ago"), ` +
-    `calculate it from today's date (${today}). PRECEDENCE: if the text contains BOTH an explicit ` +
+    `calculate it from today's date (${today}); for hour-based ones, subtract from the current ` +
+    `local time to get the correct day. PRECEDENCE: if the text contains BOTH an explicit ` +
     `absolute posting date (e.g. "Veröffentlichungsdatum: 01.10.2026", "Datum: 01.10.2026", ` +
     `"veröffentlicht am 01.10.2026") AND a relative one, ALWAYS use the absolute date - regardless ` +
     `of where in the text it appears. Ignore dates that belong to other/similar job ` +
@@ -34,13 +40,27 @@ export function buildPostedDateInstruction(now: Date = new Date()): string {
     `- never guess.`;
 }
 
+/** Lokale Uhrzeit mit UTC-Offset, z. B. "10:00 (UTC+02:00)". */
+function formatLocalTimeWithOffset(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const offsetMinutes = -date.getTimezoneOffset();
+  const sign = offsetMinutes >= 0 ? '+' : '-';
+  const abs = Math.abs(offsetMinutes);
+  return `${pad(date.getHours())}:${pad(date.getMinutes())} ` +
+    `(UTC${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)})`;
+}
+
 /**
- * Plausibilisiert ein KI-geliefertes Datum (YYYY-MM-DD): ungültig oder nach
- * dem heutigen lokalen Tag → undefined (das Formular belegt dann "gestern" vor).
+ * Plausibilisiert ein KI-geliefertes Datum: nur ein vollständiges YYYY-MM-DD
+ * oder ein sauberes ISO-Datetime (YYYY-MM-DDThh:mm[:ss[.sss]][Z|±hh:mm]).
+ * Ungültig, mit Anhängsel oder nach dem heutigen lokalen Tag → undefined
+ * (das Formular belegt dann "gestern" vor).
  */
 export function sanitizePostedDate(value: unknown, now: Date = new Date()): string | undefined {
   if (typeof value !== 'string') return undefined;
-  const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const match = value
+    .trim()
+    .match(/^(\d{4})-(\d{2})-(\d{2})(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/);
   if (!match) return undefined;
   const [, y, m, d] = match;
   const date = new Date(Number(y), Number(m) - 1, Number(d));
