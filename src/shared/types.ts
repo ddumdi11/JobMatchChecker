@@ -394,6 +394,8 @@ export interface AIResponse {
     inputTokens: number;
     outputTokens: number;
   };
+  /** true, wenn der Provider die Antwort wegen des Token-Limits abgebrochen hat. */
+  truncated?: boolean;
 }
 
 export interface OpenRouterModel {

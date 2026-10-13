@@ -101,11 +101,20 @@ export const AI_PROVIDER_DEFAULTS = {
 
 /**
  * Per-use-case timeouts for AI requests (ms).
- * Matching produces large JSON answers (up to 2000 tokens) from a big prompt
- * and needs more headroom than the smaller extraction call.
+ * Matching produces large JSON answers from a big prompt and needs more
+ * headroom than the smaller extraction call.
  */
 export const TIMEOUT_MATCHING_MS = 120_000;
 export const TIMEOUT_EXTRACTION_MS = 30_000;
+
+/**
+ * Output-Token-Limit fürs Matching. Mit den Listen-Grenzen im Prompt
+ * (MATCHING_LIMITS) liegen Antworten bei ~1.5k Tokens – 8000 ist reichlich
+ * Luft. Bewusst nicht höher: Eine Antwort, die das Limit wirklich ausschöpft,
+ * käme bei ~50 Tokens/s schon in die Nähe von TIMEOUT_MATCHING_MS (120 s).
+ * Vorher 2000 → gap-reiche Jobs (z. B. Job 406) wurden mitten im JSON abgeschnitten.
+ */
+export const MATCHING_MAX_TOKENS = 8000;
 
 export const DEFAULT_MATCHING_PROMPT = `You are an expert career advisor and job matching assistant.
 
