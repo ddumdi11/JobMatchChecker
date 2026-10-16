@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
-import type { ScoreFilter } from '../../shared/types';
+import type { ScoreFilter, BulkMatchResult } from '../../shared/types';
 import { filterJobsByScore } from '../utils/jobScoreFilter';
+import { readShowIdColumn, writeShowIdColumn } from '../utils/jobListViewPrefs';
+import { formatJobRef } from '../../shared/formatUtils';
 import {
   Container,
   Typography,
@@ -37,7 +39,9 @@ import {
   Slider,
   Checkbox,
   Divider,
-  Snackbar
+  Snackbar,
+  FormControlLabel,
+  Switch
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -95,6 +99,13 @@ export default function JobList() {
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>('all');
   const [remoteFilter, setRemoteFilter] = useState<string>('all'); // 'all', 'remote', 'hybrid', 'onsite'
 
+  // ID-Spalte ein-/ausblendbar (Default aus), gemerkt pro Rechner
+  const [showIdColumn, setShowIdColumn] = useState<boolean>(() => readShowIdColumn());
+  const handleToggleIdColumn = (_: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
+    setShowIdColumn(checked);
+    writeShowIdColumn(checked);
+  };
+
   // Local pagination state (for client-side filtered results)
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(20);
@@ -111,7 +122,7 @@ export default function JobList() {
   // Bulk matching state
   const [isBulkMatching, setIsBulkMatching] = useState(false);
   const [_bulkMatchProgress, setBulkMatchProgress] = useState<{ current: number; total: number } | null>(null);
-  const [bulkMatchResult, setBulkMatchResult] = useState<{ matched: number; failed: number; errors: string[] } | null>(null);
+  const [bulkMatchResult, setBulkMatchResult] = useState<BulkMatchResult | null>(null);
   const [bulkMatchDialogOpen, setBulkMatchDialogOpen] = useState(false);
   const [unmatchedCount, setUnmatchedCount] = useState<number>(0);
 
@@ -899,6 +910,11 @@ export default function JobList() {
               />
             )}
           </Button>
+
+          <FormControlLabel
+            control={<Switch checked={showIdColumn} onChange={handleToggleIdColumn} size="small" />}
+            label="ID anzeigen"
+          />
         </Box>
 
         {/* Extended Filters (Collapsible) */}
@@ -996,6 +1012,7 @@ export default function JobList() {
               <TableHead>
                 <TableRow>
                   <TableCell padding="checkbox"></TableCell>
+                  {showIdColumn && <TableCell>ID</TableCell>}
                   <TableCell>Titel</TableCell>
                   <TableCell>Firma</TableCell>
                   <TableCell>Standort</TableCell>
@@ -1011,6 +1028,7 @@ export default function JobList() {
                 {[1, 2, 3, 4, 5].map((i) => (
                   <TableRow key={i}>
                     <TableCell padding="checkbox"><Skeleton variant="rectangular" width={24} height={24} /></TableCell>
+                    {showIdColumn && <TableCell><Skeleton width={32} /></TableCell>}
                     <TableCell><Skeleton width={180} /></TableCell>
                     <TableCell><Skeleton width={120} /></TableCell>
                     <TableCell><Skeleton width={100} /></TableCell>
@@ -1083,6 +1101,15 @@ export default function JobList() {
                         inputProps={{ 'aria-label': 'Alle auswählen' }}
                       />
                     </TableCell>
+                    {showIdColumn && (
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+                             onClick={() => handleSortChange('id')}>
+                          ID
+                          {sortField === 'id' && <SortIcon fontSize="small" />}
+                        </Box>
+                      </TableCell>
+                    )}
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
                            onClick={() => handleSortChange('title')}>
@@ -1148,6 +1175,13 @@ export default function JobList() {
                           inputProps={{ 'aria-label': `Job ${job.title} auswählen` }}
                         />
                       </TableCell>
+                      {showIdColumn && (
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {job.id}
+                          </Typography>
+                        </TableCell>
+                      )}
                       <TableCell>
                         <Typography variant="body2" fontWeight="medium">
                           {job.title}
@@ -1280,20 +1314,39 @@ export default function JobList() {
                   <strong>{bulkMatchResult.failed}</strong> Jobs fehlgeschlagen
                 </Typography>
               )}
-              {bulkMatchResult.errors.length > 0 && (
+              {bulkMatchResult.matchedJobs?.length > 0 && (
                 <Box sx={{ mt: 2 }}>
                   <Typography variant="subtitle2" gutterBottom>
-                    Fehler:
+                    Erfolgreich gematcht:
                   </Typography>
-                  <Box sx={{ maxHeight: 200, overflow: 'auto', bgcolor: 'grey.100', p: 1, borderRadius: 1 }}>
-                    {bulkMatchResult.errors.slice(0, 10).map((err, idx) => (
-                      <Typography key={idx} variant="body2" color="error" sx={{ fontSize: '0.75rem' }}>
-                        {err}
+                  <Box sx={{ maxHeight: 240, overflow: 'auto', bgcolor: 'grey.100', p: 1, borderRadius: 1 }}>
+                    {bulkMatchResult.matchedJobs.map(job => (
+                      <Typography key={job.id} variant="body2" sx={{ fontSize: '0.8rem' }}>
+                        {formatJobRef(job.id, job.title)} — <strong>{Math.round(job.matchScore)} %</strong>
                       </Typography>
                     ))}
-                    {bulkMatchResult.errors.length > 10 && (
+                  </Box>
+                </Box>
+              )}
+              {bulkMatchResult.failedJobs?.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Fehlgeschlagen:
+                  </Typography>
+                  <Box sx={{ maxHeight: 240, overflow: 'auto', bgcolor: 'grey.100', p: 1, borderRadius: 1 }}>
+                    {bulkMatchResult.failedJobs.slice(0, 20).map(job => (
+                      <Box key={job.id} sx={{ mb: 0.5 }}>
+                        <Typography variant="body2" color="error" sx={{ fontSize: '0.8rem', fontWeight: 'medium' }}>
+                          {formatJobRef(job.id, job.title)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', pl: 1 }}>
+                          {job.error}
+                        </Typography>
+                      </Box>
+                    ))}
+                    {bulkMatchResult.failedJobs.length > 20 && (
                       <Typography variant="body2" sx={{ mt: 1, fontStyle: 'italic' }}>
-                        ... und {bulkMatchResult.errors.length - 10} weitere Fehler
+                        ... und {bulkMatchResult.failedJobs.length - 20} weitere Fehler
                       </Typography>
                     )}
                   </Box>
