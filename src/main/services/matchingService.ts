@@ -5,6 +5,11 @@ import { TIMEOUT_MATCHING_MS, MATCHING_MAX_TOKENS } from '../../shared/constants
 import { AiResponseTruncatedError } from './aiTruncation';
 import { buildMatchingPrompt, parseMatchingResponse, type MatchingResult } from './matchingPrompt';
 import { runMatchingBatch } from './matchingBatch';
+import {
+  selectJobsForBulkMatching,
+  selectJobsForSelectedMatching,
+  countJobsForBulkMatching
+} from './matchingSelection';
 import { formatJobRef } from '../../shared/formatUtils';
 import type { BulkMatchResult } from '../../shared/types';
 
@@ -196,24 +201,10 @@ export async function bulkMatchJobs(
   const db = getDatabase();
 
   try {
-    // Get jobs to match
-    let jobs: any[];
-    if (rematchAll) {
-      jobs = db.prepare(`
-        SELECT id, title FROM job_offers
-        WHERE full_text IS NOT NULL AND full_text != ''
-        ORDER BY created_at DESC
-      `).all();
-    } else {
-      jobs = db.prepare(`
-        SELECT id, title FROM job_offers
-        WHERE match_score IS NULL
-        AND full_text IS NOT NULL AND full_text != ''
-        ORDER BY created_at DESC
-      `).all();
-    }
+    // Get jobs to match (ohne Volltext und archivierte Jobs schließt die Auswahl aus)
+    const jobs = selectJobsForBulkMatching(db, rematchAll);
 
-    // Note: skipped is always 0 here since SQL query already filters out jobs without full_text
+    // Note: skipped is always 0 here since the selection already filters out non-matchable jobs
     log.info(`Starting bulk matching for ${jobs.length} jobs (rematchAll: ${rematchAll})`);
 
     const result = await runMatchingBatch(jobs, matchJob, {
@@ -249,18 +240,12 @@ export async function matchSelectedJobs(
       return { matched: 0, failed: 0, skipped: 0, errors: [], matchedJobs: [], failedJobs: [] };
     }
 
-    // Get job details for selected IDs
-    const placeholders = jobIds.map(() => '?').join(',');
-    const jobs = db.prepare(`
-      SELECT id, title FROM job_offers
-      WHERE id IN (${placeholders})
-      AND full_text IS NOT NULL AND full_text != ''
-      ORDER BY created_at DESC
-    `).all(...jobIds) as any[];
+    // Get job details for selected IDs (nur matchbare: mit Volltext, nicht archiviert)
+    const jobs = selectJobsForSelectedMatching(db, jobIds);
 
-    const skipped = jobIds.length - jobs.length; // Jobs without full_text
+    const skipped = jobIds.length - jobs.length; // Jobs without full_text or archived
 
-    log.info(`Starting selective matching for ${jobs.length} jobs (${skipped} skipped due to missing text)`);
+    log.info(`Starting selective matching for ${jobs.length} jobs (${skipped} skipped: no text or archived)`);
 
     const result = await runMatchingBatch(jobs, matchJob, {
       onProgress,
@@ -283,13 +268,7 @@ export async function matchSelectedJobs(
  * Get count of jobs without match score (for UI display)
  */
 export function getUnmatchedJobCount(): number {
-  const db = getDatabase();
-  const result = db.prepare(`
-    SELECT COUNT(*) as count FROM job_offers
-    WHERE match_score IS NULL
-    AND full_text IS NOT NULL AND full_text != ''
-  `).get() as { count: number };
-  return result.count;
+  return countJobsForBulkMatching(getDatabase(), false);
 }
 
 /**
