@@ -28,6 +28,22 @@ export interface MatchingBatchOptions {
   onFailed?: (job: BatchJob, error: unknown) => void;
 }
 
+/**
+ * Normalisiert einen gefangenen Fehler auf einen nicht-leeren String:
+ * Error mit nicht-leerer message → diese; geworfener nicht-leerer String →
+ * dieser; alles andere (Objekte, leere Strings, null, …) → "Unknown error".
+ * In failedJobs[].error / errors landet so nie ein Nicht-String.
+ */
+export function errorMessageOf(error: unknown): string {
+  if (error instanceof Error && typeof error.message === 'string' && error.message.trim()) {
+    return error.message;
+  }
+  if (typeof error === 'string' && error.trim()) {
+    return error;
+  }
+  return 'Unknown error';
+}
+
 export async function runMatchingBatch(
   jobs: BatchJob[],
   matchFn: (jobId: number) => Promise<{ matchScore: number }>,
@@ -53,8 +69,8 @@ export async function runMatchingBatch(
       result.matched++;
       result.matchedJobs.push({ id: job.id, title: job.title, matchScore });
       onMatched?.(job, i, total);
-    } catch (error: any) {
-      const message = error?.message || 'Unknown error';
+    } catch (error: unknown) {
+      const message = errorMessageOf(error);
       result.failed++;
       result.failedJobs.push({ id: job.id, title: job.title, error: message });
       result.errors.push(`${formatJobRef(job.id, job.title)}: ${message}`);

@@ -79,9 +79,39 @@ describe('runMatchingBatch', () => {
     ]);
   });
 
-  it('Fehler ohne Meldung → "Unknown error"', async () => {
-    const r = await runMatchingBatch([{ id: 1, title: 'A' }], async () => { throw {}; }, { delayMs: 0 });
-    expect(r.failedJobs[0].error).toBe('Unknown error');
+  it('Fehler-Normalisierung: Error-message, String, sonst "Unknown error" – immer ein String', async () => {
+    const thrown: unknown[] = [
+      new Error('kaputt'),
+      'als String geworfen',
+      {},
+      { message: 42 },
+      { message: 'Objekt mit message, aber kein Error' },
+      '',
+      '   ',
+      new Error(''),
+      null,
+      undefined,
+      42
+    ];
+    const jobs = thrown.map((_, i) => ({ id: i + 1, title: `J${i + 1}` }));
+    const r = await runMatchingBatch(jobs, async id => { throw thrown[id - 1]; }, { delayMs: 0 });
+
+    expect(r.failedJobs.map(f => f.error)).toEqual([
+      'kaputt',
+      'als String geworfen',
+      'Unknown error',
+      'Unknown error',
+      'Unknown error',
+      'Unknown error',
+      'Unknown error',
+      'Unknown error',
+      'Unknown error',
+      'Unknown error',
+      'Unknown error'
+    ]);
+    for (const f of r.failedJobs) expect(typeof f.error).toBe('string');
+    for (const e of r.errors) expect(typeof e).toBe('string');
+    expect(r.errors[2]).toBe('#3 · J3: Unknown error');
   });
 
   it('Fortschritt, Hooks und skipped werden durchgereicht', async () => {

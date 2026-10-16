@@ -41,7 +41,8 @@ import {
   Divider,
   Snackbar,
   FormControlLabel,
-  Switch
+  Switch,
+  TableSortLabel
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -49,7 +50,6 @@ import {
   Delete as DeleteIcon,
   Search as SearchIcon,
   FilterList as FilterIcon,
-  Sort as SortIcon,
   WorkOff as WorkOffIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
@@ -556,6 +556,10 @@ export default function JobList() {
         break;
 
       case 'Enter':
+        // Fokussierter Button (z. B. Sortier-Spaltenkopf) behält sein eigenes Enter
+        if (activeElement instanceof HTMLButtonElement || activeElement?.getAttribute('role') === 'button') {
+          break;
+        }
         if (focusedRowIndex >= 0 && focusedRowIndex < jobCount) {
           const job = paginatedJobs[focusedRowIndex];
           if (job.id) {
@@ -616,6 +620,24 @@ export default function JobList() {
       filters.status = statusFilter;
     }
     fetchJobs(filters, { sortBy: field as any, sortOrder: newDirection as any });
+  };
+
+  // Sortierbarer Spaltenkopf: TableSortLabel ist ein echter Button
+  // (Tab-fokussierbar, Enter/Leertaste) und setzt aria-sort an der Zelle.
+  const renderSortHeader = (field: string, label: string, align?: 'center') => {
+    const active = sortField === field;
+    const direction = sortDirection === 'desc' ? 'desc' : 'asc';
+    return (
+      <TableCell align={align} sortDirection={active ? direction : false}>
+        <TableSortLabel
+          active={active}
+          direction={active ? direction : 'asc'}
+          onClick={() => handleSortChange(field)}
+        >
+          {label}
+        </TableSortLabel>
+      </TableCell>
+    );
   };
 
   // Handle page change (client-side pagination)
@@ -1101,53 +1123,15 @@ export default function JobList() {
                         inputProps={{ 'aria-label': 'Alle auswählen' }}
                       />
                     </TableCell>
-                    {showIdColumn && (
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                             onClick={() => handleSortChange('id')}>
-                          ID
-                          {sortField === 'id' && <SortIcon fontSize="small" />}
-                        </Box>
-                      </TableCell>
-                    )}
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                           onClick={() => handleSortChange('title')}>
-                        Titel
-                        {sortField === 'title' && <SortIcon fontSize="small" />}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                           onClick={() => handleSortChange('company')}>
-                        Firma
-                        {sortField === 'company' && <SortIcon fontSize="small" />}
-                      </Box>
-                    </TableCell>
+                    {showIdColumn && renderSortHeader('id', 'ID')}
+                    {renderSortHeader('title', 'Titel')}
+                    {renderSortHeader('company', 'Firma')}
                     <TableCell>Standort</TableCell>
                     <TableCell>Gehalt</TableCell>
                     <TableCell>Remote</TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                           onClick={() => handleSortChange('status')}>
-                        Status
-                        {sortField === 'status' && <SortIcon fontSize="small" />}
-                      </Box>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                           onClick={() => handleSortChange('matchScore')}>
-                        Match
-                        {sortField === 'matchScore' && <SortIcon fontSize="small" />}
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                           onClick={() => handleSortChange('postedDate')}>
-                        Datum
-                        {sortField === 'postedDate' && <SortIcon fontSize="small" />}
-                      </Box>
-                    </TableCell>
+                    {renderSortHeader('status', 'Status')}
+                    {renderSortHeader('matchScore', 'Match', 'center')}
+                    {renderSortHeader('postedDate', 'Datum')}
                     <TableCell align="right">Aktionen</TableCell>
                   </TableRow>
                 </TableHead>
