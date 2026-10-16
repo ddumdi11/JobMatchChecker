@@ -10,6 +10,7 @@ import Store from 'electron-store';
 import * as log from 'electron-log';
 import { getDatabase } from '../database/db';
 import { AI_PROVIDER_DEFAULTS } from '../../shared/constants';
+import { isTruncatedStop } from './aiTruncation';
 import type { AIProvider, AIProviderConfig, AIMessage, AIResponse, OpenRouterModel } from '../../shared/types';
 
 const store = new Store();
@@ -204,6 +205,7 @@ async function sendToAnthropic(
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,
       },
+      truncated: isTruncatedStop('anthropic', response.stop_reason),
     };
   } catch (error: any) {
     clearTimeout(timeoutId);
@@ -291,6 +293,7 @@ async function sendToOpenRouter(
         inputTokens: data.usage.prompt_tokens || 0,
         outputTokens: data.usage.completion_tokens || 0,
       } : undefined,
+      truncated: isTruncatedStop('openrouter', data.choices?.[0]?.finish_reason),
     };
   } catch (error: any) {
     clearTimeout(timeoutId);
