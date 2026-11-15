@@ -70,6 +70,11 @@ describe('countJobsForBulkMatching (Button "Neue matchen (N)")', () => {
     expect(countJobsForBulkMatching(db, false)).toBe(selectJobsForBulkMatching(db, false).length);
     expect(countJobsForBulkMatching(db, true)).toBe(selectJobsForBulkMatching(db, true).length);
   });
+
+  it('Rückfrage "Alle N neu matchen?": DB-weit ohne archivierte und textlose Jobs', () => {
+    // 5 Jobs im Bestand – gezählt werden nur die 2, die "Alle neu matchen" wirklich verarbeitet
+    expect(countJobsForBulkMatching(getDatabase(), true)).toBe(2);
+  });
 });
 
 describe('selectJobsForSelectedMatching', () => {

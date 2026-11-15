@@ -272,6 +272,14 @@ export function getUnmatchedJobCount(): number {
 }
 
 /**
+ * Get count of jobs "Alle neu matchen" would process – DB-weit, unabhängig
+ * von Listenfiltern (ohne archivierte und textlose Jobs)
+ */
+export function getRematchableJobCount(): number {
+  return countJobsForBulkMatching(getDatabase(), true);
+}
+
+/**
  * Get matching history for a job
  * @param jobId - ID of the job
  * @returns Array of previous matching results

@@ -228,6 +228,12 @@ export interface BulkMatchResult {
   failedJobs: BulkFailedJob[];
 }
 
+/** Job-Kandidat für Bulk-/Auswahl-Matching (main/services/matchingSelection.ts) */
+export interface MatchCandidate {
+  id: number;
+  title: string;
+}
+
 // Pagination types
 export interface PaginationParams {
   page: number;      // 1-based

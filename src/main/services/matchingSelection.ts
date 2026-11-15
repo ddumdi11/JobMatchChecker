@@ -14,14 +14,10 @@
  */
 
 import type Database from 'better-sqlite3';
+import type { MatchCandidate } from '../../shared/types';
 
 /** Gemeinsame Bedingung: matchbar = Volltext vorhanden UND nicht archiviert (NULL-Status bleibt matchbar). */
 const MATCHABLE = `full_text IS NOT NULL AND full_text != '' AND COALESCE(status, '') != 'archived'`;
-
-export interface MatchCandidate {
-  id: number;
-  title: string;
-}
 
 /** "Neue matchen" (ohne Score) bzw. "Alle neu matchen" (rematchAll). */
 export function selectJobsForBulkMatching(db: Database.Database, rematchAll: boolean): MatchCandidate[] {
@@ -48,7 +44,10 @@ export function selectJobsForSelectedMatching(db: Database.Database, jobIds: num
   `).all(...jobIds) as MatchCandidate[];
 }
 
-/** Anzahl für "Neue matchen (N)" – identisch zu selectJobsForBulkMatching(db, false). */
+/**
+ * Anzahl für "Neue matchen (N)" (rematchAll=false) bzw. für die Rückfrage
+ * "Alle N Jobs neu matchen?" (rematchAll=true) – identisch zu selectJobsForBulkMatching.
+ */
 export function countJobsForBulkMatching(db: Database.Database, rematchAll: boolean): number {
   const unscored = rematchAll ? '' : 'AND match_score IS NULL';
   const row = db.prepare(`

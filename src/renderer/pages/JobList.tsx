@@ -306,8 +306,9 @@ export default function JobList() {
     const freshUnmatchedCount = await window.api.getUnmatchedJobCount();
     setUnmatchedCount(freshUnmatchedCount); // Update state too
 
-    // Archivierte Jobs matcht der Bulk-Pfad nicht – die Rückfrage zählt sie daher nicht mit
-    const jobCount = rematchAll ? jobs.filter(j => j.status !== 'archived').length : freshUnmatchedCount;
+    // DB-weite Zählung mit denselben Kriterien wie die Bulk-Auswahl (ohne archivierte
+    // und textlose Jobs) – unabhängig von Listenfiltern und geladener Job-Liste
+    const jobCount = rematchAll ? await window.api.getRematchableJobCount() : freshUnmatchedCount;
     if (jobCount === 0) {
       alert(rematchAll ? 'Keine Jobs zum Matchen vorhanden.' : 'Alle Jobs haben bereits einen Match-Score.');
       return;
