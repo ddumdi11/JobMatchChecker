@@ -4,6 +4,9 @@ import { sendPrompt } from './aiProviderService';
 import { TIMEOUT_MATCHING_MS, MATCHING_MAX_TOKENS } from '../../shared/constants';
 import { AiResponseTruncatedError } from './aiTruncation';
 import { buildMatchingPrompt, parseMatchingResponse, type MatchingResult } from './matchingPrompt';
+import { runMatchingBatch } from './matchingBatch';
+import { formatJobRef } from '../../shared/formatUtils';
+import type { BulkMatchResult } from '../../shared/types';
 
 export type { MatchingResult } from './matchingPrompt';
 
@@ -189,7 +192,7 @@ function validateAndAdjustScore(result: MatchingResult): MatchingResult {
 export async function bulkMatchJobs(
   rematchAll: boolean = false,
   onProgress?: (current: number, total: number, jobTitle: string) => void
-): Promise<{ matched: number; failed: number; skipped: number; errors: string[] }> {
+): Promise<BulkMatchResult> {
   const db = getDatabase();
 
   try {
@@ -210,41 +213,18 @@ export async function bulkMatchJobs(
       `).all();
     }
 
-    const total = jobs.length;
-    let matched = 0;
-    let failed = 0;
     // Note: skipped is always 0 here since SQL query already filters out jobs without full_text
-    const errors: string[] = [];
+    log.info(`Starting bulk matching for ${jobs.length} jobs (rematchAll: ${rematchAll})`);
 
-    log.info(`Starting bulk matching for ${total} jobs (rematchAll: ${rematchAll})`);
+    const result = await runMatchingBatch(jobs, matchJob, {
+      onProgress,
+      onMatched: (job, i, total) => log.info(`Matched job ${i + 1}/${total}: ${formatJobRef(job.id, job.title)}`),
+      onFailed: (job, error) => log.error(`Failed to match ${formatJobRef(job.id, job.title)}:`, error)
+    });
 
-    for (let i = 0; i < jobs.length; i++) {
-      const job = jobs[i];
+    log.info(`Bulk matching completed: ${result.matched} matched, ${result.failed} failed`);
 
-      if (onProgress) {
-        onProgress(i + 1, total, job.title);
-      }
-
-      try {
-        await matchJob(job.id);
-        matched++;
-        log.info(`Matched job ${i + 1}/${total}: ${job.title}`);
-      } catch (error: any) {
-        failed++;
-        const errorMsg = `Job "${job.title}": ${error.message || 'Unknown error'}`;
-        errors.push(errorMsg);
-        log.error(`Failed to match job ${job.id}:`, error);
-      }
-
-      // Small delay between API calls to avoid rate limiting
-      if (i < jobs.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-    }
-
-    log.info(`Bulk matching completed: ${matched} matched, ${failed} failed`);
-
-    return { matched, failed, skipped: 0, errors };
+    return result;
 
   } catch (error: any) {
     log.error('Error in bulkMatchJobs:', error);
@@ -261,12 +241,12 @@ export async function bulkMatchJobs(
 export async function matchSelectedJobs(
   jobIds: number[],
   onProgress?: (current: number, total: number, jobTitle: string) => void
-): Promise<{ matched: number; failed: number; skipped: number; errors: string[] }> {
+): Promise<BulkMatchResult> {
   const db = getDatabase();
 
   try {
     if (jobIds.length === 0) {
-      return { matched: 0, failed: 0, skipped: 0, errors: [] };
+      return { matched: 0, failed: 0, skipped: 0, errors: [], matchedJobs: [], failedJobs: [] };
     }
 
     // Get job details for selected IDs
@@ -278,41 +258,20 @@ export async function matchSelectedJobs(
       ORDER BY created_at DESC
     `).all(...jobIds) as any[];
 
-    const total = jobs.length;
-    let matched = 0;
-    let failed = 0;
     const skipped = jobIds.length - jobs.length; // Jobs without full_text
-    const errors: string[] = [];
 
-    log.info(`Starting selective matching for ${total} jobs (${skipped} skipped due to missing text)`);
+    log.info(`Starting selective matching for ${jobs.length} jobs (${skipped} skipped due to missing text)`);
 
-    for (let i = 0; i < jobs.length; i++) {
-      const job = jobs[i];
+    const result = await runMatchingBatch(jobs, matchJob, {
+      onProgress,
+      skipped,
+      onMatched: (job, i, total) => log.info(`Matched job ${i + 1}/${total}: ${formatJobRef(job.id, job.title)}`),
+      onFailed: (job, error) => log.error(`Failed to match ${formatJobRef(job.id, job.title)}:`, error)
+    });
 
-      if (onProgress) {
-        onProgress(i + 1, total, job.title);
-      }
+    log.info(`Selective matching completed: ${result.matched} matched, ${result.failed} failed, ${skipped} skipped`);
 
-      try {
-        await matchJob(job.id);
-        matched++;
-        log.info(`Matched job ${i + 1}/${total}: ${job.title}`);
-      } catch (error: any) {
-        failed++;
-        const errorMsg = `Job "${job.title}": ${error.message || 'Unknown error'}`;
-        errors.push(errorMsg);
-        log.error(`Failed to match job ${job.id}:`, error);
-      }
-
-      // Small delay between API calls to avoid rate limiting
-      if (i < jobs.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-    }
-
-    log.info(`Selective matching completed: ${matched} matched, ${failed} failed, ${skipped} skipped`);
-
-    return { matched, failed, skipped, errors };
+    return result;
 
   } catch (error: any) {
     log.error('Error in matchSelectedJobs:', error);

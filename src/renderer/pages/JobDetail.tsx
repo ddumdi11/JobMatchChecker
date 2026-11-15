@@ -62,6 +62,7 @@ import {
 } from '@mui/icons-material';
 import { useJobStore } from '../store/jobStore';
 import type { JobStatus } from '../../shared/types';
+import { formatJobId, JOB_REF_SEPARATOR } from '../../shared/formatUtils';
 
 /**
  * JobDetail Page - Display full details of a single job offer
@@ -396,6 +397,11 @@ export default function JobDetail() {
             Zurück zur Übersicht
           </Button>
           <Typography variant="h4" component="h1" gutterBottom>
+            {currentJob.id !== undefined && (
+              <Box component="span" sx={{ color: 'text.secondary', fontWeight: 'normal' }}>
+                {formatJobId(currentJob.id)}{JOB_REF_SEPARATOR}
+              </Box>
+            )}
             {currentJob.title}
           </Typography>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>

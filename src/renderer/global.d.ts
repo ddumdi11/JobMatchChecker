@@ -51,8 +51,8 @@ interface Window {
     // Matching operations
     matchJob: (jobId: number) => Promise<any>;
     getMatchingHistory: (jobId: number) => Promise<any[]>;
-    bulkMatchJobs: (rematchAll: boolean) => Promise<{ success: boolean; data: { matched: number; failed: number; skipped: number; errors: string[] } }>;
-    matchSelectedJobs: (jobIds: number[]) => Promise<{ success: boolean; data: { matched: number; failed: number; skipped: number; errors: string[] } }>;
+    bulkMatchJobs: (rematchAll: boolean) => Promise<{ success: boolean; data: import('../shared/types').BulkMatchResult }>;
+    matchSelectedJobs: (jobIds: number[]) => Promise<{ success: boolean; data: import('../shared/types').BulkMatchResult }>;
     getUnmatchedJobCount: () => Promise<number>;
     // API Key management
     saveApiKey: (apiKey: string) => Promise<any>;

@@ -104,6 +104,16 @@ React Components / Zustand Stores
 - Auto-compact triggers at 95% but may interrupt ongoing work
 - `/clear` starts fresh session but loses all conversation history
 
+## Referenz-Konvention: Jobs vs. Issues
+
+- In technischen Diskussionen Jobs immer als ID + vollständiger Titel referenzieren
+  (z. B. **Job 406 — Expert DevSecOps Process Automation**), nie nur eines von beiden.
+- In Diskussionen: Jobs **ohne** `#` ("Job 137"), GitHub-Issues/PRs **mit** `#` ("#71").
+  Hintergrund: Job 406 und Job 425 (beide DevSecOps) wurden ohne ID verwechselt, und
+  "Hach-Job #137" wurde für ein Issue gehalten.
+- Die App-UI zeigt Jobs einheitlich über `formatJobRef()` (`src/shared/formatUtils.ts`)
+  als `#406 · Titel` – dort ist der Kontext eindeutig (es gibt keine Issues in der UI).
+
 ## Session Resume File
 
 **Für schnelle Wiederaufnahme der Arbeit:** Siehe [RESUME.md](./RESUME.md)

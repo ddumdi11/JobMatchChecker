@@ -201,8 +201,31 @@ export interface JobFilters {
 
 // Sort types
 export interface JobSortConfig {
-  sortBy: 'postedDate' | 'company' | 'status' | 'matchScore';
+  sortBy: 'postedDate' | 'company' | 'status' | 'matchScore' | 'title' | 'id';
   sortOrder: 'asc' | 'desc';
+}
+
+// Bulk-/Auswahl-Matching: Ergebnis mit Job-Bezug (ID + Titel)
+export interface BulkMatchedJob {
+  id: number;
+  title: string;
+  matchScore: number;
+}
+
+export interface BulkFailedJob {
+  id: number;
+  title: string;
+  error: string;
+}
+
+export interface BulkMatchResult {
+  matched: number;
+  failed: number;
+  skipped: number;
+  /** Fehlertexte im Format "#ID · Titel: Meldung" (Kompatibilität) */
+  errors: string[];
+  matchedJobs: BulkMatchedJob[];
+  failedJobs: BulkFailedJob[];
 }
 
 // Pagination types

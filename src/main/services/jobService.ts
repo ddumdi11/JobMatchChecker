@@ -333,6 +333,7 @@ export async function getJobs(
   const sortOrder = rawSortOrder === 'asc' ? 'ASC' : 'DESC';
 
   const columnMap: Record<string, string> = {
+    id: 'jo.id',
     title: 'jo.title',
     company: 'jo.company',
     location: 'jo.location',

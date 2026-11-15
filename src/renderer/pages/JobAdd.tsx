@@ -26,7 +26,7 @@ import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
 import DuplicateWarningDialog from '../components/DuplicateWarningDialog';
 import { extractUrls, detectSourceIdFromText, extractOfferUrlFromText } from '../../shared/urlUtils';
 import { getYesterdayLocalIso, resolveSourceSelection } from '../../shared/jobFormDefaults';
-import { formatGermanDate, formatScore } from '../../shared/formatUtils';
+import { formatGermanDate, formatScore, formatJobRef } from '../../shared/formatUtils';
 import type { JobDuplicateMatch, JobDuplicateCheckResult, JobSourceOption } from '../../shared/types';
 
 /**
@@ -708,6 +708,13 @@ export default function JobAdd() {
       <Typography variant="h4" component="h1" gutterBottom>
         {isEditMode ? 'Job bearbeiten' : 'Neuen Job hinzufügen'}
       </Typography>
+      {/* Bearbeiten: feste Referenz aus dem GESPEICHERTEN Job (bleibt stabil,
+          auch wenn der Titel im Formular gerade geändert wird) */}
+      {isEditMode && currentJob?.id !== undefined && String(currentJob.id) === id && (
+        <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>
+          {formatJobRef(currentJob.id, currentJob.title)}
+        </Typography>
+      )}
 
       {/* Step 1: Paste Job Text (only in add mode) */}
       {!showForm && !isEditMode && (
