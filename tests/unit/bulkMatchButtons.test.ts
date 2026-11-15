@@ -25,6 +25,18 @@ describe('getBulkMatchButtonsState', () => {
     expect(state.matchNew).toEqual({ disabled: false, label: 'Neue matchen (2)' });
   });
 
+  it('Zähler nicht ladbar: gesperrt, aber KEIN irreführendes "Alle gematcht"', () => {
+    const state = getBulkMatchButtonsState({ unmatchedCount: 0, rematchableCount: 0, countsUnavailable: true }, false);
+    expect(state.matchNew).toEqual({ disabled: true, label: 'Neue matchen (?)' });
+    expect(state.rematchAll.disabled).toBe(true);
+  });
+
+  it('erfolgreich geladene 0 bleibt "Alle gematcht" (unterscheidet sich vom Ladefehler)', () => {
+    const state = getBulkMatchButtonsState({ unmatchedCount: 0, rematchableCount: 4, countsUnavailable: false }, false);
+    expect(state.matchNew).toEqual({ disabled: true, label: 'Alle gematcht' });
+    expect(state.rematchAll.disabled).toBe(false);
+  });
+
   it('laufendes Matching sperrt beide Buttons', () => {
     const state = getBulkMatchButtonsState({ unmatchedCount: 2, rematchableCount: 5 }, true);
     expect(state.rematchAll.disabled).toBe(true);

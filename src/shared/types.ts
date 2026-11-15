@@ -228,6 +228,22 @@ export interface BulkMatchResult {
   failedJobs: BulkFailedJob[];
 }
 
+/** DB-weite Zähler für die Bulk-Matching-Buttons (renderer/utils/bulkMatchButtons.ts) */
+export interface BulkMatchCounts {
+  /** Matchbare Jobs ohne Score ("Neue matchen") */
+  unmatchedCount: number;
+  /** Alle matchbaren Jobs ("Alle neu matchen") */
+  rematchableCount: number;
+  /** Zähler konnten nicht geladen werden – unbekannt, NICHT 0 */
+  countsUnavailable?: boolean;
+}
+
+/** Abgeleiteter Zustand der Bulk-Matching-Buttons */
+export interface BulkMatchButtonsState {
+  matchNew: { disabled: boolean; label: string };
+  rematchAll: { disabled: boolean };
+}
+
 /** Job-Kandidat für Bulk-/Auswahl-Matching (main/services/matchingSelection.ts) */
 export interface MatchCandidate {
   id: number;
