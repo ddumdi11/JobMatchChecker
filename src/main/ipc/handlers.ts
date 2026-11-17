@@ -326,6 +326,16 @@ export function registerIpcHandlers() {
     }
   });
 
+  // Get count of jobs "Alle neu matchen" would process
+  ipcMain.handle('getRematchableJobCount', async () => {
+    try {
+      return matchingService.getRematchableJobCount();
+    } catch (error: any) {
+      log.error('Error getting rematchable job count:', error);
+      throw error;
+    }
+  });
+
   // API Key management
   ipcMain.handle('saveApiKey', async (_, apiKey: string) => {
     try {

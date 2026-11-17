@@ -54,6 +54,7 @@ interface Window {
     bulkMatchJobs: (rematchAll: boolean) => Promise<{ success: boolean; data: import('../shared/types').BulkMatchResult }>;
     matchSelectedJobs: (jobIds: number[]) => Promise<{ success: boolean; data: import('../shared/types').BulkMatchResult }>;
     getUnmatchedJobCount: () => Promise<number>;
+    getRematchableJobCount: () => Promise<number>;
     // API Key management
     saveApiKey: (apiKey: string) => Promise<any>;
     getApiKey: () => Promise<string | null>;

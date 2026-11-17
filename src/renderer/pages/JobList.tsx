@@ -4,6 +4,7 @@ import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
 import type { ScoreFilter, BulkMatchResult } from '../../shared/types';
 import { filterJobsByScore } from '../utils/jobScoreFilter';
 import { readShowIdColumn, writeShowIdColumn } from '../utils/jobListViewPrefs';
+import { getBulkMatchButtonsState } from '../utils/bulkMatchButtons';
 import { formatJobRef } from '../../shared/formatUtils';
 import {
   Container,
@@ -125,6 +126,36 @@ export default function JobList() {
   const [bulkMatchResult, setBulkMatchResult] = useState<BulkMatchResult | null>(null);
   const [bulkMatchDialogOpen, setBulkMatchDialogOpen] = useState(false);
   const [unmatchedCount, setUnmatchedCount] = useState<number>(0);
+  const [rematchableCount, setRematchableCount] = useState<number>(0);
+  // Laden der Zähler fehlgeschlagen → Stand unbekannt (nicht dasselbe wie 0)
+  const [matchCountsError, setMatchCountsError] = useState(false);
+
+  // DB-weite Zähler für die Bulk-Buttons (unabhängig von Listenfiltern).
+  // Setzt bei Fehler matchCountsError (Hinweis + "Erneut versuchen") und wirft weiter.
+  const refreshMatchCounts = useCallback(async () => {
+    try {
+      const [unmatched, rematchable] = await Promise.all([
+        window.api.getUnmatchedJobCount(),
+        window.api.getRematchableJobCount()
+      ]);
+      setUnmatchedCount(unmatched);
+      setRematchableCount(rematchable);
+      setMatchCountsError(false);
+      return { unmatched, rematchable };
+    } catch (error) {
+      console.error('Failed to load bulk matching counts:', error);
+      setMatchCountsError(true);
+      throw error;
+    }
+  }, []);
+  // Fehler ist schon im State sichtbar – für "nebenbei"-Refreshes nur noch schlucken
+  const refreshMatchCountsQuietly = useCallback(() => {
+    refreshMatchCounts().catch(() => { /* matchCountsError zeigt den Fehler */ });
+  }, [refreshMatchCounts]);
+  const bulkButtons = getBulkMatchButtonsState(
+    { unmatchedCount, rematchableCount, countsUnavailable: matchCountsError },
+    isBulkMatching
+  );
 
   // Selection state for selective matching
   const [selectedJobIds, setSelectedJobIds] = useState<Set<number>>(new Set());
@@ -145,18 +176,13 @@ export default function JobList() {
   const handleDuplicatesDeleted = useCallback(async (deleted: number) => {
     setSelectedJobIds(new Set());
     await fetchJobs();
-    try {
-      const count = await window.api.getUnmatchedJobCount();
-      setUnmatchedCount(count);
-    } catch {
-      /* Zähler-Refresh ist unkritisch */
-    }
+    refreshMatchCountsQuietly();
     setExportSnackbarSeverity('success');
     setExportSnackbarMessage(
       deleted > 0 ? `${deleted} Dublette(n) gelöscht.` : 'Keine Jobs gelöscht.'
     );
     setExportSnackbarOpen(true);
-  }, [fetchJobs]);
+  }, [fetchJobs, refreshMatchCountsQuietly]);
 
   // Check if any extended filters are active
   const hasActiveExtendedFilters =
@@ -206,18 +232,10 @@ export default function JobList() {
     fetchJobs();
   }, [fetchJobs]);
 
-  // Fetch unmatched job count
+  // Fetch bulk-matching counts (DB-weit)
   useEffect(() => {
-    const loadUnmatchedCount = async () => {
-      try {
-        const count = await window.api.getUnmatchedJobCount();
-        setUnmatchedCount(count);
-      } catch (error) {
-        console.error('Failed to load unmatched job count:', error);
-      }
-    };
-    loadUnmatchedCount();
-  }, [jobs]); // Refresh when jobs change
+    refreshMatchCountsQuietly();
+  }, [jobs, refreshMatchCountsQuietly]); // Refresh when jobs change
 
   // Selection handlers
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -278,9 +296,7 @@ export default function JobList() {
         setSelectedJobIds(new Set());
         // Refresh jobs to show new match scores
         await fetchJobs();
-        // Update unmatched count
-        const newCount = await window.api.getUnmatchedJobCount();
-        setUnmatchedCount(newCount);
+        refreshMatchCountsQuietly();
       }
     } catch (error: any) {
       console.error('Selected jobs matching failed:', error);
@@ -302,11 +318,16 @@ export default function JobList() {
       return;
     }
 
-    // Get fresh count from DB to avoid stale state
-    const freshUnmatchedCount = await window.api.getUnmatchedJobCount();
-    setUnmatchedCount(freshUnmatchedCount); // Update state too
-
-    const jobCount = rematchAll ? jobs.length : freshUnmatchedCount;
+    // Frische DB-weite Zähler (dieselben Kriterien wie die Bulk-Auswahl: ohne archivierte
+    // und textlose Jobs) – unabhängig von Listenfiltern und geladener Job-Liste.
+    // Scheitert das Laden, zeigt matchCountsError den Hinweis – dann NICHT matchen.
+    let fresh: { unmatched: number; rematchable: number };
+    try {
+      fresh = await refreshMatchCounts();
+    } catch {
+      return;
+    }
+    const jobCount = rematchAll ? fresh.rematchable : fresh.unmatched;
     if (jobCount === 0) {
       alert(rematchAll ? 'Keine Jobs zum Matchen vorhanden.' : 'Alle Jobs haben bereits einen Match-Score.');
       return;
@@ -332,9 +353,7 @@ export default function JobList() {
         setBulkMatchDialogOpen(true);
         // Refresh jobs to show new match scores
         await fetchJobs();
-        // Update unmatched count
-        const newCount = await window.api.getUnmatchedJobCount();
-        setUnmatchedCount(newCount);
+        refreshMatchCountsQuietly();
       }
     } catch (error: any) {
       console.error('Bulk matching failed:', error);
@@ -804,10 +823,10 @@ export default function JobList() {
                 variant="outlined"
                 startIcon={isBulkMatching ? <CircularProgress size={18} /> : <AutoAwesomeIcon />}
                 onClick={() => handleBulkMatch(false)}
-                disabled={isBulkMatching || unmatchedCount === 0}
+                disabled={bulkButtons.matchNew.disabled}
                 color="secondary"
               >
-                {unmatchedCount > 0 ? `Neue matchen (${unmatchedCount})` : 'Alle gematcht'}
+                {bulkButtons.matchNew.label}
               </Button>
             </span>
           </Tooltip>
@@ -817,7 +836,7 @@ export default function JobList() {
                 variant="outlined"
                 startIcon={isBulkMatching ? <CircularProgress size={18} /> : <RefreshIcon />}
                 onClick={() => handleBulkMatch(true)}
-                disabled={isBulkMatching || jobs.length === 0}
+                disabled={bulkButtons.rematchAll.disabled}
                 color="warning"
               >
                 Alle neu matchen
@@ -858,6 +877,21 @@ export default function JobList() {
           </Button>
         </Stack>
       </Box>
+
+      {/* Zähler fürs Bulk-Matching nicht ladbar */}
+      {matchCountsError && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 2 }}
+          action={
+            <Button color="inherit" size="small" onClick={refreshMatchCountsQuietly}>
+              Erneut versuchen
+            </Button>
+          }
+        >
+          Die Anzahl der zu matchenden Jobs konnte nicht geladen werden. Bulk-Matching ist bis dahin gesperrt.
+        </Alert>
+      )}
 
       {/* Bulk Matching Progress */}
       {isBulkMatching && (
