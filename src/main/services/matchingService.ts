@@ -201,7 +201,7 @@ export async function bulkMatchJobs(
   const db = getDatabase();
 
   try {
-    // Get jobs to match (ohne Volltext und archivierte Jobs schließt die Auswahl aus)
+    // Get jobs to match (textlose, archivierte und veraltete Jobs schließt die Auswahl aus)
     const jobs = selectJobsForBulkMatching(db, rematchAll);
 
     // Note: skipped is always 0 here since the selection already filters out non-matchable jobs
@@ -240,12 +240,12 @@ export async function matchSelectedJobs(
       return { matched: 0, failed: 0, skipped: 0, errors: [], matchedJobs: [], failedJobs: [] };
     }
 
-    // Get job details for selected IDs (nur matchbare: mit Volltext, nicht archiviert)
+    // Get job details for selected IDs (nur matchbare: mit Volltext, nicht archiviert/veraltet)
     const jobs = selectJobsForSelectedMatching(db, jobIds);
 
-    const skipped = jobIds.length - jobs.length; // Jobs without full_text or archived
+    const skipped = jobIds.length - jobs.length; // Jobs without full_text, archived or outdated
 
-    log.info(`Starting selective matching for ${jobs.length} jobs (${skipped} skipped: no text or archived)`);
+    log.info(`Starting selective matching for ${jobs.length} jobs (${skipped} skipped: no text, archived or outdated)`);
 
     const result = await runMatchingBatch(jobs, matchJob, {
       onProgress,
@@ -273,7 +273,7 @@ export function getUnmatchedJobCount(): number {
 
 /**
  * Get count of jobs "Alle neu matchen" would process – DB-weit, unabhängig
- * von Listenfiltern (ohne archivierte und textlose Jobs)
+ * von Listenfiltern (ohne archivierte, veraltete und textlose Jobs)
  */
 export function getRematchableJobCount(): number {
   return countJobsForBulkMatching(getDatabase(), true);

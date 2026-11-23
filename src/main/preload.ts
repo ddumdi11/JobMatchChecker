@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('api', {
   getJobSources: () => ipcRenderer.invoke('getJobSources'),
   getOrCreateJobSource: (name: string) => ipcRenderer.invoke('getOrCreateJobSource', name),
   getJobStatusOptions: () => ipcRenderer.invoke('getJobStatusOptions'),
+  bulkUpdateJobStatus: (jobIds: number[], status: string) => ipcRenderer.invoke('bulkUpdateJobStatus', jobIds, status),
   extractJobFields: (text: string) => ipcRenderer.invoke('extractJobFields', text),
 
   // Merge operations (Issue #28)

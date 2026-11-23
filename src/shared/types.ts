@@ -117,7 +117,27 @@ export function isValidRemoteWorkRange(range: Partial<RemoteWorkRange>): range i
 
 // Job Management Types (Feature 005)
 
-export type JobStatus = 'new' | 'interesting' | 'applied' | 'rejected' | 'archived';
+// Werte, Labels und Farben: src/shared/jobStatus.ts
+export type JobStatus = 'new' | 'interesting' | 'applied' | 'rejected' | 'outdated' | 'archived';
+
+export interface JobStatusDefinition {
+  value: JobStatus;
+  /** UI-Label (Detailansicht, Bulk-Status-Dialog) */
+  label: string;
+  /** Deutsches Label (Listenfilter, Exporte) */
+  labelDe: string;
+  /** MUI-Chip-Farbe */
+  color: 'default' | 'error' | 'info' | 'success' | 'warning';
+}
+
+/** Ergebnis der Bulk-Status-Änderung */
+export interface BulkStatusUpdateResult {
+  updated: number;
+  /** hatten den Ziel-Status bereits */
+  unchanged: number;
+  notFound: number;
+}
+
 export type ImportMethod = 'manual' | 'ai_paste' | 'bulk' | 'copy_paste';
 
 export interface JobOffer {
@@ -188,6 +208,18 @@ export interface AIExtractionResult {
  * angewandt): alle Jobs, nur mit Score, oder nur ohne Score.
  */
 export type ScoreFilter = 'all' | 'with' | 'without';
+
+/** Client-seitiger "Älter als N Tage"-Filter der Job-Liste */
+export interface AgeFilter {
+  days: number;
+  basis: 'postedDate' | 'createdAt';
+}
+
+/** Auswahl der Job-Liste, aufgeteilt nach Sichtbarkeit unter den aktuellen Filtern */
+export interface VisibleSelection {
+  visibleIds: number[];
+  hiddenCount: number;
+}
 
 export interface JobFilters {
   status?: JobStatus | null;

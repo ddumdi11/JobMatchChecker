@@ -98,6 +98,20 @@ export function registerIpcHandlers() {
     }
   });
 
+  ipcMain.handle('bulkUpdateJobStatus', async (_, jobIds, status) => {
+    try {
+      const result = jobService.bulkUpdateJobStatus(jobIds, status);
+      log.info(
+        `Bulk status update to '${status}': ${result.updated} updated, ` +
+        `${result.unchanged} unchanged, ${result.notFound} not found`
+      );
+      return result;
+    } catch (error: any) {
+      log.error('Error in bulkUpdateJobStatus:', error);
+      throw error;
+    }
+  });
+
   // Merge operations (Issue #28)
   ipcMain.handle('job:createMergePreview', async (_, existingJobId, newData) => {
     try {

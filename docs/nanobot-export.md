@@ -79,7 +79,7 @@ source_url,message_id,url,title,company,match_score,status,processed_at
 - `url` — via `cleanJobUrl` bereinigte Anzeige-/Dedup-URL (LinkedIn kanonisch,
   Tracking entfernt). Bleibt zusätzlich zum Matching erhalten.
 - `match_score` — leer, wenn nicht bewertet
-- `status` — Rohwert (z. B. `new`, `applied`)
+- `status` — Rohwert (z. B. `new`, `applied`, `outdated`)
 - `processed_at` — lokaler Kalendertag von `created_at` (`YYYY-MM-DD`), konsistent zur App
 
 > Die Konsumseite (`move_done_mails.py`) matcht auf `source_url ∪ url` und ist damit

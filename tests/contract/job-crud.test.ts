@@ -313,14 +313,15 @@ describe('Contract: Job CRUD IPC Handlers (Handler-Schicht)', () => {
       expect(typeof option.label).toBe('string');
     });
 
-    it('should return all 5 status values', async () => {
+    it('should return all 6 status values', async () => {
       const result = await invoke('getJobStatusOptions');
-      expect(result.length).toBe(5);
+      expect(result.length).toBe(6);
       const values = result.map((opt: any) => opt.value);
       expect(values).toContain('new');
       expect(values).toContain('interesting');
       expect(values).toContain('applied');
       expect(values).toContain('rejected');
+      expect(values).toContain('outdated');
       expect(values).toContain('archived');
     });
 
@@ -330,6 +331,26 @@ describe('Contract: Job CRUD IPC Handlers (Handler-Schicht)', () => {
         expect(option.label[0]).toBe(option.label[0].toUpperCase());
         expect(option.label.length).toBeGreaterThan(0);
       });
+    });
+  });
+
+  describe('bulkUpdateJobStatus() - Set status of multiple jobs', () => {
+    it('registriert den Kanal bulkUpdateJobStatus', () => {
+      expect(isRegistered('bulkUpdateJobStatus')).toBe(true);
+    });
+
+    it('setzt den Status und meldet die Anzahl', async () => {
+      const second = await invoke('createJob', baseJobInput({ title: 'Zweiter Job' }));
+
+      const result = await invoke('bulkUpdateJobStatus', [existingId, second.id], 'outdated');
+
+      expect(result).toEqual({ updated: 2, unchanged: 0, notFound: 0 });
+      expect((await invoke('getJobById', existingId)).status).toBe('outdated');
+      expect((await invoke('getJobById', second.id)).status).toBe('outdated');
+    });
+
+    it('lehnt ungültige Status ab', async () => {
+      await expect(invoke('bulkUpdateJobStatus', [existingId], 'expired')).rejects.toThrow(/Ungültiger Status/);
     });
   });
 });

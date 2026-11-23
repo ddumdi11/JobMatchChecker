@@ -24,9 +24,12 @@ import type {
   DuplicateGroup,
   DuplicateGroupKind,
   DuplicateScanResult,
-  JobSourceOption
+  JobSourceOption,
+  BulkStatusUpdateResult
 } from '../../shared/types';
 import { cleanJobUrl, getJobUrlKey } from '../../shared/urlUtils';
+import { JOB_STATUS_DEFINITIONS, isJobStatus } from '../../shared/jobStatus';
+import { setStatusForJobs } from './jobStatusBulk';
 
 /**
  * Custom error class for validation errors
@@ -144,8 +147,7 @@ function validateJobData(data: Partial<JobOfferInput>, isUpdate = false): void {
 
   // BR-5: Status enum validation
   if (data.status) {
-    const validStatuses: JobStatus[] = ['new', 'interesting', 'applied', 'rejected', 'archived'];
-    if (!validStatuses.includes(data.status as JobStatus)) {
+    if (!isJobStatus(data.status)) {
       throw new ValidationError('status', 'Invalid status value');
     }
   }
@@ -590,16 +592,17 @@ export function getOrCreateJobSource(name: string): { id: number; name: string }
 }
 
 /**
+ * Status mehrerer Jobs in einer Transaktion setzen (Bulk-Aktion der Job-Liste)
+ */
+export function bulkUpdateJobStatus(jobIds: number[], status: JobStatus): BulkStatusUpdateResult {
+  return setStatusForJobs(getDatabase(), jobIds, status);
+}
+
+/**
  * Get job status options with user-friendly labels
  */
 export function getJobStatusOptions(): Array<{ value: JobStatus; label: string }> {
-  return [
-    { value: 'new', label: 'New' },
-    { value: 'interesting', label: 'Interesting' },
-    { value: 'applied', label: 'Applied' },
-    { value: 'rejected', label: 'Rejected' },
-    { value: 'archived', label: 'Archived' }
-  ];
+  return JOB_STATUS_DEFINITIONS.map(({ value, label }) => ({ value, label }));
 }
 
 /**
