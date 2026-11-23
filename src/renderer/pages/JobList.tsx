@@ -78,10 +78,6 @@ import BulkStatusDialog from '../components/BulkStatusDialog';
 export default function JobList() {
   const navigate = useNavigate();
 
-  // Keyboard shortcut: Ctrl+N for new job
-  const handleNewJob = useCallback(() => navigate('/jobs/add'), [navigate]);
-  useKeyboardShortcut('ctrl+n', handleNewJob);
-
   // Store state
   const jobs = useJobStore(state => state.jobs);
   const fetchJobs = useJobStore(state => state.fetchJobs);
@@ -501,6 +497,10 @@ export default function JobList() {
   const visibleSelection = getVisibleSelection(selectedJobIds, filteredJobs);
   const anyDialogOpen =
     deleteDialogOpen || statusDialogOpen || cleanupDialogOpen || csvExportDialogOpen || bulkMatchDialogOpen;
+
+  // Keyboard shortcut: Ctrl+N for new job (not while a dialog is open)
+  const handleNewJob = useCallback(() => navigate('/jobs/add'), [navigate]);
+  useKeyboardShortcut('ctrl+n', handleNewJob, { disabled: anyDialogOpen });
 
   // Reset focused row when paginated jobs change
   useEffect(() => {
