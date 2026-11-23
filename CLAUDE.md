@@ -77,7 +77,7 @@ React Components / Zustand Stores
 
 ### Implementation Details
 - **Service Layer Conversion**: `src/main/services/jobService.ts` contains `rowToJobOffer()` function that converts DB rows to TypeScript types
-- **Shared Types**: ALL TypeScript interfaces defined in `src/shared/types.ts` (never duplicate type definitions!)
+- **Shared Types**: ALL TypeScript interfaces defined in `src/shared/types.ts` (never duplicate type definitions!). Exception: component props stay local to their component
 - **Store Integration**: Renderer stores (e.g., `jobStore.ts`) import and re-export types from `shared/types.ts`
 
 ### Important Notes
