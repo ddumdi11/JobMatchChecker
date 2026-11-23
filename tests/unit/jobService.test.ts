@@ -339,7 +339,7 @@ describe('Unit: jobService validation logic', () => {
     });
 
     it('should accept all valid status values', async () => {
-      const validStatuses = ['new', 'interesting', 'applied', 'rejected', 'archived'];
+      const validStatuses = ['new', 'interesting', 'applied', 'rejected', 'outdated', 'archived'];
 
       for (const status of validStatuses) {
         const validJob: JobOfferInput = {

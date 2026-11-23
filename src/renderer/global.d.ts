@@ -13,6 +13,10 @@ interface Window {
     getJobSources: () => Promise<import('../shared/types').JobSourceOption[]>;
     getOrCreateJobSource: (name: string) => Promise<{ id: number; name: string }>;
     getJobStatusOptions: () => Promise<Array<{ value: string; label: string }>>;
+    bulkUpdateJobStatus: (
+      jobIds: number[],
+      status: import('../shared/types').JobStatus
+    ) => Promise<import('../shared/types').BulkStatusUpdateResult>;
     extractJobFields: (text: string) => Promise<any>;
     // Merge operations
     createMergePreview: (existingJobId: number, newData: any) => Promise<any>;

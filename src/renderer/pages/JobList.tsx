@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
-import type { ScoreFilter, BulkMatchResult } from '../../shared/types';
+import type { AgeFilter, BulkMatchResult, JobStatus, ScoreFilter, VisibleSelection } from '../../shared/types';
+import { JOB_STATUS_DEFINITIONS, getJobStatusDefinition } from '../../shared/jobStatus';
 import { filterJobsByScore } from '../utils/jobScoreFilter';
+import { filterJobsByAge, filterJobsByStatus, getVisibleSelection, parseAgeDays } from '../utils/jobListFilter';
 import { readShowIdColumn, writeShowIdColumn } from '../utils/jobListViewPrefs';
 import { getBulkMatchButtonsState } from '../utils/bulkMatchButtons';
 import { formatJobRef } from '../../shared/formatUtils';
@@ -50,7 +52,6 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
-  FilterList as FilterIcon,
   WorkOff as WorkOffIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
@@ -61,12 +62,14 @@ import {
   PictureAsPdf as PdfIcon,
   FolderZip as FolderZipIcon,
   DeleteSweep as DeleteSweepIcon,
-  FileDownload as FileDownloadIcon
+  FileDownload as FileDownloadIcon,
+  Label as LabelIcon
 } from '@mui/icons-material';
 import { CircularProgress, LinearProgress } from '@mui/material';
 import { useJobStore } from '../store/jobStore';
 import DuplicateCleanupDialog from '../components/DuplicateCleanupDialog';
 import JobCsvExportDialog from '../components/JobCsvExportDialog';
+import BulkStatusDialog from '../components/BulkStatusDialog';
 
 /**
  * JobList Page - Display all job offers with filtering, sorting, and pagination
@@ -87,10 +90,11 @@ export default function JobList() {
   const error = useJobStore(state => state.error);
   const sortConfig = useJobStore(state => state.sortConfig);
   const setSortConfig = useJobStore(state => state.setSortConfig);
+  const totalJobCount = useJobStore(state => state.pagination.total);
 
-  // Local filter state (before applying to store)
+  // Local filter state (alle Filter wirken sofort und client-seitig)
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<JobStatus | 'all'>('all');
   const [sortField, setSortField] = useState<string>(sortConfig.sortBy);
   const [sortDirection, setSortDirection] = useState<string>(sortConfig.sortOrder);
 
@@ -99,6 +103,10 @@ export default function JobList() {
   const [matchScoreRange, setMatchScoreRange] = useState<number[]>([0, 100]);
   const [scoreFilter, setScoreFilter] = useState<ScoreFilter>('all');
   const [remoteFilter, setRemoteFilter] = useState<string>('all'); // 'all', 'remote', 'hybrid', 'onsite'
+  const [ageInput, setAgeInput] = useState('');
+  const [ageBasis, setAgeBasis] = useState<AgeFilter['basis']>('postedDate');
+  const ageDays = parseAgeDays(ageInput);
+  const ageFilterDays = ageDays === 'invalid' ? null : ageDays;
 
   // ID-Spalte ein-/ausblendbar (Default aus), gemerkt pro Rechner
   const [showIdColumn, setShowIdColumn] = useState<boolean>(() => readShowIdColumn());
@@ -163,6 +171,10 @@ export default function JobList() {
   // Duplicate cleanup dialog state (feat/job-duplicate-handling)
   const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
 
+  // Bulk-Status: Auswahl wird beim Öffnen festgehalten
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [statusSelection, setStatusSelection] = useState<VisibleSelection>({ visibleIds: [], hiddenCount: 0 });
+
   // CSV-Export dialog state (feat/jobs-csv-export)
   const [csvExportDialogOpen, setCsvExportDialogOpen] = useState(false);
 
@@ -184,12 +196,24 @@ export default function JobList() {
     setExportSnackbarOpen(true);
   }, [fetchJobs, refreshMatchCountsQuietly]);
 
+  // Nach der Bulk-Status-Änderung: Liste neu laden (aktualisiert über [jobs] auch die Match-Zähler)
+  const handleStatusUpdated = async (message: string) => {
+    setStatusDialogOpen(false);
+    setSelectedJobIds(new Set());
+    setPage(0);
+    setExportSnackbarSeverity('success');
+    setExportSnackbarMessage(message);
+    setExportSnackbarOpen(true);
+    await fetchJobs();
+  };
+
   // Check if any extended filters are active
   const hasActiveExtendedFilters =
     matchScoreRange[0] > 0 ||
     matchScoreRange[1] < 100 ||
     scoreFilter !== 'all' ||
-    remoteFilter !== 'all';
+    remoteFilter !== 'all' ||
+    ageFilterDays !== null;
 
   // Helper function to normalize and match remote option
   const matchRemoteOption = (remoteOption: string | null | undefined, filter: string): boolean => {
@@ -434,22 +458,14 @@ export default function JobList() {
   // Reset page when filters change
   useEffect(() => {
     setPage(0);
-  }, [searchTerm, statusFilter, matchScoreRange, scoreFilter, remoteFilter]);
+  }, [searchTerm, statusFilter, matchScoreRange, scoreFilter, remoteFilter, ageFilterDays, ageBasis]);
 
-  // Handle filter application
-  const handleApplyFilters = () => {
-    const filters: any = {};
-    if (statusFilter !== 'all') {
-      filters.status = statusFilter;
-    }
-    // Note: searchTerm is handled client-side (see filteredJobs)
-
-    fetchJobs(filters, { sortBy: sortField as any, sortOrder: sortDirection as any });
-  };
-
-  // Client-side filtering for search and extended filters
+  // Client-side filtering (Status, Alter, Suche und erweiterte Filter).
+  // `jobs` enthält immer den ganzen Bestand: Was der Filter anzeigt, ist auch
+  // das, was "Alle auswählen" erfasst – auch nach einem Neuladen der Liste.
   const filteredJobs = React.useMemo(() => {
-    let result = jobs;
+    let result = filterJobsByStatus(jobs, statusFilter);
+    result = filterJobsByAge(result, ageFilterDays === null ? null : { days: ageFilterDays, basis: ageBasis });
 
     // Search filter
     if (searchTerm.trim()) {
@@ -470,7 +486,7 @@ export default function JobList() {
     }
 
     return result;
-  }, [jobs, searchTerm, matchScoreRange, scoreFilter, remoteFilter]);
+  }, [jobs, statusFilter, ageFilterDays, ageBasis, searchTerm, matchScoreRange, scoreFilter, remoteFilter]);
 
   // Paginated jobs for display (client-side pagination)
   const paginatedJobs = React.useMemo(() => {
@@ -482,6 +498,9 @@ export default function JobList() {
   const allVisibleSelected = filteredJobs.length > 0 &&
     filteredJobs.every(job => job.id !== undefined && selectedJobIds.has(job.id));
   const someVisibleSelected = filteredJobs.some(job => job.id !== undefined && selectedJobIds.has(job.id));
+  const visibleSelection = getVisibleSelection(selectedJobIds, filteredJobs);
+  const anyDialogOpen =
+    deleteDialogOpen || statusDialogOpen || cleanupDialogOpen || csvExportDialogOpen || bulkMatchDialogOpen;
 
   // Reset focused row when paginated jobs change
   useEffect(() => {
@@ -517,8 +536,8 @@ export default function JobList() {
 
   // Keyboard navigation handler
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    // Don't handle shortcuts when dialog is open
-    if (deleteDialogOpen) return;
+    // Don't handle shortcuts when any dialog is open
+    if (anyDialogOpen) return;
 
     // Check if focus is in an input field (except for Escape)
     const activeElement = document.activeElement;
@@ -618,7 +637,7 @@ export default function JobList() {
         searchInputRef.current?.focus();
         break;
     }
-  }, [deleteDialogOpen, paginatedJobs, focusedRowIndex, navigate, scrollRowIntoView, handleView, handleEdit, handleDeleteClick]);
+  }, [anyDialogOpen, paginatedJobs, focusedRowIndex, navigate, scrollRowIntoView, handleView, handleEdit, handleDeleteClick]);
 
   // Attach keyboard listener
   useEffect(() => {
@@ -631,14 +650,8 @@ export default function JobList() {
     const newDirection = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc';
     setSortField(field);
     setSortDirection(newDirection);
+    // Lädt die Liste mit neuer Sortierung neu (siehe jobStore)
     setSortConfig({ sortBy: field as any, sortOrder: newDirection as any });
-
-    // Apply sort immediately
-    const filters: any = {};
-    if (statusFilter !== 'all') {
-      filters.status = statusFilter;
-    }
-    fetchJobs(filters, { sortBy: field as any, sortOrder: newDirection as any });
   };
 
   // Sortierbarer Spaltenkopf: TableSortLabel ist ein echter Button
@@ -706,18 +719,6 @@ export default function JobList() {
     return new Date(date).toLocaleDateString('de-DE');
   };
 
-  // Get status color
-  const getStatusColor = (status: string): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
-    switch (status) {
-      case 'new': return 'info';
-      case 'interesting': return 'success';
-      case 'applied': return 'warning';
-      case 'rejected': return 'error';
-      case 'archived': return 'default';
-      default: return 'default';
-    }
-  };
-
   // Reset all filters
   const handleResetAllFilters = () => {
     setSearchTerm('');
@@ -725,8 +726,9 @@ export default function JobList() {
     setMatchScoreRange([0, 100]);
     setScoreFilter('all');
     setRemoteFilter('all');
+    setAgeInput('');
+    setAgeBasis('postedDate');
     setPage(0);
-    fetchJobs();
   };
 
   // Reset extended filters only
@@ -734,6 +736,8 @@ export default function JobList() {
     setMatchScoreRange([0, 100]);
     setScoreFilter('all');
     setRemoteFilter('all');
+    setAgeInput('');
+    setAgeBasis('postedDate');
     setPage(0);
   };
 
@@ -799,6 +803,30 @@ export default function JobList() {
                 </span>
               </Tooltip>
             </>
+          )}
+          {/* Bulk-Status: nur sichtbare Auswahl */}
+          {selectedJobIds.size > 0 && (
+            <Tooltip
+              title={
+                visibleSelection.visibleIds.length > 0
+                  ? `Status von ${visibleSelection.visibleIds.length} ausgewählten Jobs setzen`
+                  : 'Alle ausgewählten Jobs sind durch die Filter ausgeblendet'
+              }
+            >
+              <span>
+                <Button
+                  variant="outlined"
+                  startIcon={<LabelIcon />}
+                  onClick={() => {
+                    setStatusSelection(visibleSelection);
+                    setStatusDialogOpen(true);
+                  }}
+                  disabled={visibleSelection.visibleIds.length === 0}
+                >
+                  Status setzen ({visibleSelection.visibleIds.length})
+                </Button>
+              </span>
+            </Tooltip>
           )}
           {/* Match Selected Button */}
           {selectedJobIds.size > 0 && (
@@ -893,6 +921,13 @@ export default function JobList() {
         </Alert>
       )}
 
+      {/* Ladegrenze erreicht: Filter und Auswahl sehen nicht den ganzen Bestand */}
+      {totalJobCount > jobs.length && jobs.length > 0 && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Es sind nur {jobs.length} von {totalJobCount} Jobs geladen. Filter und Auswahl beziehen sich nur auf die geladenen Jobs.
+        </Alert>
+      )}
+
       {/* Bulk Matching Progress */}
       {isBulkMatching && (
         <Alert severity="info" sx={{ mb: 2 }}>
@@ -931,24 +966,14 @@ export default function JobList() {
             <Select
               value={statusFilter}
               label="Status"
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => setStatusFilter(e.target.value as JobStatus | 'all')}
             >
               <MenuItem value="all">Alle</MenuItem>
-              <MenuItem value="new">Neu</MenuItem>
-              <MenuItem value="interesting">Interessant</MenuItem>
-              <MenuItem value="applied">Beworben</MenuItem>
-              <MenuItem value="rejected">Abgelehnt</MenuItem>
-              <MenuItem value="archived">Archiviert</MenuItem>
+              {JOB_STATUS_DEFINITIONS.map(def => (
+                <MenuItem key={def.value} value={def.value}>{def.labelDe}</MenuItem>
+              ))}
             </Select>
           </FormControl>
-
-          <Button
-            variant="contained"
-            startIcon={<FilterIcon />}
-            onClick={handleApplyFilters}
-          >
-            Filter anwenden
-          </Button>
 
           <Button
             variant="outlined"
@@ -1034,6 +1059,32 @@ export default function JobList() {
                 </FormControl>
               </Box>
 
+              {/* Age Filter */}
+              <Box sx={{ minWidth: 200 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Älter als (Tage)"
+                  value={ageInput}
+                  onChange={(e) => setAgeInput(e.target.value)}
+                  error={ageDays === 'invalid'}
+                  helperText={ageDays === 'invalid' ? 'Ganze Zahl ab 1 – Filter ist nicht aktiv' : undefined}
+                  inputProps={{ inputMode: 'numeric' }}
+                />
+                <FormControl fullWidth size="small" sx={{ mt: 1 }}>
+                  <InputLabel id="age-basis-label">Bezogen auf</InputLabel>
+                  <Select
+                    labelId="age-basis-label"
+                    value={ageBasis}
+                    label="Bezogen auf"
+                    onChange={(e) => setAgeBasis(e.target.value as AgeFilter['basis'])}
+                  >
+                    <MenuItem value="postedDate">Veröffentlicht</MenuItem>
+                    <MenuItem value="createdAt">Hinzugefügt</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+
               {/* Reset Extended Filters */}
               <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
                 <Tooltip title="Erweiterte Filter zurücksetzen">
@@ -1042,7 +1093,7 @@ export default function JobList() {
                     color="inherit"
                     startIcon={<ClearIcon />}
                     onClick={handleResetExtendedFilters}
-                    disabled={!hasActiveExtendedFilters}
+                    disabled={!hasActiveExtendedFilters && ageInput === ''}
                   >
                     Zurücksetzen
                   </Button>
@@ -1212,7 +1263,7 @@ export default function JobList() {
                       <TableCell>
                         <Chip
                           label={job.status}
-                          color={getStatusColor(job.status)}
+                          color={getJobStatusDefinition(job.status)?.color ?? 'default'}
                           size="small"
                           sx={job.status === 'new' ? { backgroundColor: '#64b5f6', color: '#fff' } : undefined}
                         />
@@ -1332,6 +1383,11 @@ export default function JobList() {
                   <strong>{bulkMatchResult.failed}</strong> Jobs fehlgeschlagen
                 </Typography>
               )}
+              {bulkMatchResult.skipped > 0 && (
+                <Typography variant="body1" color="text.secondary" gutterBottom>
+                  <strong>{bulkMatchResult.skipped}</strong> übersprungen (archiviert, veraltet oder ohne Volltext)
+                </Typography>
+              )}
               {bulkMatchResult.matchedJobs?.length > 0 && (
                 <Box sx={{ mt: 2 }}>
                   <Typography variant="subtitle2" gutterBottom>
@@ -1391,6 +1447,15 @@ export default function JobList() {
           {exportSnackbarMessage}
         </Alert>
       </Snackbar>
+
+      {/* Bulk-Status */}
+      <BulkStatusDialog
+        open={statusDialogOpen}
+        jobIds={statusSelection.visibleIds}
+        hiddenCount={statusSelection.hiddenCount}
+        onClose={() => setStatusDialogOpen(false)}
+        onUpdated={handleStatusUpdated}
+      />
 
       {/* Dubletten-Bereinigung */}
       <JobCsvExportDialog

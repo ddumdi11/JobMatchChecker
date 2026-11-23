@@ -62,6 +62,7 @@ import {
 } from '@mui/icons-material';
 import { useJobStore } from '../store/jobStore';
 import type { JobStatus } from '../../shared/types';
+import { getJobStatusDefinition } from '../../shared/jobStatus';
 import { formatJobId, JOB_REF_SEPARATOR } from '../../shared/formatUtils';
 
 /**
@@ -329,14 +330,9 @@ export default function JobDetail() {
 
   // Get status display
   const getStatusInfo = (status: string) => {
-    const statusMap: Record<string, { label: string; color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'; customSx?: object }> = {
-      'new': { label: 'Neu', color: 'info', customSx: { backgroundColor: '#64b5f6', color: '#fff' } }, // Lighter blue
-      'interesting': { label: 'Interessant', color: 'success' },
-      'applied': { label: 'Beworben', color: 'warning' },
-      'rejected': { label: 'Abgelehnt', color: 'error' },
-      'archived': { label: 'Archiviert', color: 'default' }
-    };
-    return statusMap[status] || { label: status, color: 'default' };
+    const color = getJobStatusDefinition(status)?.color ?? 'default';
+    const customSx = status === 'new' ? { backgroundColor: '#64b5f6', color: '#fff' } : undefined; // Lighter blue
+    return { color, customSx };
   };
 
   // Loading state
