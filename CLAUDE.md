@@ -114,6 +114,16 @@ React Components / Zustand Stores
 - Die App-UI zeigt Jobs einheitlich über `formatJobRef()` (`src/shared/formatUtils.ts`)
   als `#406 · Titel` – dort ist der Kontext eindeutig (es gibt keine Issues in der UI).
 
+## Review-Konvention: CodeRabbit
+
+- Ein grüner `CodeRabbit`-Check beweist **kein** Review: CodeRabbit meldet auch
+  „Review skipped“ und „Review rate limited“ als Erfolg. Der Check ist nur ein weiches Signal.
+- „Review abgeschlossen“ erfordert eine **positive Bestätigung** des Reviews
+  („Review completed“), nicht nur eine leere Findings-Liste.
+- Bei Rate-Limit: warten, bis es abgelaufen ist, und das Review erneut anstoßen.
+- Die eigentliche Garantie ist der Ablauf: Review anstoßen → Abschluss bestätigt →
+  Findings bearbeiten → *dann* erst mergen.
+
 ## Session Resume File
 
 **Für schnelle Wiederaufnahme der Arbeit:** Siehe [RESUME.md](./RESUME.md)
