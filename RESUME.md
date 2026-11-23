@@ -1,11 +1,11 @@
 # RESUME — JobMatchChecker
 
-**Stand:** 2026-11-17
+**Stand:** 2026-11-24
 **Rollen:** Claude (Architekt) → Thorsten (Supervisor/Relay) → Kurt (Implementierung; seit 11/2026 Opus 5.5 in T3 Code, vorher Claude Code CLI)
 
 ## Repo-Zustand
 
-- `main` sauber, CI grün (`test` + `nanobot-tool`). Remote-Branch `fix/bulk-match-exclude-archived` (#77, gemerged) kann noch gelöscht werden.
+- `main` sauber, CI grün (`test` + `nanobot-tool`). Keine offenen PRs, keine weiteren Remote-Branches.
 - Zuletzt gemerged (seit Snapshot 07/2026):
   - **#66** Dual-URL-Rückkanal: `source_url` (roher Original-Link, nie bereinigt) + `message_id` für das nanobot-Matching; `url` bleibt Anzeige-/Dedup-URL.
   - **#67** Node 20 vereinheitlicht · **#68** Contract-Tests auf Handler-Schicht umklassifiziert (laufen jetzt in CI) · **#69** Task-Scheduler-tauglicher Export-Wrapper · **#70** `nanobot:install` auf `npm ci`.
@@ -13,24 +13,26 @@
   - **#74** Truncation-Fix: abgeschnittene Matching-Antworten erkennen (max_tokens 2000 → 8000, Listen im Prompt begrenzt, ehrliche Fehlermeldung statt „Bitte erneut versuchen“). Auslöser: Job 406 — Expert DevSecOps Process Automation.
   - **#75** Job-ID sichtbar: ID-Spalte (umschaltbar, pro Rechner gemerkt), `#ID · Titel` in Kopfzeilen und Bulk-Ergebnis (`formatJobRef`), alle Sortierköpfe tastaturbedienbar (`TableSortLabel`), Fehler-Normalisierung im Batch.
   - **#77** Archivierte Jobs vom Matching ausgeschlossen (Neue/Alle/Ausgewählte + Zähler, gemeinsame Bedingung in `matchingSelection.ts`). Zähler DB-weit statt aus der gefilterten Liste; Ladefehler wird als „unbekannt“ angezeigt (Hinweis + „Erneut versuchen“), nie als „Alle gematcht“. Listenfilter „Alle“ bewusst unverändert (→ #76).
+  - **#79** Bulk-Aktion „Status setzen (N)“ in der Job-Liste (nur sichtbare Auswahl, eine Transaktion, kein Löschen) + neuer Status `outdated` („nie bearbeitet, veraltet“; vom Matching ausgeschlossen wie `archived`; Vorgriff auf #76). Status zentral in `src/shared/jobStatus.ts`, keine Migration. Altersfilter „Älter als (Tage)“. Statusfilter wirkt sofort und client-seitig, „Filter anwenden“ entfällt (schließt #78). Ctrl+N bei offenem Dialog gesperrt (in der App noch nicht geprüft).
 
 ## Merge-Hinweis (wichtig, spart Rätselraten)
 
-Das Ruleset „Coderabbit-Reviews“ ist für Solo-PRs **nie ohne Bypass erfüllbar**: Es verlangt 1 Approval (eigener PR nicht approvebar, CodeRabbit kommentiert nur) und einen Check `coderabbitai` (CodeRabbit meldet sich als `CodeRabbit`). Darum steht bei jedem PR „Approval required“ + „1 required pending“, auch wenn alles grün ist. Mergen: Pfeil neben „Squash and merge“ → **„Bypass requirements“**. Fehlt der Eintrag: mit dem **Admin-Account** angemeldet? (Der Zweitaccount per Google-Login hat keine Admin-Rechte.)
+Seit 23.11.2026 ist das Ruleset „Coderabbit-Reviews“ für Solo-PRs **ohne Bypass erfüllbar**, bewiesen mit #79 (Rule-Suite `pass`). Pflicht: Checks `test` + `CodeRabbit`, Branch auf dem Stand von `main`, lineare Historie. Die klassische Branch Protection ist gelöscht. Direkte Docs-Pushes auf `main` laufen weiter über den Admin-Bypass („Bypassed rule violations“ ist dort normal); bei offenem PR erst nach dessen Merge pushen, sonst muss er aktualisiert werden.
+Ist der Merge-Button gesperrt: mit dem **Admin-Account** angemeldet? (Der Zweitaccount per Google-Login hat keine Admin-Rechte.) CodeRabbit-Ablauf: siehe CLAUDE.md, „Review-Konvention: CodeRabbit“.
 Gestapelte PRs: Nach Squash-Merge des Basis-PRs den Folge-Branch mit `git rebase --onto origin/main <alter-Basis-Tip>` umsetzen (Ruleset verlangt lineare Historie).
 
 ## Geparkt (bewusst, keine Arbeit ohne Auftrag)
 
 - **#76** Job-Lifecycle & Archivierungskonzept — Diskussion vertagt, kein Code, keine Migration. Job 137 (Hach) wurde bewusst gelöscht, Rätsel geschlossen.
 - **#71** Einstellungen → Jobquellen verwalten (Name + Domains).
+- **jsdom/Komponententests:** bewusst verneint (Architektur, 11/2026), Revision nur evidenzgetrieben. UI-Logik in reine Funktionen ziehen und dort testen.
 - **stellenangebote.de:** Domain-Pattern ist geraten; sobald die echte Mail-Domain bekannt ist, nur den DB-Wert anpassen (keine Codeänderung).
 
 ## Thorsten-Zettel (manuell, klein)
 
-1. **Klassische Branch Protection löschen** (Ruleset ist führend; die alte Protection mit Pflicht-Check `test` existiert noch): `gh api -X DELETE repos/:owner/:repo/branches/main/protection` oder via Settings.
-2. **Zweiter Export-Task klären:** Der Windows-Task „Nanobot-Export JobMatchChecker“ läuft täglich 06:00 erfolgreich (`jobs_processed.csv` aktuell). Der Task **„JMC Export zu nanobot-workspace (Syncthing)“** (09:00) endet dagegen mit Ergebnis 1. Dazu liegen ungetrackte Fehlerberichte eines Sandbox-Laufs in `tools/nanobot-export/` (14./16.10.: `src/shared` nicht gemountet). Vermutlich ein überzähliger Doppel-Task → prüfen, ggf. abschalten, Berichte löschen.
-3. **Optional Ruleset aufräumen:** Approvals → 0 und Check-Name `coderabbitai` → `CodeRabbit`; dann wäre der Merge-Button wieder ohne Bypass grün. Entscheidung Architekt/Thorsten.
-4. Gelegentlich: alte DB-Kopien in `data/` prunen; Sprachen-Jahre (Deutsch 40/Englisch 25, geschätzt) prüfen.
+1. **Export-Task:** Bei „JMC Export zu nanobot-workspace (Syncthing)“ (täglich 06:00) das Häkchen „Aufgabe so schnell wie möglich nach einem verpassten Start ausführen“ setzen (Aufgabenplanung als Admin → Einstellungen). Der Doppel-Task ist geklärt: Thorsten hat den falschen Pfad korrigiert und die Dublette gelöscht. Ein verpasster Tag ist harmlos (90-Tage-Schnappschuss).
+2. **Cowork-Task** `nanobot-export-job-match-checker-app` prüfen: Er schrieb die (gelöschten) Fehlerberichte in `tools/nanobot-export/`, zuletzt am 23.10.2026.
+3. Gelegentlich: alte DB-Kopien in `data/` prunen; Sprachen-Jahre (Deutsch 40/Englisch 25, geschätzt) prüfen.
 
 ## Kleinigkeiten-Liste, zweite Charge (offen)
 
@@ -44,8 +46,7 @@ Gestapelte PRs: Nach Squash-Merge des Basis-PRs den Folge-Branch mit `git rebase
 8. **PreferencesPanel: englische Labels → Deutsch** (alter CodeRabbit-Nitpick).
 9. **CI-Status-Badge ins README** (neben License/Electron/React, wenn ohnehin am README gearbeitet wird).
 10. **Formular-Alias `source_url` umbenennen** (JobAdd.tsx/jobStore.ts → z. B. `formUrl`): lokaler Feldname für `url`, kollidiert namentlich mit der DB-Spalte `source_url` aus #66 (roher Tracking-Link, andere Semantik).
-11. **„Dubletten bereinigen“ und „CSV-Export“ an `jobs.length === 0` gekoppelt** (JobList.tsx): Ein Statusfilter ohne Treffer sperrt sie, obwohl beide auf dem ganzen Bestand arbeiten. Gleiches Muster wie in #77 bei „Alle neu matchen“ behoben; harmlos, aber inkonsistent. Ggf. mit #76 zusammen.
-12. **Komponenten-Tests:** Es gibt keine DOM-Testumgebung (kein jsdom/happy-dom, vitest `environment: node`). UI-Logik wird daher in reine Funktionen gezogen und dort getestet (`jobScoreFilter.ts`, `bulkMatchButtons.ts`). Ob jsdom eingeführt wird, ist eine offene Architektur-Entscheidung (CodeRabbit fragt danach).
+11. **Taste „n“ in der Job-Liste:** Der Handler prüft keine Modifier, daher löst Ctrl+N dort „Neuer Job“ doppelt aus. Außerdem navigiert „n“ auch bei fokussiertem Filter-Select. Vorbestehend; beim nächsten JobList-PR mitnehmen.
 
 **Lehre aus #77:** Alles, was UI-Zustand anfasst, ist nie „mini“ — solche Fixes gleich als normalen kleinen Feature-PR einplanen.
 
@@ -62,4 +63,4 @@ Gestapelte PRs: Nach Squash-Merge des Basis-PRs den Folge-Branch mit `git rebase
 
 ## Erledigt-Archiv (Kurzform)
 
-Dubletten-Feature + Härtung (#61/#62) inkl. Live-DB-Bereinigung. Skills-Re-Import mit Stable-ID (#60). CSV-Export (#63), Kleinigkeiten Charge 1 (#64), nanobot-Rückkanal (#65) inkl. Inbetriebnahme (Task Scheduler läuft täglich). Dual-URL (#66), Node 20 (#67), Contract-Tests (#68), Wrapper/`npm ci` (#69/#70), Quelle-Dropdown (#73), Truncation-Fix (#74), Job-ID sichtbar (#75), Archived-Ausschluss (#77). Hach-Job 137 bewusst gelöscht.
+Dubletten-Feature + Härtung (#61/#62) inkl. Live-DB-Bereinigung. Skills-Re-Import mit Stable-ID (#60). CSV-Export (#63), Kleinigkeiten Charge 1 (#64), nanobot-Rückkanal (#65) inkl. Inbetriebnahme (Task Scheduler läuft täglich). Dual-URL (#66), Node 20 (#67), Contract-Tests (#68), Wrapper/`npm ci` (#69/#70), Quelle-Dropdown (#73), Truncation-Fix (#74), Job-ID sichtbar (#75), Archived-Ausschluss (#77), Bulk-Status + `outdated` (#79, #78), Ruleset aufgeräumt (11/2026). Hach-Job 137 bewusst gelöscht.
