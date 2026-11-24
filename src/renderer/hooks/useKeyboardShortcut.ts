@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from 'react';
+import { isTypingTarget } from '../utils/shortcutFocus';
 
 interface ShortcutOptions {
   disabled?: boolean;
@@ -45,9 +46,7 @@ export function useKeyboardShortcut(
       const keyMatch = event.key.toLowerCase() === key;
 
       // Don't trigger if user is typing in an input/textarea (unless it's a save shortcut)
-      const isTyping = ['INPUT', 'TEXTAREA'].includes(
-        (event.target as HTMLElement)?.tagName
-      );
+      const isTyping = isTypingTarget(event.target as HTMLInputElement | null);
       const isSaveShortcut = shortcut.toLowerCase() === 'ctrl+s';
 
       if (isTyping && !isSaveShortcut) return;
