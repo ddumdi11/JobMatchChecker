@@ -13,7 +13,8 @@
   - **#74** Truncation-Fix: abgeschnittene Matching-Antworten erkennen (max_tokens 2000 → 8000, Listen im Prompt begrenzt, ehrliche Fehlermeldung statt „Bitte erneut versuchen“). Auslöser: Job 406 — Expert DevSecOps Process Automation.
   - **#75** Job-ID sichtbar: ID-Spalte (umschaltbar, pro Rechner gemerkt), `#ID · Titel` in Kopfzeilen und Bulk-Ergebnis (`formatJobRef`), alle Sortierköpfe tastaturbedienbar (`TableSortLabel`), Fehler-Normalisierung im Batch.
   - **#77** Archivierte Jobs vom Matching ausgeschlossen (Neue/Alle/Ausgewählte + Zähler, gemeinsame Bedingung in `matchingSelection.ts`). Zähler DB-weit statt aus der gefilterten Liste; Ladefehler wird als „unbekannt“ angezeigt (Hinweis + „Erneut versuchen“), nie als „Alle gematcht“. Listenfilter „Alle“ bewusst unverändert (→ #76).
-  - **#79** Bulk-Aktion „Status setzen (N)“ in der Job-Liste (nur sichtbare Auswahl, eine Transaktion, kein Löschen) + neuer Status `outdated` („nie bearbeitet, veraltet“; vom Matching ausgeschlossen wie `archived`; Vorgriff auf #76). Status zentral in `src/shared/jobStatus.ts`, keine Migration. Altersfilter „Älter als (Tage)“. Statusfilter wirkt sofort und client-seitig, „Filter anwenden“ entfällt (schließt #78). Ctrl+N bei offenem Dialog gesperrt (in der App noch nicht geprüft).
+  - **#79** Bulk-Aktion „Status setzen (N)“ in der Job-Liste (nur sichtbare Auswahl, eine Transaktion, kein Löschen) + neuer Status `outdated` („nie bearbeitet, veraltet“; vom Matching ausgeschlossen wie `archived`; Vorgriff auf #76). Status zentral in `src/shared/jobStatus.ts`, keine Migration. Altersfilter „Älter als (Tage)“. Statusfilter wirkt sofort und client-seitig, „Filter anwenden“ entfällt (schließt #78). Ctrl+N bei offenem Dialog gesperrt (in der App geprüft).
+  - **#80** „n“ und Ctrl+N öffnen „Neuer Job“ auch bei fokussiertem Kästchen (`shortcutFocus.ts`); Entf/Backspace bleiben dort gesperrt. In der App geprüft.
 
 ## Merge-Hinweis (wichtig, spart Rätselraten)
 
@@ -30,9 +31,7 @@ Gestapelte PRs: Nach Squash-Merge des Basis-PRs den Folge-Branch mit `git rebase
 
 ## Thorsten-Zettel (manuell, klein)
 
-1. **Export-Task:** Bei „JMC Export zu nanobot-workspace (Syncthing)“ (täglich 06:00) das Häkchen „Aufgabe so schnell wie möglich nach einem verpassten Start ausführen“ setzen (Aufgabenplanung als Admin → Einstellungen). Der Doppel-Task ist geklärt: Thorsten hat den falschen Pfad korrigiert und die Dublette gelöscht. Ein verpasster Tag ist harmlos (90-Tage-Schnappschuss).
-2. **Cowork-Task** `nanobot-export-job-match-checker-app` prüfen: Er schrieb die (gelöschten) Fehlerberichte in `tools/nanobot-export/`, zuletzt am 23.10.2026.
-3. Gelegentlich: alte DB-Kopien in `data/` prunen; Sprachen-Jahre (Deutsch 40/Englisch 25, geschätzt) prüfen.
+1. Gelegentlich: alte DB-Kopien in `data/` prunen; Sprachen-Jahre (Deutsch 40/Englisch 25, geschätzt) prüfen.
 
 ## Kleinigkeiten-Liste, zweite Charge (offen)
 
@@ -46,7 +45,7 @@ Gestapelte PRs: Nach Squash-Merge des Basis-PRs den Folge-Branch mit `git rebase
 8. **PreferencesPanel: englische Labels → Deutsch** (alter CodeRabbit-Nitpick).
 9. **CI-Status-Badge ins README** (neben License/Electron/React, wenn ohnehin am README gearbeitet wird).
 10. **Formular-Alias `source_url` umbenennen** (JobAdd.tsx/jobStore.ts → z. B. `formUrl`): lokaler Feldname für `url`, kollidiert namentlich mit der DB-Spalte `source_url` aus #66 (roher Tracking-Link, andere Semantik).
-11. **Taste „n“ in der Job-Liste:** Der Handler prüft keine Modifier, daher löst Ctrl+N dort „Neuer Job“ doppelt aus. Außerdem navigiert „n“ auch bei fokussiertem Filter-Select. Vorbestehend; beim nächsten JobList-PR mitnehmen.
+11. **Taste „n“ bei fokussiertem Filter-Select** (Job-Liste) navigiert zu „Neuer Job“. Vorbestehend, harmlos; beim nächsten JobList-PR mitnehmen.
 
 **Lehre aus #77:** Alles, was UI-Zustand anfasst, ist nie „mini“ — solche Fixes gleich als normalen kleinen Feature-PR einplanen.
 
@@ -63,4 +62,4 @@ Gestapelte PRs: Nach Squash-Merge des Basis-PRs den Folge-Branch mit `git rebase
 
 ## Erledigt-Archiv (Kurzform)
 
-Dubletten-Feature + Härtung (#61/#62) inkl. Live-DB-Bereinigung. Skills-Re-Import mit Stable-ID (#60). CSV-Export (#63), Kleinigkeiten Charge 1 (#64), nanobot-Rückkanal (#65) inkl. Inbetriebnahme (Task Scheduler läuft täglich). Dual-URL (#66), Node 20 (#67), Contract-Tests (#68), Wrapper/`npm ci` (#69/#70), Quelle-Dropdown (#73), Truncation-Fix (#74), Job-ID sichtbar (#75), Archived-Ausschluss (#77), Bulk-Status + `outdated` (#79, #78), Ruleset aufgeräumt (11/2026). Hach-Job 137 bewusst gelöscht.
+Dubletten-Feature + Härtung (#61/#62) inkl. Live-DB-Bereinigung. Skills-Re-Import mit Stable-ID (#60). CSV-Export (#63), Kleinigkeiten Charge 1 (#64), nanobot-Rückkanal (#65) inkl. Inbetriebnahme (Task Scheduler läuft täglich). Dual-URL (#66), Node 20 (#67), Contract-Tests (#68), Wrapper/`npm ci` (#69/#70), Quelle-Dropdown (#73), Truncation-Fix (#74), Job-ID sichtbar (#75), Archived-Ausschluss (#77), Bulk-Status + `outdated` (#79, #78), Ruleset aufgeräumt (11/2026), Kästchen-Tasten (#80). Export-Task: Dublette gelöscht, Nachholen nach verpasstem Start aktiv, Cowork-Tasks gelöscht (11/2026). Export ist ein zustandsloser 90-Tage-Schnappschuss, ein verpasster Tag ist harmlos. Hach-Job 137 bewusst gelöscht.
