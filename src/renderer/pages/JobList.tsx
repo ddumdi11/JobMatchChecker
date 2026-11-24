@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useKeyboardShortcut } from '../hooks/useKeyboardShortcut';
+import { blocksListKey } from '../utils/shortcutFocus';
 import type { AgeFilter, BulkMatchResult, JobStatus, ScoreFilter, VisibleSelection } from '../../shared/types';
 import { JOB_STATUS_DEFINITIONS, getJobStatusDefinition } from '../../shared/jobStatus';
 import { filterJobsByScore } from '../utils/jobScoreFilter';
@@ -554,8 +555,8 @@ export default function JobList() {
       return;
     }
 
-    // Don't handle other shortcuts when typing in input
-    if (isInputFocused) return;
+    // Don't handle other shortcuts when typing in input (checkbox: only "n" is allowed)
+    if (blocksListKey(activeElement as HTMLInputElement | null, event.key)) return;
 
     const jobCount = paginatedJobs.length;
     if (jobCount === 0) return;
