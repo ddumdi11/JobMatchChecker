@@ -27,7 +27,10 @@ import DuplicateWarningDialog from '../components/DuplicateWarningDialog';
 import { extractUrls, detectSourceIdFromText, extractOfferUrlFromText } from '../../shared/urlUtils';
 import { getYesterdayLocalIso, resolveSourceSelection } from '../../shared/jobFormDefaults';
 import { formatGermanDate, formatScore, formatJobRef } from '../../shared/formatUtils';
-import type { JobDuplicateMatch, JobDuplicateCheckResult, JobSourceOption } from '../../shared/types';
+import type { JobDuplicateMatch, JobDuplicateCheckResult, JobSourceOption, TextCutResolution } from '../../shared/types';
+import { findTextCut, resolveTextCut, textCutToStore, NO_TEXT_CUT } from '../../shared/textCut';
+import { useTextCutMarkers } from '../hooks/useTextCutMarkers';
+import TextCutNotice from '../components/TextCutNotice';
 
 /**
  * JobAdd Page - Add new job offers with AI extraction
@@ -132,7 +135,9 @@ export default function JobAdd() {
     remote_percentage: undefined as number | undefined,
     sourceId: '' as number | '',
     source_url: '',
-    status: 'new' as const
+    status: 'new' as const,
+    // true = Schnitt am Textende bewusst abgewählt (full_text_cut = 0)
+    textCutDisabled: false
   });
 
   // Pflichtfelder fürs Speichern (Quelle + Datum zusätzlich zu Titel/Firma)
@@ -142,6 +147,25 @@ export default function JobAdd() {
 
   // Track initial data to detect changes (Issue #12)
   const [initialFormData, setInitialFormData] = useState(formData);
+
+  // Textschnitt (Rauschen am Ende): Vorschlag nach Markerliste, abwählbar.
+  // Beim Bearbeiten mit unverändertem Text zählt ein gespeicherter Schnitt,
+  // auch wenn kein Marker mehr passt – sonst wäre er nicht abwählbar.
+  const { markers: cutMarkers, loaded: cutMarkersLoaded } = useTextCutMarkers();
+  const storedCut = isEditMode ? currentJob?.fullTextCut : null;
+  const descriptionUnchanged = isEditMode && formData.description === initialFormData.description;
+  const proposedCut = React.useMemo((): { position: number; marker: string | null } | null => {
+    if (descriptionUnchanged && typeof storedCut === 'number' && storedCut > 0) {
+      const stored = resolveTextCut(formData.description, storedCut, cutMarkers);
+      if (stored.source === 'stored' && stored.position !== null) {
+        return { position: stored.position, marker: stored.marker };
+      }
+    }
+    return cutMarkersLoaded ? findTextCut(formData.description, cutMarkers) : null;
+  }, [descriptionUnchanged, storedCut, cutMarkersLoaded, cutMarkers, formData.description]);
+  const formCut: TextCutResolution = proposedCut && !formData.textCutDisabled
+    ? { position: proposedCut.position, marker: proposedCut.marker, source: 'rule' }
+    : { position: null, marker: proposedCut?.marker ?? null, source: 'disabled' };
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Load job data in edit mode, or reset form in add mode
@@ -168,7 +192,8 @@ export default function JobAdd() {
         remote_percentage: undefined,
         sourceId: '',
         source_url: '',
-        status: 'new'
+        status: 'new',
+        textCutDisabled: false
       });
       clearExtractionResult();
     }
@@ -201,7 +226,8 @@ export default function JobAdd() {
         remote_percentage: undefined as number | undefined,
         sourceId: (currentJob.sourceId ?? '') as number | '',
         source_url: currentJob.url || '',
-        status: (currentJob.status || 'new') as 'new'
+        status: (currentJob.status || 'new') as 'new',
+        textCutDisabled: currentJob.fullTextCut === NO_TEXT_CUT
       };
       setShowForm(true);
       setFormData(loadedData);
@@ -215,20 +241,6 @@ export default function JobAdd() {
     const hasChanges = JSON.stringify(formData) !== JSON.stringify(initialFormData);
     setHasUnsavedChanges(hasChanges);
   }, [formData, initialFormData]);
-
-  // Sync with UnsavedChangesContext (Issue #12)
-  // Don't mark as dirty if save was successful (prevents blocker during navigation)
-  useEffect(() => {
-    const shouldBeDirty = hasUnsavedChanges && showForm && !saveSuccessful;
-    setIsDirty(shouldBeDirty);
-
-    // Provide save action only if form is valid
-    if (shouldBeDirty && requiredFilled) {
-      setOnSave(handleSave);
-    } else {
-      setOnSave(undefined);
-    }
-  }, [hasUnsavedChanges, showForm, saveSuccessful, requiredFilled, setIsDirty, setOnSave]);
 
   // Drag & drop state
   const [isDragging, setIsDragging] = useState(false);
@@ -471,7 +483,8 @@ export default function JobAdd() {
           detectedSourceId
         }),
         source_url: offerUrl || (fields as any).url || '',
-        status: 'new'
+        status: 'new',
+        textCutDisabled: false
       }));
       setShowForm(true);
     } else if (extractionResult && !extractionResult.success) {
@@ -546,12 +559,28 @@ export default function JobAdd() {
     setIsSaving(true);
 
     try {
+      // Textschnitt: Ohne geladene Markerliste nur die bewusste Abwahl erhalten,
+      // sonst gilt zur Laufzeit die Regel (null).
+      // Beim Bearbeiten mit unverändertem Text und unveränderter Auswahl nichts
+      // mitschicken: Der gespeicherte Schnitt bleibt (auch ohne geladene Liste).
+      const { textCutDisabled, ...fields } = formData;
+      const cutUnchanged = isEditMode
+        && fields.description === initialFormData.description
+        && textCutDisabled === initialFormData.textCutDisabled;
+      const payload = {
+        ...fields,
+        fullTextCut: cutUnchanged
+          ? undefined
+          : cutMarkersLoaded
+            ? textCutToStore(fields.description, cutMarkers, textCutDisabled)
+            : (textCutDisabled ? NO_TEXT_CUT : null)
+      };
       if (isEditMode && id) {
         // Update existing job
-        await updateJob(parseInt(id, 10), formData);
+        await updateJob(parseInt(id, 10), payload);
       } else {
         // Create new job
-        await createJob(formData);
+        await createJob(payload);
       }
 
       // Mark save as successful - this will trigger useEffect to clear dirty state
@@ -570,7 +599,7 @@ export default function JobAdd() {
       console.error('Failed to save job:', err);
       setIsSaving(false); // Re-enable save button on error
     }
-  }, [formData, isEditMode, id, updateJob, createJob, setIsDirty, navigate, clearExtractionResult]);
+  }, [formData, initialFormData, cutMarkers, cutMarkersLoaded, isEditMode, id, updateJob, createJob, setIsDirty, navigate, clearExtractionResult]);
 
   // Handle save – prüft beim Neuanlegen VOR dem Speichern auf sichere Dubletten
   // (blockierend). Mögliche Dubletten sind nicht blockierend (Hinweis im Formular).
@@ -627,6 +656,22 @@ export default function JobAdd() {
 
     await doSave();
   }, [isSaving, requiredFilled, formData.title, formData.company, formData.source_url, isEditMode, doSave]);
+
+  // Sync with UnsavedChangesContext (Issue #12)
+  // Don't mark as dirty if save was successful (prevents blocker during navigation).
+  // Steht hinter handleSave und hängt davon ab, damit der Dialog beim Verlassen
+  // den aktuellen Formularstand speichert, nicht den beim ersten Dirty-Werden.
+  useEffect(() => {
+    const shouldBeDirty = hasUnsavedChanges && showForm && !saveSuccessful;
+    setIsDirty(shouldBeDirty);
+
+    // Provide save action only if form is valid
+    if (shouldBeDirty && requiredFilled) {
+      setOnSave(handleSave);
+    } else {
+      setOnSave(undefined);
+    }
+  }, [hasUnsavedChanges, showForm, saveSuccessful, requiredFilled, handleSave, setIsDirty, setOnSave]);
 
   // Keyboard shortcut: Ctrl+S for save
   const canSave = showForm && requiredFilled && !isSaving;
@@ -695,7 +740,8 @@ export default function JobAdd() {
       remote_percentage: undefined,
       sourceId: '',
       source_url: '',
-      status: 'new'
+      status: 'new',
+      textCutDisabled: false
     });
     setShowForm(false);
     setFormDuplicates(null);
@@ -991,6 +1037,14 @@ export default function JobAdd() {
               rows={4}
               fullWidth
             />
+            {proposedCut && (
+              <TextCutNotice
+                text={formData.description}
+                cut={formCut}
+                proposedPosition={proposedCut.position}
+                onToggle={apply => setFormData(prev => ({ ...prev, textCutDisabled: !apply }))}
+              />
+            )}
 
             {/* Requirements */}
             <TextField

@@ -64,6 +64,9 @@ import { useJobStore } from '../store/jobStore';
 import type { JobStatus } from '../../shared/types';
 import { getJobStatusDefinition } from '../../shared/jobStatus';
 import { formatJobId, JOB_REF_SEPARATOR } from '../../shared/formatUtils';
+import { resolveTextCut } from '../../shared/textCut';
+import { useTextCutMarkers } from '../hooks/useTextCutMarkers';
+import TextCutNotice from '../components/TextCutNotice';
 
 /**
  * JobDetail Page - Display full details of a single job offer
@@ -78,6 +81,7 @@ export default function JobDetail() {
   const getJobById = useJobStore(state => state.getJobById);
   const updateJob = useJobStore(state => state.updateJob);
   const deleteJob = useJobStore(state => state.deleteJob);
+  const { markers: cutMarkers, loaded: cutMarkersLoaded } = useTextCutMarkers();
   const isLoading = useJobStore(state => state.isLoading);
   const error = useJobStore(state => state.error);
 
@@ -548,9 +552,25 @@ export default function JobDetail() {
                   Stellenbeschreibung
                 </Typography>
               </Box>
-              <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
-                {currentJob.fullText}
-              </Typography>
+              {(() => {
+                // Rauschen am Textende: Matching und Export nutzen nur den Teil davor
+                const cut = cutMarkersLoaded
+                  ? resolveTextCut(currentJob.fullText, currentJob.fullTextCut, cutMarkers)
+                  : null;
+                const text = currentJob.fullText;
+                return (
+                  <>
+                    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                      {cut?.position != null ? text.slice(0, cut.position) : text}
+                    </Typography>
+                    {cut?.position != null && (
+                      <Box sx={{ mt: 2 }}>
+                        <TextCutNotice text={text} cut={cut} />
+                      </Box>
+                    )}
+                  </>
+                );
+              })()}
             </Paper>
           )}
 

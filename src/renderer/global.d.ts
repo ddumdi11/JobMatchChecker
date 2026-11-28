@@ -13,6 +13,7 @@ interface Window {
     getJobSources: () => Promise<import('../shared/types').JobSourceOption[]>;
     getOrCreateJobSource: (name: string) => Promise<{ id: number; name: string }>;
     getJobStatusOptions: () => Promise<Array<{ value: string; label: string }>>;
+    getTextCutMarkers: () => Promise<string[]>;
     bulkUpdateJobStatus: (
       jobIds: number[],
       status: import('../shared/types').JobStatus

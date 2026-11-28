@@ -12,6 +12,7 @@ import * as matchingService from '../services/matchingService';
 import * as importService from '../services/importService';
 import * as skillsImportService from '../services/skillsImportService';
 import * as exportService from '../services/exportService';
+import { getTextCutMarkers } from '../services/textCutService';
 import * as aiProviderService from '../services/aiProviderService';
 
 const store = new Store();
@@ -94,6 +95,15 @@ export function registerIpcHandlers() {
       return await jobService.getJobStatusOptions();
     } catch (error: any) {
       log.error('Error in getJobStatusOptions:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('getTextCutMarkers', async () => {
+    try {
+      return getTextCutMarkers();
+    } catch (error: any) {
+      log.error('Error in getTextCutMarkers:', error);
       throw error;
     }
   });
