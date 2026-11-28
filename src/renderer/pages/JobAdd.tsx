@@ -233,20 +233,6 @@ export default function JobAdd() {
     setHasUnsavedChanges(hasChanges);
   }, [formData, initialFormData]);
 
-  // Sync with UnsavedChangesContext (Issue #12)
-  // Don't mark as dirty if save was successful (prevents blocker during navigation)
-  useEffect(() => {
-    const shouldBeDirty = hasUnsavedChanges && showForm && !saveSuccessful;
-    setIsDirty(shouldBeDirty);
-
-    // Provide save action only if form is valid
-    if (shouldBeDirty && requiredFilled) {
-      setOnSave(handleSave);
-    } else {
-      setOnSave(undefined);
-    }
-  }, [hasUnsavedChanges, showForm, saveSuccessful, requiredFilled, setIsDirty, setOnSave]);
-
   // Drag & drop state
   const [isDragging, setIsDragging] = useState(false);
 
@@ -566,12 +552,19 @@ export default function JobAdd() {
     try {
       // Textschnitt: Ohne geladene Markerliste nur die bewusste Abwahl erhalten,
       // sonst gilt zur Laufzeit die Regel (null).
+      // Beim Bearbeiten mit unverändertem Text und unveränderter Auswahl nichts
+      // mitschicken: Der gespeicherte Schnitt bleibt (auch ohne geladene Liste).
       const { textCutDisabled, ...fields } = formData;
+      const cutUnchanged = isEditMode
+        && fields.description === initialFormData.description
+        && textCutDisabled === initialFormData.textCutDisabled;
       const payload = {
         ...fields,
-        fullTextCut: cutMarkersLoaded
-          ? textCutToStore(fields.description, cutMarkers, textCutDisabled)
-          : (textCutDisabled ? NO_TEXT_CUT : null)
+        fullTextCut: cutUnchanged
+          ? undefined
+          : cutMarkersLoaded
+            ? textCutToStore(fields.description, cutMarkers, textCutDisabled)
+            : (textCutDisabled ? NO_TEXT_CUT : null)
       };
       if (isEditMode && id) {
         // Update existing job
@@ -597,7 +590,7 @@ export default function JobAdd() {
       console.error('Failed to save job:', err);
       setIsSaving(false); // Re-enable save button on error
     }
-  }, [formData, cutMarkers, cutMarkersLoaded, isEditMode, id, updateJob, createJob, setIsDirty, navigate, clearExtractionResult]);
+  }, [formData, initialFormData, cutMarkers, cutMarkersLoaded, isEditMode, id, updateJob, createJob, setIsDirty, navigate, clearExtractionResult]);
 
   // Handle save – prüft beim Neuanlegen VOR dem Speichern auf sichere Dubletten
   // (blockierend). Mögliche Dubletten sind nicht blockierend (Hinweis im Formular).
@@ -654,6 +647,22 @@ export default function JobAdd() {
 
     await doSave();
   }, [isSaving, requiredFilled, formData.title, formData.company, formData.source_url, isEditMode, doSave]);
+
+  // Sync with UnsavedChangesContext (Issue #12)
+  // Don't mark as dirty if save was successful (prevents blocker during navigation).
+  // Steht hinter handleSave und hängt davon ab, damit der Dialog beim Verlassen
+  // den aktuellen Formularstand speichert, nicht den beim ersten Dirty-Werden.
+  useEffect(() => {
+    const shouldBeDirty = hasUnsavedChanges && showForm && !saveSuccessful;
+    setIsDirty(shouldBeDirty);
+
+    // Provide save action only if form is valid
+    if (shouldBeDirty && requiredFilled) {
+      setOnSave(handleSave);
+    } else {
+      setOnSave(undefined);
+    }
+  }, [hasUnsavedChanges, showForm, saveSuccessful, requiredFilled, handleSave, setIsDirty, setOnSave]);
 
   // Keyboard shortcut: Ctrl+S for save
   const canSave = showForm && requiredFilled && !isSaving;

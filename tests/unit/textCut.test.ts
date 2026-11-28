@@ -94,10 +94,14 @@ describe('getEffectiveText', () => {
 });
 
 describe('textCutToStore (Formular)', () => {
-  it('übernimmt den Schnitt, die Abwahl oder lässt die Regel gelten', () => {
+  it('übernimmt den Schnitt oder lässt ohne Marker die Regel gelten', () => {
     expect(textCutToStore(TEXT, MARKERS, false)).toBe(AD.length);
-    expect(textCutToStore(TEXT, MARKERS, true)).toBe(NO_TEXT_CUT);
     expect(textCutToStore(AD, MARKERS, false)).toBeNull();
-    expect(textCutToStore(AD, MARKERS, true)).toBeNull();
+  });
+
+  it('bewusste Abwahl hat Vorrang, auch ohne passenden Marker', () => {
+    expect(textCutToStore(TEXT, MARKERS, true)).toBe(NO_TEXT_CUT);
+    expect(textCutToStore(AD, MARKERS, true)).toBe(NO_TEXT_CUT);
+    expect(textCutToStore(TEXT, [], true)).toBe(NO_TEXT_CUT);
   });
 });

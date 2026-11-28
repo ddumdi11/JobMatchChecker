@@ -73,15 +73,15 @@ export function getEffectiveText(
 }
 
 /**
- * Wert für full_text_cut beim Speichern aus dem Formular: Schnitt übernehmen,
- * bewusst abgewählt (0) oder kein Marker gefunden (null = Regel gilt weiter).
+ * Wert für full_text_cut beim Speichern aus dem Formular: bewusst abgewählt (0,
+ * hat Vorrang), Schnitt übernehmen oder kein Marker gefunden (null = Regel gilt weiter).
  */
 export function textCutToStore(
   text: string,
   markers: readonly string[],
   cutDisabled: boolean
 ): number | null {
+  if (cutDisabled) return NO_TEXT_CUT;
   const found = findTextCut(text, markers);
-  if (!found) return null;
-  return cutDisabled ? NO_TEXT_CUT : found.position;
+  return found ? found.position : null;
 }

@@ -92,6 +92,15 @@ describe('jobService: full_text_cut', () => {
     expect(storedCut(job.id)).toBeNull();
   });
 
+  it('derselbe Text ohne eigene Angabe lässt den Schnitt stehen', async () => {
+    const off = await jobService.createJob(input({ fullTextCut: NO_TEXT_CUT }));
+    const cut = await jobService.createJob(input({ fullTextCut: AD.length }));
+    await jobService.updateJob(off.id, { fullText: TEXT, title: 'Neu' });
+    await jobService.updateJob(cut.id, { fullText: TEXT });
+    expect(storedCut(off.id)).toBe(NO_TEXT_CUT);
+    expect(storedCut(cut.id)).toBe(AD.length);
+  });
+
   it('andere Änderungen lassen den Schnitt stehen', async () => {
     const job = await jobService.createJob(input({ fullTextCut: NO_TEXT_CUT }));
     await jobService.updateJob(job.id, { status: 'interesting' });

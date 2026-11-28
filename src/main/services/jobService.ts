@@ -411,7 +411,9 @@ export async function updateJob(id: number, data: Partial<JobOfferInput>): Promi
   const db = getDatabase();
 
   // Check if job exists
-  const existing = db.prepare('SELECT id FROM job_offers WHERE id = ?').get(id);
+  const existing = db.prepare('SELECT id, full_text FROM job_offers WHERE id = ?').get(id) as
+    | { id: number; full_text: string | null }
+    | undefined;
   if (!existing) {
     throw new NotFoundError('job_offer', id);
   }
@@ -505,7 +507,7 @@ export async function updateJob(id: number, data: Partial<JobOfferInput>): Promi
   if (data.fullTextCut !== undefined) {
     updates.push('full_text_cut = ?');
     params.push(data.fullTextCut);
-  } else if (data.fullText !== undefined) {
+  } else if (data.fullText !== undefined && (data.fullText || null) !== existing.full_text) {
     updates.push('full_text_cut = NULL');
   }
 
