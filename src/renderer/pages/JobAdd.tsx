@@ -28,7 +28,7 @@ import { extractUrls, detectSourceIdFromText, extractOfferUrlFromText } from '..
 import { getYesterdayLocalIso, resolveSourceSelection } from '../../shared/jobFormDefaults';
 import { formatGermanDate, formatScore, formatJobRef } from '../../shared/formatUtils';
 import type { JobDuplicateMatch, JobDuplicateCheckResult, JobSourceOption, TextCutResolution } from '../../shared/types';
-import { findTextCut, textCutToStore, NO_TEXT_CUT } from '../../shared/textCut';
+import { findTextCut, resolveTextCut, textCutToStore, NO_TEXT_CUT } from '../../shared/textCut';
 import { useTextCutMarkers } from '../hooks/useTextCutMarkers';
 import TextCutNotice from '../components/TextCutNotice';
 
@@ -146,17 +146,26 @@ export default function JobAdd() {
   );
 
   // Track initial data to detect changes (Issue #12)
-  // Textschnitt (Rauschen am Ende): Vorschlag nach Markerliste, abwählbar
+  const [initialFormData, setInitialFormData] = useState(formData);
+
+  // Textschnitt (Rauschen am Ende): Vorschlag nach Markerliste, abwählbar.
+  // Beim Bearbeiten mit unverändertem Text zählt ein gespeicherter Schnitt,
+  // auch wenn kein Marker mehr passt – sonst wäre er nicht abwählbar.
   const { markers: cutMarkers, loaded: cutMarkersLoaded } = useTextCutMarkers();
-  const proposedCut = React.useMemo(
-    () => (cutMarkersLoaded ? findTextCut(formData.description, cutMarkers) : null),
-    [cutMarkersLoaded, cutMarkers, formData.description]
-  );
+  const storedCut = isEditMode ? currentJob?.fullTextCut : null;
+  const descriptionUnchanged = isEditMode && formData.description === initialFormData.description;
+  const proposedCut = React.useMemo((): { position: number; marker: string | null } | null => {
+    if (descriptionUnchanged && typeof storedCut === 'number' && storedCut > 0) {
+      const stored = resolveTextCut(formData.description, storedCut, cutMarkers);
+      if (stored.source === 'stored' && stored.position !== null) {
+        return { position: stored.position, marker: stored.marker };
+      }
+    }
+    return cutMarkersLoaded ? findTextCut(formData.description, cutMarkers) : null;
+  }, [descriptionUnchanged, storedCut, cutMarkersLoaded, cutMarkers, formData.description]);
   const formCut: TextCutResolution = proposedCut && !formData.textCutDisabled
     ? { position: proposedCut.position, marker: proposedCut.marker, source: 'rule' }
     : { position: null, marker: proposedCut?.marker ?? null, source: 'disabled' };
-
-  const [initialFormData, setInitialFormData] = useState(formData);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Load job data in edit mode, or reset form in add mode
