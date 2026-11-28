@@ -130,6 +130,14 @@ export interface JobStatusDefinition {
   color: 'default' | 'error' | 'info' | 'success' | 'warning';
 }
 
+/** Welcher Textschnitt gilt (src/shared/textCut.ts) */
+export interface TextCutResolution {
+  position: number | null;
+  marker: string | null;
+  // stored = gespeichert, rule = nach Markerliste, disabled = bewusst kein Schnitt, none = kein Marker
+  source: 'stored' | 'rule' | 'disabled' | 'none';
+}
+
 /** Ergebnis der Bulk-Status-Änderung */
 export interface BulkStatusUpdateResult {
   updated: number;
@@ -162,6 +170,8 @@ export interface JobOffer {
   salaryRange?: string | null;
   contractType?: string | null;
   fullText?: string | null;
+  // Schnittposition im fullText (src/shared/textCut.ts): null = Regel, 0 = bewusst kein Schnitt
+  fullTextCut?: number | null;
   rawImportData?: string | null;
   importMethod?: ImportMethod | null;
   notes?: string | null;

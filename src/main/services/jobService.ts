@@ -153,6 +153,13 @@ function validateJobData(data: Partial<JobOfferInput>, isUpdate = false): void {
   }
 
   // BR-6: Match score range (0-100)
+  // Textschnitt: null = Regel, 0 = bewusst kein Schnitt, > 0 = Position
+  if (data.fullTextCut !== undefined && data.fullTextCut !== null) {
+    if (!Number.isInteger(data.fullTextCut) || data.fullTextCut < 0) {
+      throw new ValidationError('fullTextCut', 'Text cut must be a non-negative integer');
+    }
+  }
+
   if (data.matchScore !== undefined && data.matchScore !== null) {
     if (typeof data.matchScore !== 'number' || data.matchScore < 0 || data.matchScore > 100) {
       throw new ValidationError('matchScore', 'Match score must be between 0 and 100');
@@ -188,6 +195,7 @@ function rowToJobOffer(row: any): JobOffer {
     salaryRange: row.salary_range || undefined,
     contractType: row.contract_type || undefined,
     fullText: row.full_text || undefined,
+    fullTextCut: row.full_text_cut ?? null,
     rawImportData: row.raw_import_data || undefined,
     importMethod: row.import_method as any || undefined,
     notes: row.notes || undefined,
@@ -211,8 +219,8 @@ export async function createJob(data: JobOfferInput): Promise<JobOffer> {
     INSERT INTO job_offers (
       source_id, title, company, url, source_url, message_id, posted_date, deadline,
       location, remote_option, salary_range, contract_type,
-      full_text, raw_import_data, import_method, notes, status, match_score
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      full_text, full_text_cut, raw_import_data, import_method, notes, status, match_score
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   // Normalize dates to ISO strings
@@ -241,6 +249,7 @@ export async function createJob(data: JobOfferInput): Promise<JobOffer> {
     data.salaryRange || null,
     data.contractType || null,
     data.fullText || null,
+    data.fullTextCut ?? null,
     data.rawImportData || null,
     data.importMethod || null,
     data.notes || null,
@@ -489,6 +498,15 @@ export async function updateJob(id: number, data: Partial<JobOfferInput>): Promi
   if (data.fullText !== undefined) {
     updates.push('full_text = ?');
     params.push(data.fullText || null);
+  }
+
+  // Schnitt passt nur zum Text, für den er gesetzt wurde: Neuer Text ohne
+  // eigene Angabe → wieder "noch nie bewertet" (Regel gilt zur Laufzeit).
+  if (data.fullTextCut !== undefined) {
+    updates.push('full_text_cut = ?');
+    params.push(data.fullTextCut);
+  } else if (data.fullText !== undefined) {
+    updates.push('full_text_cut = NULL');
   }
 
   if (data.rawImportData !== undefined) {

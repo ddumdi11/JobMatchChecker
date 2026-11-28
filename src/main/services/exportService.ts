@@ -4,6 +4,7 @@
  */
 
 import { getDatabase } from '../database/db';
+import { getEffectiveFullText } from './textCutService';
 import * as log from 'electron-log';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -92,7 +93,7 @@ export function getJobExportData(jobId: number): JobExportData {
     deadline: job.deadline ? new Date(job.deadline) : undefined,
     url: job.url,
     sourceName: job.source_name,
-    fullText: job.full_text,
+    fullText: getEffectiveFullText(job), // ohne Rauschen am Textende
     notes: job.notes,
     status: job.status,
     matchScore: job.match_score

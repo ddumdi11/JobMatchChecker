@@ -27,7 +27,10 @@ import DuplicateWarningDialog from '../components/DuplicateWarningDialog';
 import { extractUrls, detectSourceIdFromText, extractOfferUrlFromText } from '../../shared/urlUtils';
 import { getYesterdayLocalIso, resolveSourceSelection } from '../../shared/jobFormDefaults';
 import { formatGermanDate, formatScore, formatJobRef } from '../../shared/formatUtils';
-import type { JobDuplicateMatch, JobDuplicateCheckResult, JobSourceOption } from '../../shared/types';
+import type { JobDuplicateMatch, JobDuplicateCheckResult, JobSourceOption, TextCutResolution } from '../../shared/types';
+import { findTextCut, textCutToStore, NO_TEXT_CUT } from '../../shared/textCut';
+import { useTextCutMarkers } from '../hooks/useTextCutMarkers';
+import TextCutNotice from '../components/TextCutNotice';
 
 /**
  * JobAdd Page - Add new job offers with AI extraction
@@ -132,7 +135,9 @@ export default function JobAdd() {
     remote_percentage: undefined as number | undefined,
     sourceId: '' as number | '',
     source_url: '',
-    status: 'new' as const
+    status: 'new' as const,
+    // true = Schnitt am Textende bewusst abgewählt (full_text_cut = 0)
+    textCutDisabled: false
   });
 
   // Pflichtfelder fürs Speichern (Quelle + Datum zusätzlich zu Titel/Firma)
@@ -141,6 +146,16 @@ export default function JobAdd() {
   );
 
   // Track initial data to detect changes (Issue #12)
+  // Textschnitt (Rauschen am Ende): Vorschlag nach Markerliste, abwählbar
+  const { markers: cutMarkers, loaded: cutMarkersLoaded } = useTextCutMarkers();
+  const proposedCut = React.useMemo(
+    () => (cutMarkersLoaded ? findTextCut(formData.description, cutMarkers) : null),
+    [cutMarkersLoaded, cutMarkers, formData.description]
+  );
+  const formCut: TextCutResolution = proposedCut && !formData.textCutDisabled
+    ? { position: proposedCut.position, marker: proposedCut.marker, source: 'rule' }
+    : { position: null, marker: proposedCut?.marker ?? null, source: 'disabled' };
+
   const [initialFormData, setInitialFormData] = useState(formData);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -168,7 +183,8 @@ export default function JobAdd() {
         remote_percentage: undefined,
         sourceId: '',
         source_url: '',
-        status: 'new'
+        status: 'new',
+        textCutDisabled: false
       });
       clearExtractionResult();
     }
@@ -201,7 +217,8 @@ export default function JobAdd() {
         remote_percentage: undefined as number | undefined,
         sourceId: (currentJob.sourceId ?? '') as number | '',
         source_url: currentJob.url || '',
-        status: (currentJob.status || 'new') as 'new'
+        status: (currentJob.status || 'new') as 'new',
+        textCutDisabled: currentJob.fullTextCut === NO_TEXT_CUT
       };
       setShowForm(true);
       setFormData(loadedData);
@@ -471,7 +488,8 @@ export default function JobAdd() {
           detectedSourceId
         }),
         source_url: offerUrl || (fields as any).url || '',
-        status: 'new'
+        status: 'new',
+        textCutDisabled: false
       }));
       setShowForm(true);
     } else if (extractionResult && !extractionResult.success) {
@@ -546,12 +564,21 @@ export default function JobAdd() {
     setIsSaving(true);
 
     try {
+      // Textschnitt: Ohne geladene Markerliste nur die bewusste Abwahl erhalten,
+      // sonst gilt zur Laufzeit die Regel (null).
+      const { textCutDisabled, ...fields } = formData;
+      const payload = {
+        ...fields,
+        fullTextCut: cutMarkersLoaded
+          ? textCutToStore(fields.description, cutMarkers, textCutDisabled)
+          : (textCutDisabled ? NO_TEXT_CUT : null)
+      };
       if (isEditMode && id) {
         // Update existing job
-        await updateJob(parseInt(id, 10), formData);
+        await updateJob(parseInt(id, 10), payload);
       } else {
         // Create new job
-        await createJob(formData);
+        await createJob(payload);
       }
 
       // Mark save as successful - this will trigger useEffect to clear dirty state
@@ -570,7 +597,7 @@ export default function JobAdd() {
       console.error('Failed to save job:', err);
       setIsSaving(false); // Re-enable save button on error
     }
-  }, [formData, isEditMode, id, updateJob, createJob, setIsDirty, navigate, clearExtractionResult]);
+  }, [formData, cutMarkers, cutMarkersLoaded, isEditMode, id, updateJob, createJob, setIsDirty, navigate, clearExtractionResult]);
 
   // Handle save – prüft beim Neuanlegen VOR dem Speichern auf sichere Dubletten
   // (blockierend). Mögliche Dubletten sind nicht blockierend (Hinweis im Formular).
@@ -695,7 +722,8 @@ export default function JobAdd() {
       remote_percentage: undefined,
       sourceId: '',
       source_url: '',
-      status: 'new'
+      status: 'new',
+      textCutDisabled: false
     });
     setShowForm(false);
     setFormDuplicates(null);
@@ -991,6 +1019,14 @@ export default function JobAdd() {
               rows={4}
               fullWidth
             />
+            {proposedCut && (
+              <TextCutNotice
+                text={formData.description}
+                cut={formCut}
+                proposedPosition={proposedCut.position}
+                onToggle={apply => setFormData(prev => ({ ...prev, textCutDisabled: !apply }))}
+              />
+            )}
 
             {/* Requirements */}
             <TextField

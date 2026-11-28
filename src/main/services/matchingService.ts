@@ -11,6 +11,7 @@ import {
   countJobsForBulkMatching
 } from './matchingSelection';
 import { formatJobRef } from '../../shared/formatUtils';
+import { getEffectiveFullText } from './textCutService';
 import type { BulkMatchResult } from '../../shared/types';
 
 export type { MatchingResult } from './matchingPrompt';
@@ -54,7 +55,11 @@ export async function matchJob(jobId: number): Promise<MatchingResult> {
     }
 
     // 3. Construct Prompt
-    const prompt = buildMatchingPrompt(profile, skills, preferences, job);
+    // Volltext ohne Rauschen am Ende (fremde Anzeigen, Fußzeile); Rohtext bleibt in der DB
+    const prompt = buildMatchingPrompt(profile, skills, preferences, {
+      ...job,
+      full_text: getEffectiveFullText(job)
+    });
 
     // 4. Call AI via provider abstraction
     log.info('Calling AI for job matching...');
